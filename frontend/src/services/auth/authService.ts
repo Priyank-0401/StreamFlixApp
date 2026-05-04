@@ -1,18 +1,44 @@
 import type { LoginRequest, RegisterRequest } from './authTypes';
+import type { User } from '../../types/auth.types';
 
-// Relative URL - proxied through CRA dev server
+// API base URL — proxied to backend by both CRA (setupProxy.js) and Vite (vite.config.ts)
 const API_BASE_URL = '/api';
 
-// Native fetch wrapper that ensures JSESSIONID cookies are always sent/received
-// Returns the Response object so callers can check status and parse body as needed
+/**
+ * Reads the XSRF-TOKEN cookie set by Spring Security's CookieCsrfTokenRepository.
+ * Returns the token value, or null if the cookie is not present.
+ */
+function getCsrfToken(): string | null {
+  const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/**
+ * Native fetch wrapper that ensures:
+ * 1. JSESSIONID cookies are always sent/received (credentials: 'include')
+ * 2. CSRF token is attached as X-XSRF-TOKEN header on mutating requests
+ *
+ * Returns the Response object so callers can check status and parse body as needed.
+ */
 export const fetchWithSession = async (endpoint: string, options: RequestInit = {}) => {
+  const method = (options.method || 'GET').toUpperCase();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  };
+
+  // Attach CSRF token on state-changing requests (Spring Security expects this)
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      headers['X-XSRF-TOKEN'] = csrfToken;
+    }
+  }
+
   const defaultOptions: RequestInit = {
     ...options,
     credentials: 'include', // Extremely vital for Stateful Spring Security Sessions!
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   };
   
   // If endpoint is already a full URL (starts with http), use it directly
@@ -45,42 +71,25 @@ export const fetchWithSession = async (endpoint: string, options: RequestInit = 
   return response;
 };
 
-// Debug helper to check cookie status
-export const debugCookies = () => {
-  const cookies = document.cookie;
-  const hasJSession = cookies.includes('JSESSIONID');
-  console.log('Cookies present:', cookies);
-  console.log('JSESSIONID found:', hasJSession);
-  return { cookies, hasJSession };
-};
-
 export const authService = {
-  customerLogin: async (request: LoginRequest): Promise<any> => {
-    console.log('Attempting customer login...');
+  customerLogin: async (request: LoginRequest): Promise<User> => {
     const response = await fetchWithSession('/customer/login', {
       method: 'POST',
       body: JSON.stringify(request),
     });
-    const user = await response.json();
-    console.log('Login successful, checking cookies...');
-    debugCookies();
-    return user;
+    return response.json();
   },
 
-  managerLogin: async (request: LoginRequest): Promise<any> => {
-    console.log('Attempting manager login...');
+  managerLogin: async (request: LoginRequest): Promise<User> => {
     const response = await fetchWithSession('/manager/login', {
       method: 'POST',
       body: JSON.stringify(request),
     });
-    const user = await response.json();
-    console.log('Login successful, checking cookies...');
-    debugCookies();
-    return user;
+    return response.json();
   },
   // NOTE: There is NO manager/register endpoint - managers are created by admin only
 
-  customerRegister: async (request: RegisterRequest): Promise<any> => {
+  customerRegister: async (request: RegisterRequest): Promise<User> => {
     const response = await fetchWithSession('/customer/register', {
       method: 'POST',
       body: JSON.stringify(request),
@@ -89,25 +98,28 @@ export const authService = {
   },
   
   // Special endpoint to securely resume the session when the page refreshes
-  checkSession: async (): Promise<any> => {
-    console.log('Checking session, cookies before request:');
-    debugCookies();
+  checkSession: async (): Promise<User> => {
     const response = await fetchWithSession('/auth/me', {
       method: 'GET',
     });
-    const user = await response.json();
-    console.log('Session check response:', user);
-    return user;
+    return response.json();
   },
   
   logout: async (): Promise<void> => {
-    // Logout endpoint is proxied
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    // Attach CSRF token for the logout POST request
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      headers['X-XSRF-TOKEN'] = csrfToken;
+    }
+
     const response = await fetch('/logout', {
       method: 'POST',
       credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
     if (!response.ok) {
       const text = await response.text();

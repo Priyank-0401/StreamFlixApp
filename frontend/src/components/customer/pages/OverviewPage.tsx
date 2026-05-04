@@ -16,7 +16,7 @@ import type { Subscription, Invoice, CustomerProfile } from '../../../services/c
 export const OverviewPage: React.FC = () => {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [recentInvoice, setRecentInvoice] = useState<Invoice | null>(null);
-  const [profile, setProfile] = useState<CustomerProfile | null>(null);
+  const [_profile, setProfile] = useState<CustomerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 

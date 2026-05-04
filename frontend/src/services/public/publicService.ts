@@ -1,14 +1,19 @@
-const API_BASE_URL = 'http://localhost:8765/api';
+// API base URL — proxied to backend by both CRA (setupProxy.js) and Vite (vite.config.ts)
+const API_BASE_URL = '/api';
 
 export interface PlanInfo {
   planId: number;
   name: string;
   billingPeriod: 'MONTHLY' | 'YEARLY';
-  priceMinor: number;
-  currency: string;
+  defaultPriceMinor: number;
+  defaultCurrency: string;
   trialDays: number;
-  features: string[];
-  isPopular?: boolean;
+  setupFeeMinor: number;
+  taxMode: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  status: string;
+  productName: string;
 }
 
 async function publicFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -33,7 +38,7 @@ export const publicService = {
   // Fetch all active plans for public display
   getPublicPlans: async (): Promise<PlanInfo[]> => {
     try {
-      return await publicFetch<PlanInfo[]>('/public/plans');
+      return await publicFetch<PlanInfo[]>('/customer/plans/all');
     } catch (error) {
       console.error('Failed to fetch plans:', error);
       // Return fallback plans if API fails

@@ -27,8 +27,6 @@ export const OverviewPage: React.FC = () => {
 
   const loadDashboardData = async () => {
     try {
-      console.log('Loading dashboard data...');
-      
       // Try to get subscription first - if 400/404, user is not a customer yet
       try {
         const [sub, inv, pm] = await Promise.all([
@@ -36,16 +34,13 @@ export const OverviewPage: React.FC = () => {
           CustomerService.getInvoices(),
           CustomerService.getPaymentMethods()
         ]);
-        console.log('Dashboard data loaded:', { subscription: sub, invoices: inv?.length, paymentMethods: pm?.length });
         setSubscription(sub);
         setInvoices(inv.slice(0, 5));
         setPaymentMethods(pm);
         setIsCustomer(true);
       } catch (err: any) {
-        console.log('Customer data fetch error:', err.message);
         // If we get 400 Bad Request or 404, user doesn't have customer record yet
         if (err.message?.includes('400') || err.message?.includes('404') || err.message?.includes('Customer not found')) {
-          console.log('User is not a customer yet, loading available plans...');
           setIsCustomer(false);
         } else {
           throw err;

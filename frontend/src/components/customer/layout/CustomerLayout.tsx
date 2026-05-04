@@ -44,7 +44,7 @@ export const CustomerLayout: React.FC = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Customer searching for:', searchQuery);
+    // TODO: Implement search functionality
   };
 
   // Close dropdown when clicking outside

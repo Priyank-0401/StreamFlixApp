@@ -6,7 +6,7 @@ interface TopBarProps {
   title: string;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ title }) => {
+export const TopBar: React.FC<TopBarProps> = ({ title: _title }) => {
   const { user, logout } = useAuthContext();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,7 +49,6 @@ export const TopBar: React.FC<TopBarProps> = ({ title }) => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     // TODO: Implement search functionality
-    console.log('Searching for:', searchQuery);
   };
 
   return (

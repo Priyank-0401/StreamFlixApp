@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Play, 
-  Monitor,
-  Download,
-  Users,
-  Coffee,
+import {
+  CreditCard,
+  Zap,
+  ShieldCheck,
+  Globe,
   Check
 } from 'lucide-react';
 import '../../styles/LandingPage.css';
 import { useAuthContext } from '../../context/AuthContext';
+import { publicService } from '../../services/public/publicService';
+import type { PlanInfo } from '../../services/public/publicService';
 
 type Region = 'IN' | 'US' | 'GB';
 
@@ -19,241 +20,178 @@ interface RegionConfig {
   flag: string;
   currency: string;
   currencySymbol: string;
+  exchangeRate: number; // Against INR
 }
 
 const REGIONS: RegionConfig[] = [
-  { code: 'IN', name: 'India', flag: '🇮🇳', currency: 'INR', currencySymbol: '₹' },
-  { code: 'US', name: 'United States', flag: '🇺🇸', currency: 'USD', currencySymbol: '$' },
-  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', currency: 'GBP', currencySymbol: '£' },
+  { code: 'IN', name: 'India', flag: '🇮🇳', currency: 'INR', currencySymbol: '₹', exchangeRate: 1 },
+  { code: 'US', name: 'United States', flag: '🇺🇸', currency: 'USD', currencySymbol: '$', exchangeRate: 84 },
+  { code: 'GB', name: 'United Kingdom', flag: '🇬🇧', currency: 'GBP', currencySymbol: '£', exchangeRate: 105 },
 ];
 
-// Regional pricing data
-const REGIONAL_PRICING: Record<Region, Record<string, { monthly: number; yearly: number; features: string[] }>> = {
-  IN: {
-    'Basic': { 
-      monthly: 199, yearly: 1999, 
-      features: ['HD (720p)', '1 Screen', 'Mobile + Tablet', '7-day Trial'] 
-    },
-    'Premium': { 
-      monthly: 499, yearly: 4999, 
-      features: ['4K + HDR', '4 Screens', 'All Devices', 'Downloads', '14-day Trial'] 
-    },
-  },
-  US: {
-    'Basic': { 
-      monthly: 6.99, yearly: 69.99, 
-      features: ['HD (720p)', '1 Screen', 'Mobile + Tablet', '7-day Trial'] 
-    },
-    'Premium': { 
-      monthly: 14.99, yearly: 149.99, 
-      features: ['4K + HDR', '4 Screens', 'All Devices', 'Downloads', '14-day Trial'] 
-    },
-  },
-  GB: {
-    'Basic': { 
-      monthly: 5.99, yearly: 59.99, 
-      features: ['HD (720p)', '1 Screen', 'Mobile + Tablet', '7-day Trial'] 
-    },
-    'Premium': { 
-      monthly: 11.99, yearly: 119.99, 
-      features: ['4K + HDR', '4 Screens', 'All Devices', 'Downloads', '14-day Trial'] 
-    },
-  },
-};
-
-// Features based on schema
+// Features based on Streaming Platform
 const FEATURES = [
-  { icon: Monitor, title: '4K + HDR', desc: 'Premium video quality' },
-  { icon: Download, title: 'Offline Downloads', desc: '5-10GB free storage included' },
-  { icon: Users, title: 'Multi-Screen', desc: '1-4 screens based on plan' },
-  { icon: Coffee, title: 'Ad-Free Add-on', desc: 'Optional upgrade available' },
-];
-
-// Hero 3D cards data
-const HERO_CARDS = [
-  { title: 'Echoes of Tomorrow', subtitle: 'Sci-Fi Thriller', badge: 'Featured', meta: '2h 18m · 2024', color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', icon: '🚀' },
-  { title: 'The Last Meridian', subtitle: 'Crime Drama', badge: 'Original', meta: '8 Episodes · 2024', color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', icon: '🎭' },
-  { title: 'Deep Signal', subtitle: 'Documentary', badge: 'New', meta: '1h 45m · 2024', color: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', icon: '📡' },
+  { icon: ShieldCheck, title: 'Download and go', desc: 'Save your data, watch offline on a train, plane, or submarine.' },
+  { icon: Globe, title: 'Watch everywhere', desc: 'Stream on smart TVs, PlayStation, Xbox, Chromecast, Apple TV, Blu-ray players, and more.' },
+  { icon: Zap, title: 'Create profiles for kids', desc: 'Send kids on adventures with their favorite characters in a space made just for them.' },
+  { icon: CreditCard, title: 'Cancel anytime', desc: 'Join today, cancel anytime. No commitments.' },
 ];
 
 // FAQ data
 const FAQS = [
-  { q: 'What is StreamFlix?', a: 'StreamFlix is a premium streaming platform offering movies, TV shows, documentaries, and exclusive original content across all genres.' },
-  { q: 'Can I cancel anytime?', a: 'Yes! You can cancel your subscription at any time with no cancellation fees. Your access continues until the end of your billing period.' },
-  { q: 'How many devices can I use?', a: 'Basic plan supports 1 screen. Premium plan supports 4 simultaneous screens on any device - TV, phone, tablet, or laptop.' },
-  { q: 'Is there a free trial?', a: 'Yes! All plans include a 7-day free trial for Basic and 14-day for Premium.' },
-  { q: 'What payment methods are accepted?', a: 'We accept credit/debit cards, UPI (India), and digital wallets. All payments are secure and tokenized.' },
-  { q: 'Can I download content?', a: 'Yes, Premium subscribers can download content on mobile devices for offline viewing.' },
+  { q: 'What is StreamFlix?', a: 'StreamFlix is a streaming service that offers a wide variety of award-winning TV shows, movies, anime, documentaries, and more on thousands of internet-connected devices.' },
+  { q: 'How much does StreamFlix cost?', a: 'Watch StreamFlix on your smartphone, tablet, Smart TV, laptop, or streaming device, all for one fixed monthly fee. Plans range from ₹199 to ₹499 a month. No extra costs, no contracts.' },
+  { q: 'Where can I watch?', a: 'Watch anywhere, anytime. Sign in with your StreamFlix account to watch instantly on the web at streamflix.com from your personal computer or on any internet-connected device.' },
+  { q: 'How do I cancel?', a: 'StreamFlix is flexible. There are no pesky contracts and no commitments. You can easily cancel your account online in two clicks. There are no cancellation fees – start or stop your account anytime.' },
+  { q: 'What can I watch on StreamFlix?', a: 'StreamFlix has an extensive library of feature films, documentaries, TV shows, anime, award-winning StreamFlix originals, and more. Watch as much as you want, anytime you want.' },
 ];
+
+// Helper to determine hardcoded features based on plan base name
+const getPlanFeatures = (planName: string) => {
+  if (planName.includes('Basic')) return ['HD (720p)', '1 Screen', 'Mobile + Tablet', '7-day Trial'];
+  if (planName.includes('Standard')) return ['Full HD (1080p)', '2 Screens', 'All Devices', 'Downloads'];
+  if (planName.includes('Premium')) return ['4K + HDR', '4 Screens', 'All Devices', 'Downloads', 'Spatial Audio'];
+  return ['Unlimited Content'];
+};
+
+const getPlanDescription = (planName: string) => {
+  if (planName.includes('Basic')) return 'A great way to enjoy our content on your phone or tablet.';
+  if (planName.includes('Standard')) return 'Great video quality in 1080p. Perfect for couples.';
+  if (planName.includes('Premium')) return 'Our best video quality in 4K and HDR.';
+  return 'The perfect streaming plan for you.';
+};
 
 export const LandingPage: React.FC = () => {
   const { isAuthenticated, logout, isCustomer } = useAuthContext();
-  
-  // Debug logging on every render
-  console.log('LandingPage render:', { isAuthenticated, isCustomer, isCustomerType: typeof isCustomer });
-  
-  // Debug logging when isCustomer changes
-  useEffect(() => {
-    console.log('isCustomer changed:', isCustomer);
-  }, [isCustomer]);
-  
+
   const [isYearly, setIsYearly] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<Region>('IN');
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+  const [plans, setPlans] = useState<PlanInfo[]>([]);
 
   const currentRegion = REGIONS.find(r => r.code === selectedRegion) || REGIONS[0];
-  const pricing = REGIONAL_PRICING[selectedRegion];
 
-  const formatPrice = (price: number) => {
-    return price.toLocaleString('en-IN');
+  useEffect(() => {
+    publicService.getPublicPlans().then(setPlans);
+  }, []);
+
+  const formatPrice = (priceMinor: number) => {
+    // Backend returns INR in paise (minor units)
+    const baseInr = priceMinor / 100;
+    
+    // If it's India, keep the exact base price, otherwise convert
+    if (currentRegion.code === 'IN') {
+      return baseInr.toLocaleString('en-IN');
+    }
+    
+    // Simple mock conversion for UI demonstration
+    const converted = baseInr / currentRegion.exchangeRate;
+    
+    // Make US/GB prices look nice (e.g. $9.99 instead of $11.89)
+    // Find the nearest .99 if it's over 1
+    if (converted > 1) {
+       return (Math.floor(converted) + 0.99).toFixed(2);
+    }
+    return converted.toFixed(2);
   };
 
-  const calculateSavings = (monthly: number, yearly: number) => {
-    const monthlyCost = monthly * 12;
-    const savings = ((monthlyCost - yearly) / monthlyCost) * 100;
-    return Math.round(savings);
-  };
+  const currentBillingPeriod = isYearly ? 'YEARLY' : 'MONTHLY';
+  
+  // Sort plans so Basic is first, Standard is middle, Premium is last
+  const displayedPlans = [...plans]
+    .filter(p => p.billingPeriod === currentBillingPeriod)
+    .sort((a, b) => a.defaultPriceMinor - b.defaultPriceMinor);
 
   return (
     <div className="sf-root">
       {/* Navbar */}
       <nav className="sf-nav">
-        <div className="sf-nav-logo">stream<span>flix</span></div>
+        <div className="sf-nav-logo">Stream<span>Flix</span></div>
         <div className="sf-nav-right">
           {isAuthenticated ? (
             <>
               {isCustomer === true ? (
-                <Link to="/dashboard" className="sf-nav-login">Dashboard</Link>
+                <Link to="/dashboard" className="sf-nav-login">Customer Dashboard</Link>
               ) : (
-                <Link to="/plans" className="sf-nav-login">Explore Plans</Link>
+                <Link to="/admin" className="sf-nav-login">Admin Console</Link>
               )}
-              <button onClick={logout} className="sf-nav-signup" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Logout</button>
+              <button onClick={logout} className="sf-nav-login" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Logout</button>
             </>
           ) : (
             <>
               <Link to="/login" className="sf-nav-login">Sign in</Link>
-              <Link to="/register" className="sf-nav-signup">Sign up</Link>
+              <Link to="/register" className="sf-nav-signup">Start Free Trial</Link>
             </>
           )}
         </div>
       </nav>
 
-      {/* Hero - Two Column with 3D Tilt */}
-      <div className="sf-hero-container">
-        <div className="sf-hero-left">
-          <section className="sf-hero">
-            <div className="sf-hero-eyebrow">
-              <div className="sf-hero-eyebrow-dot"></div>
-              New this week
-            </div>
-            <h1 className="sf-hero-headline">The stories<br />you'll <em>lose sleep</em><br />over.</h1>
-            <p className="sf-hero-sub">Thousands of films, series, and originals. One dark, beautiful home for all of it.</p>
-            <div className="sf-hero-actions">
-              <Link to={isAuthenticated ? "/dashboard" : "/register"} className="sf-btn-watch">
-                <Play size={12} fill="white" />
-                Start watching
-              </Link>
-              <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="sf-btn-browse">Explore catalog</button>
-            </div>
-            <div className="sf-hero-meta">
-              <div className="sf-meta-item">
-                <div className="sf-meta-num">45K+</div>
-                <div className="sf-meta-lbl">Titles</div>
-              </div>
-              <div className="sf-meta-sep"></div>
-              <div className="sf-meta-item">
-                <div className="sf-meta-num">180+</div>
-                <div className="sf-meta-lbl">Countries</div>
-              </div>
-              <div className="sf-meta-sep"></div>
-              <div className="sf-meta-item">
-                <div className="sf-meta-num">4K HDR</div>
-                <div className="sf-meta-lbl">Quality</div>
-              </div>
-              <div className="sf-meta-sep"></div>
-              <div className="sf-meta-item">
-                <div className="sf-meta-num">Day 1</div>
-                <div className="sf-meta-lbl">New releases</div>
-              </div>
-            </div>
-          </section>
+      {/* Modern Streaming Hero with Blue Gradient Blob and Poster Carousel */}
+      <section className="sf-hero-section">
+        <div className="sf-hero-blob"></div>
+        <div className="sf-hero-content">
+          <div className="sf-hero-eyebrow">
+            <span className="sf-eyebrow-badge">New</span> Discover the Series Streaming Experience
+          </div>
+          <h1 className="sf-hero-title">Unlimited movies,<br />TV shows, and more.</h1>
+          <p className="sf-hero-subtitle">
+            Our expert admins prepare amazing and trending series for you to watch online. Watch anywhere. Cancel anytime.
+          </p>
+          <div className="sf-hero-actions">
+            {isAuthenticated ? (
+               <Link to={isCustomer ? "/dashboard" : "/admin"} className="sf-btn-primary">Go to Dashboard</Link>
+            ) : (
+               <>
+                 <Link to="/register" className="sf-btn-primary">Get started</Link>
+                 <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="sf-btn-secondary">View plans</button>
+               </>
+            )}
+          </div>
         </div>
-
-        {/* Static Hero Cards */}
-        <div className="sf-hero-right">
+        
+        {/* Curved 3D Poster Carousel */}
+        <div className="sf-hero-carousel-container">
           <div className="sf-hero-carousel">
-            {/* Left Card - Echoes of Tomorrow */}
-            <div className="sf-hero-card sf-hero-card-left">
-              <div className="sf-hero-card-img" style={{ background: HERO_CARDS[0].color }}>
-                <div className="sf-hero-card-badge">{HERO_CARDS[0].badge}</div>
-                <div className="sf-hero-card-icon">{HERO_CARDS[0].icon}</div>
-                <div className="sf-hero-card-label">
-                  <div className="sf-hero-card-title">{HERO_CARDS[0].title}</div>
-                  <div className="sf-hero-card-meta">{HERO_CARDS[0].subtitle}</div>
-                </div>
-              </div>
+            <div className="sf-carousel-card left">
+              <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&q=80" alt="Cinematic Movie Scene" />
             </div>
-
-            {/* Center Card - The Last Meridian */}
-            <div className="sf-hero-card sf-hero-card-main">
-              <div className="sf-hero-card-img" style={{ background: HERO_CARDS[1].color }}>
-                <div className="sf-hero-card-badge">{HERO_CARDS[1].badge}</div>
-                <div className="sf-hero-card-icon">{HERO_CARDS[1].icon}</div>
-                <div className="sf-hero-card-label">
-                  <div className="sf-hero-card-title">{HERO_CARDS[1].title}</div>
-                  <div className="sf-hero-card-meta">
-                    <span>{HERO_CARDS[1].subtitle}</span>
-                    <span>•</span>
-                    <span>{HERO_CARDS[1].meta}</span>
-                  </div>
-                </div>
-              </div>
+            <div className="sf-carousel-card center">
+              <img src="https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?w=800&q=80" alt="Family Movie Scene" />
             </div>
-
-            {/* Right Card - Deep Signal */}
-            <div className="sf-hero-card sf-hero-card-right">
-              <div className="sf-hero-card-img" style={{ background: HERO_CARDS[2].color }}>
-                <div className="sf-hero-card-badge">{HERO_CARDS[2].badge}</div>
-                <div className="sf-hero-card-icon">{HERO_CARDS[2].icon}</div>
-                <div className="sf-hero-card-label">
-                  <div className="sf-hero-card-title">{HERO_CARDS[2].title}</div>
-                  <div className="sf-hero-card-meta">{HERO_CARDS[2].subtitle}</div>
-                </div>
-              </div>
+            <div className="sf-carousel-card right">
+              <img src="https://images.unsplash.com/photo-1574267432553-4b462808152a?w=600&q=80" alt="Animated Movie Scene" />
             </div>
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Features Strip */}
-      <div className="sf-features-strip">
+      <section className="sf-features-strip">
         {FEATURES.map((feat, idx) => (
           <div key={idx} className="sf-feat-item">
             <div className="sf-feat-icon">
-              <feat.icon size={14} strokeWidth={1.8} />
+              <feat.icon size={24} strokeWidth={2} />
             </div>
             <div className="sf-feat-title">{feat.title}</div>
             <div className="sf-feat-desc">{feat.desc}</div>
           </div>
         ))}
-      </div>
+      </section>
 
       {/* Pricing Section */}
       <section id="pricing" className="sf-pricing-section">
         <div className="sf-pricing-header">
-          <h2 className="sf-pricing-title">Choose your plan</h2>
-          <div className="sf-pricing-controls">
+          <h2 className="sf-pricing-title">Simple, transparent pricing</h2>
+          <div className="sf-pricing-controls" style={{ justifyContent: 'center' }}>
             <div className="sf-toggle-wrap">
               <span className={`sf-toggle-label ${!isYearly ? 'active' : ''}`}>Monthly</span>
               <div className={`sf-toggle ${isYearly ? 'active' : ''}`} onClick={() => setIsYearly(!isYearly)}>
                 <div className="sf-toggle-thumb"></div>
               </div>
-              <span className={`sf-toggle-label ${isYearly ? 'active' : ''}`}>
-                Yearly
-                {isYearly && <span className="sf-savings-badge"> (Save {calculateSavings(pricing.Basic.monthly, pricing.Basic.yearly)}%)</span>}
-              </span>
+              <span className={`sf-toggle-label ${isYearly ? 'active' : ''}`}>Yearly</span>
             </div>
-            <select 
+            
+            <select
               className="sf-region-select"
               value={selectedRegion}
               onChange={(e) => setSelectedRegion(e.target.value as Region)}
@@ -266,135 +204,76 @@ export const LandingPage: React.FC = () => {
         </div>
 
         <div className="sf-pricing-grid">
-          {/* Basic Plan */}
-          <div className="sf-plan-card">
-            <div className="sf-plan-name">Basic</div>
-            <div className="sf-plan-desc">Perfect for individuals who want to stream on mobile devices.</div>
-            <div className="sf-plan-price">
-              {currentRegion.currencySymbol}{isYearly ? formatPrice(pricing.Basic.yearly) : formatPrice(pricing.Basic.monthly)}
-              <span>/{isYearly ? 'year' : 'month'}</span>
-            </div>
-            <div className="sf-plan-trial">7-day free trial included</div>
-            <ul className="sf-plan-features">
-              {pricing.Basic.features.map((feat, idx) => (
-                <li key={idx}><Check size={14} /> {feat}</li>
-              ))}
-            </ul>
-            <Link to="/register" className="sf-plan-btn">Get Started</Link>
-          </div>
-
-          {/* Premium Plan */}
-          <div className="sf-plan-card featured">
-            <div className="sf-plan-badge">Most Popular</div>
-            <div className="sf-plan-name">Premium</div>
-            <div className="sf-plan-desc">Best value for families and 4K enthusiasts.</div>
-            <div className="sf-plan-price">
-              {currentRegion.currencySymbol}{isYearly ? formatPrice(pricing.Premium.yearly) : formatPrice(pricing.Premium.monthly)}
-              <span>/{isYearly ? 'year' : 'month'}</span>
-            </div>
-            <div className="sf-plan-trial">14-day free trial included</div>
-            <ul className="sf-plan-features">
-              {pricing.Premium.features.map((feat, idx) => (
-                <li key={idx}><Check size={14} /> {feat}</li>
-              ))}
-            </ul>
-            <Link to="/register" className="sf-plan-btn">Get Premium</Link>
-          </div>
-        </div>
-
-        {/* Explore More Plans Button - Outside cards */}
-        <div className="sf-pricing-footer">
-          <Link to="/plans" className="sf-explore-plans-btn">Explore More Plans</Link>
+          {displayedPlans.length === 0 ? (
+            <p>Loading plans...</p>
+          ) : (
+            displayedPlans.map(plan => {
+              const isPopular = plan.name.includes('Standard');
+              const isFeatured = plan.name.includes('Premium');
+              const baseName = plan.name.replace(' Monthly', '').replace(' Yearly', '');
+              
+              return (
+                <div key={plan.planId} className={`sf-plan-card ${isFeatured ? 'featured' : ''}`}>
+                  {isPopular && <div className="sf-plan-badge" style={{ backgroundColor: '#4B5563' }}>Popular</div>}
+                  {isFeatured && <div className="sf-plan-badge">Best Value</div>}
+                  <div className="sf-plan-name">{baseName}</div>
+                  <div className="sf-plan-desc">{getPlanDescription(baseName)}</div>
+                  <div className="sf-plan-price">
+                    {currentRegion.currencySymbol}{formatPrice(plan.defaultPriceMinor)}
+                    <span>/{isYearly ? 'year' : 'month'}</span>
+                  </div>
+                  <div className="sf-plan-trial">{plan.trialDays}-day free trial</div>
+                  <ul className="sf-plan-features">
+                    {getPlanFeatures(baseName).map((feat, idx) => (
+                      <li key={idx}><Check size={16} /> {feat}</li>
+                    ))}
+                  </ul>
+                  <Link to={`/register?planId=${plan.planId}`} className="sf-plan-btn">Choose {baseName}</Link>
+                </div>
+              );
+            })
+          )}
         </div>
       </section>
 
       {/* FAQ Section */}
       <section className="sf-faq-section">
         <div className="sf-faq-header">
-          <div className="sf-faq-label">Support & Help</div>
           <h2 className="sf-faq-title">Frequently Asked Questions</h2>
+          <p className="sf-faq-subtitle">Everything you need to know about StreamFlix and billing.</p>
         </div>
         <div className="sf-faq-grid">
           {FAQS.map((faq, idx) => (
-            <div 
-              key={idx} 
+            <div
+              key={idx}
               className={`sf-faq-item ${expandedFaq === idx ? 'expanded' : ''}`}
               onClick={() => setExpandedFaq(expandedFaq === idx ? null : idx)}
             >
-              <div className="sf-faq-q">{faq.q}</div>
-              <div className="sf-faq-a">{faq.a}</div>
+              <div className="sf-faq-q">
+                {faq.q}
+                <div className="sf-faq-icon"></div>
+              </div>
+              <div className="sf-faq-a">
+                <div className="sf-faq-a-inner">{faq.a}</div>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* CTA - Cinematic Redesign */}
-      <div className="sf-cta-wrap">
-        <div className="sf-cta-content">
-          {isAuthenticated ? (
-            isCustomer === true ? (
-              <>
-                <div className="sf-cta-eyebrow">Welcome back</div>
-                <div className="sf-cta-title">Continue watching?</div>
-                <div className="sf-cta-sub">Access your dashboard to manage your subscription and watch content.</div>
-              </>
-            ) : (
-              <>
-                <div className="sf-cta-eyebrow">Almost there</div>
-                <div className="sf-cta-title">Complete your setup</div>
-                <div className="sf-cta-sub">Choose a plan to start streaming your favorite content.</div>
-              </>
-            )
-          ) : (
-            <>
-              <div className="sf-cta-eyebrow">Start streaming today</div>
-              <div className="sf-cta-title">Ready to start watching?</div>
-              <div className="sf-cta-sub">Join millions of viewers. Start with a 7-14 day free trial. Cancel anytime.</div>
-            </>
-          )}
-        </div>
-        <div className="sf-cta-actions">
-          <div className="sf-cta-buttons">
-            {isAuthenticated ? (
-              isCustomer === true ? (
-                <Link to="/dashboard" className="sf-cta-btn">
-                  <Play size={16} fill="white" />
-                  Go to Dashboard
-                </Link>
-              ) : (
-                <Link to="/plans" className="sf-cta-btn">
-                  <Play size={16} fill="white" />
-                  Choose Your Plan
-                </Link>
-              )
-            ) : (
-              <>
-                <Link to="/register" className="sf-cta-btn">
-                  <Play size={16} fill="white" />
-                  Start Free Trial
-                </Link>
-                <Link to="/plans" className="sf-cta-btn-outline">View Plans</Link>
-              </>
-            )}
-          </div>
-          {!isAuthenticated && (
-            <Link to="/management/login" className="sf-cta-staff">
-              <span>Staff Login</span>
-              <span>→</span>
-            </Link>
-          )}
-        </div>
-      </div>
-
       {/* Footer */}
       <footer className="sf-footer">
-        <div className="sf-footer-logo">stream<span>flix</span></div>
+        <div className="sf-footer-logo">Stream<span>Flix</span></div>
         <div className="sf-footer-links">
           <Link to="/privacy" className="sf-footer-link">Privacy</Link>
           <Link to="/terms" className="sf-footer-link">Terms</Link>
           <Link to="/help" className="sf-footer-link">Help</Link>
           <Link to="/careers" className="sf-footer-link">Careers</Link>
-          <span className="sf-footer-link">© 2025</span>
+          {!isAuthenticated && (
+            <Link to="/management/login" className="sf-footer-link sf-staff-login">
+              Staff Login →
+            </Link>
+          )}
         </div>
       </footer>
     </div>

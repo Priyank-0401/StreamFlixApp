@@ -12,14 +12,12 @@ import type {
   SubscriptionResponse,
 } from './adminTypes';
 
-// Relative URL - proxied through CRA dev server
-// The proxy forwards /api/* to backend, so /api/admin becomes backend's /api/admin
+// API base URL — proxied to backend by both CRA (setupProxy.js) and Vite (vite.config.ts)
 const API_BASE = '/api/admin';
 
 // Generic fetch wrapper with session cookie support
 async function adminFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
-  console.log(`Admin API call: ${options?.method || 'GET'} ${url}`);
   
   const res = await fetch(url, {
     ...options,
@@ -30,7 +28,6 @@ async function adminFetch<T>(endpoint: string, options?: RequestInit): Promise<T
     },
   });
 
-  console.log(`Admin API response: ${res.status} ${res.statusText}`);
 
   if (!res.ok) {
     const errorText = await res.text();
