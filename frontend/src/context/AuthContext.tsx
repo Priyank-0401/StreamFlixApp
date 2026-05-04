@@ -11,6 +11,7 @@ interface AuthContextType {
   login: (user: User) => Promise<{ isCustomer: boolean }>;
   logout: () => void;
   isCustomer: boolean;
+  refreshUserStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -131,6 +132,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.location.href = '/';
   };
 
+  const refreshUserStatus = async () => {
+    try {
+      const customerStatus = await CustomerService.getCustomerStatus();
+      setIsCustomer(customerStatus.isCustomer);
+      sessionStorage.setItem('isCustomer', String(customerStatus.isCustomer));
+    } catch {
+      // ignore
+    }
+  };
+
   const contextValue: AuthContextType = {
     user: authState.user,
     token: authState.token,
@@ -138,7 +149,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isLoading: authState.isLoading,
     login,
     logout,
-    isCustomer
+    isCustomer,
+    refreshUserStatus
   };
   
   return (

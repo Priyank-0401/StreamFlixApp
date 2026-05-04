@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Loader2, MapPin, Phone, Globe } from 'lucide-react';
+import type { Plan } from '../../../services/customer/customerService';
 import * as CustomerService from '../../../services/customer/customerService';
+import { validateCustomerDetails } from '../../../utils/subscriptionValidation';
 
 interface CustomerDetailsStepProps {
-  plan: CustomerService.Plan;
+  plan: Plan;
   onComplete: (data: { customerId: number }) => void;
 }
 
@@ -23,8 +25,9 @@ export const CustomerDetailsStep: React.FC<CustomerDetailsStepProps> = ({ plan, 
     postalCode: '',
     currency: 'INR',
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [backendError, setBackendError] = useState('');
 
   const handleCountryChange = (country: string) => {
     setFormData(prev => ({
@@ -34,67 +37,84 @@ export const CustomerDetailsStep: React.FC<CustomerDetailsStepProps> = ({ plan, 
     }));
   };
 
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Field level validation on change
+    const error = validateCustomerDetails(name, value);
+    setErrors(prev => ({ ...prev, [name]: error }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    
+    // Final validation check
+    const newErrors: Record<string, string> = {};
+    Object.keys(formData).forEach(key => {
+      const error = validateCustomerDetails(key, formData[key as keyof typeof formData]);
+      if (error) newErrors[key] = error;
+    });
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setBackendError('');
     setLoading(true);
 
     try {
       const result = await CustomerService.registerCustomerDetails(formData);
       onComplete({ customerId: result.customerId });
     } catch (err: any) {
-      setError(err.message || 'Failed to save your details');
+      setBackendError(err.message || 'Failed to save your details');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
-  };
-
   return (
-    <div className="card border-0" style={{ borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+    <div className="card border-0" style={{ borderRadius: '24px', background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 12px 32px -8px rgba(0,0,0,0.05)' }}>
       <div className="card-body p-4 p-md-5">
-        <h2 style={{ 
-          fontFamily: '"Playfair Display", serif', 
-          fontSize: '24px', 
-          fontWeight: 600, 
-          color: '#121212',
-          marginBottom: '8px'
+        <h2 style={{
+          fontFamily: 'Outfit, sans-serif',
+          fontSize: '28px',
+          fontWeight: 700,
+          color: '#111827',
+          marginBottom: '8px',
+          letterSpacing: '-0.5px'
         }}>
           Your Details
         </h2>
-        <p style={{ color: '#666', marginBottom: '32px' }}>
+        <p style={{ color: '#6B7280', fontSize: '15px', marginBottom: '32px' }}>
           Please provide your contact and address information to continue.
         </p>
 
-        {error && (
-          <div className="alert alert-danger mb-4" role="alert">
-            {error}
+        {backendError && (
+          <div className="alert alert-danger border-0 mb-4" style={{ borderRadius: '12px', background: '#FEF2F2', color: '#DC2626', fontSize: '14px' }}>
+            {backendError}
           </div>
         )}
 
         <form onSubmit={handleSubmit}>
           {/* Country Selection */}
           <div className="mb-4">
-            <label className="form-label d-flex align-items-center gap-2" style={{ fontSize: '14px', fontWeight: 500, color: '#121212' }}>
-              <Globe size={18} color="#D14D28" />
+            <label className="form-label d-flex align-items-center gap-2" style={{ fontSize: '14px', fontWeight: 600, color: '#4B5563', marginBottom: '8px' }}>
+              <Globe size={18} color="#5B4FFF" />
               Country
             </label>
             <select
               name="country"
               value={formData.country}
               onChange={(e) => handleCountryChange(e.target.value)}
-              className="form-select"
+              className={`form-select shadow-none ${errors.country ? 'is-invalid' : ''}`}
               style={{ 
                 padding: '12px 16px', 
-                border: '1px solid rgba(18,18,18,0.1)',
-                borderRadius: '10px',
-                fontSize: '14px'
+                border: `1px solid ${errors.country ? '#DC2626' : '#D1D5DB'}`,
+                borderRadius: '12px',
+                fontSize: '15px',
+                background: '#FFFFFF'
               }}
               required
             >
@@ -102,12 +122,13 @@ export const CustomerDetailsStep: React.FC<CustomerDetailsStepProps> = ({ plan, 
               <option value="US">🇺🇸 United States</option>
               <option value="GB">🇬🇧 United Kingdom</option>
             </select>
+            {errors.country && <div style={{ color: '#DC2626', fontSize: '12px', marginTop: '4px', fontWeight: 500 }}>{errors.country}</div>}
           </div>
 
           {/* Phone */}
           <div className="mb-4">
-            <label className="form-label d-flex align-items-center gap-2" style={{ fontSize: '14px', fontWeight: 500, color: '#121212' }}>
-              <Phone size={18} color="#D14D28" />
+            <label className="form-label d-flex align-items-center gap-2" style={{ fontSize: '14px', fontWeight: 600, color: '#4B5563', marginBottom: '8px' }}>
+              <Phone size={18} color="#5B4FFF" />
               Phone Number
             </label>
             <input
@@ -116,21 +137,22 @@ export const CustomerDetailsStep: React.FC<CustomerDetailsStepProps> = ({ plan, 
               value={formData.phone}
               onChange={handleChange}
               placeholder="Enter your phone number"
-              className="form-control"
+              className={`form-control shadow-none ${errors.phone ? 'is-invalid' : ''}`}
               style={{ 
                 padding: '12px 16px', 
-                border: '1px solid rgba(18,18,18,0.1)',
-                borderRadius: '10px',
-                fontSize: '14px'
+                border: `1px solid ${errors.phone ? '#DC2626' : '#D1D5DB'}`,
+                borderRadius: '12px',
+                fontSize: '15px'
               }}
               required
             />
+            {errors.phone && <div style={{ color: '#DC2626', fontSize: '12px', marginTop: '4px', fontWeight: 500 }}>{errors.phone}</div>}
           </div>
 
           {/* Address */}
           <div className="mb-4">
-            <label className="form-label d-flex align-items-center gap-2" style={{ fontSize: '14px', fontWeight: 500, color: '#121212' }}>
-              <MapPin size={18} color="#D14D28" />
+            <label className="form-label d-flex align-items-center gap-2" style={{ fontSize: '14px', fontWeight: 600, color: '#4B5563', marginBottom: '8px' }}>
+              <MapPin size={18} color="#5B4FFF" />
               Address
             </label>
             <input
@@ -139,15 +161,17 @@ export const CustomerDetailsStep: React.FC<CustomerDetailsStepProps> = ({ plan, 
               value={formData.addressLine1}
               onChange={handleChange}
               placeholder="Street address"
-              className="form-control mb-3"
+              className={`form-control shadow-none mb-3 ${errors.addressLine1 ? 'is-invalid' : ''}`}
               style={{ 
                 padding: '12px 16px', 
-                border: '1px solid rgba(18,18,18,0.1)',
-                borderRadius: '10px',
-                fontSize: '14px'
+                border: `1px solid ${errors.addressLine1 ? '#DC2626' : '#D1D5DB'}`,
+                borderRadius: '12px',
+                fontSize: '15px'
               }}
               required
             />
+            {errors.addressLine1 && <div style={{ color: '#DC2626', fontSize: '12px', marginTop: '4px', fontWeight: 500, marginBottom: '12px' }}>{errors.addressLine1}</div>}
+            
             <div className="row g-3">
               <div className="col-md-6">
                 <input
@@ -156,15 +180,16 @@ export const CustomerDetailsStep: React.FC<CustomerDetailsStepProps> = ({ plan, 
                   value={formData.city}
                   onChange={handleChange}
                   placeholder="City"
-                  className="form-control"
+                  className={`form-control shadow-none ${errors.city ? 'is-invalid' : ''}`}
                   style={{ 
                     padding: '12px 16px', 
-                    border: '1px solid rgba(18,18,18,0.1)',
-                    borderRadius: '10px',
-                    fontSize: '14px'
+                    border: `1px solid ${errors.city ? '#DC2626' : '#D1D5DB'}`,
+                    borderRadius: '12px',
+                    fontSize: '15px'
                   }}
                   required
                 />
+                {errors.city && <div style={{ color: '#DC2626', fontSize: '12px', marginTop: '4px', fontWeight: 500 }}>{errors.city}</div>}
               </div>
               <div className="col-md-6">
                 <input
@@ -173,22 +198,23 @@ export const CustomerDetailsStep: React.FC<CustomerDetailsStepProps> = ({ plan, 
                   value={formData.state}
                   onChange={handleChange}
                   placeholder="State"
-                  className="form-control"
+                  className={`form-control shadow-none ${errors.state ? 'is-invalid' : ''}`}
                   style={{ 
                     padding: '12px 16px', 
-                    border: '1px solid rgba(18,18,18,0.1)',
-                    borderRadius: '10px',
-                    fontSize: '14px'
+                    border: `1px solid ${errors.state ? '#DC2626' : '#D1D5DB'}`,
+                    borderRadius: '12px',
+                    fontSize: '15px'
                   }}
                   required
                 />
+                {errors.state && <div style={{ color: '#DC2626', fontSize: '12px', marginTop: '4px', fontWeight: 500 }}>{errors.state}</div>}
               </div>
             </div>
           </div>
 
           {/* Postal Code */}
           <div className="mb-4">
-            <label className="form-label" style={{ fontSize: '14px', fontWeight: 500, color: '#121212' }}>
+            <label className="form-label" style={{ fontSize: '14px', fontWeight: 600, color: '#4B5563', marginBottom: '8px' }}>
               Postal Code
             </label>
             <input
@@ -197,38 +223,16 @@ export const CustomerDetailsStep: React.FC<CustomerDetailsStepProps> = ({ plan, 
               value={formData.postalCode}
               onChange={handleChange}
               placeholder="Enter postal code"
-              className="form-control"
+              className={`form-control shadow-none ${errors.postalCode ? 'is-invalid' : ''}`}
               style={{ 
                 padding: '12px 16px', 
-                border: '1px solid rgba(18,18,18,0.1)',
-                borderRadius: '10px',
-                fontSize: '14px'
+                border: `1px solid ${errors.postalCode ? '#DC2626' : '#D1D5DB'}`,
+                borderRadius: '12px',
+                fontSize: '15px'
               }}
               required
             />
-          </div>
-
-          {/* Currency (Auto-populated) */}
-          <div className="mb-4">
-            <label className="form-label" style={{ fontSize: '14px', fontWeight: 500, color: '#121212' }}>
-              Currency
-            </label>
-            <input
-              type="text"
-              value={formData.currency}
-              disabled
-              className="form-control"
-              style={{ 
-                padding: '12px 16px', 
-                border: '1px solid rgba(18,18,18,0.1)',
-                borderRadius: '10px',
-                fontSize: '14px',
-                background: '#F9F7F2'
-              }}
-            />
-            <small style={{ color: '#666', fontSize: '12px' }}>
-              Currency is automatically set based on your country
-            </small>
+            {errors.postalCode && <div style={{ color: '#DC2626', fontSize: '12px', marginTop: '4px', fontWeight: 500 }}>{errors.postalCode}</div>}
           </div>
 
           {/* Submit Button */}
@@ -237,17 +241,16 @@ export const CustomerDetailsStep: React.FC<CustomerDetailsStepProps> = ({ plan, 
             disabled={loading}
             className="btn w-100 d-flex align-items-center justify-content-center gap-2"
             style={{
-              background: '#D14D28',
+              background: '#5B4FFF',
               color: 'white',
               border: 'none',
               padding: '16px 24px',
-              borderRadius: '10px',
-              fontSize: '14px',
+              borderRadius: '9999px',
+              fontSize: '15px',
               fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.1em',
-              transition: 'all 0.3s',
-              opacity: loading ? 0.7 : 1
+              transition: 'all 0.2s',
+              opacity: loading ? 0.7 : 1,
+              boxShadow: '0 4px 12px rgba(91, 79, 255, 0.2)'
             }}
           >
             {loading ? (
@@ -262,31 +265,37 @@ export const CustomerDetailsStep: React.FC<CustomerDetailsStepProps> = ({ plan, 
         </form>
 
         {/* Plan Summary */}
-        <div 
-          className="mt-4 p-4 rounded-3" 
-          style={{ background: '#F9F7F2', border: '1px solid rgba(18,18,18,0.05)' }}
+        <div
+          className="mt-5 p-4"
+          style={{
+            background: '#F9FAFB',
+            borderRadius: '16px',
+            border: '1px solid #E5E7EB'
+          }}
         >
-          <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#121212', marginBottom: '12px' }}>
-            Selected Plan
+          <h4 style={{ fontFamily: 'Outfit, sans-serif', fontSize: '14px', fontWeight: 700, color: '#111827', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Subscription Details
           </h4>
           <div className="d-flex justify-content-between align-items-center">
             <div>
-              <p style={{ fontSize: '16px', fontWeight: 500, color: '#121212', margin: 0 }}>
+              <p style={{ fontSize: '17px', fontWeight: 600, color: '#111827', margin: 0 }}>
                 {plan.name}
               </p>
-              <p style={{ fontSize: '13px', color: '#666', margin: 0 }}>
-                {plan.billingPeriod} billing
+              <p style={{ fontSize: '14px', color: '#6B7280', margin: 0 }}>
+                {plan.billingPeriod === 'YEARLY' ? 'Billed annually' : 'Billed monthly'}
               </p>
             </div>
-            <p style={{ fontSize: '20px', fontWeight: 600, color: '#D14D28', margin: 0 }}>
-              {(plan.defaultPriceMinor / 100).toFixed(0)} {plan.defaultCurrency}
-            </p>
+            <div className="text-end">
+              <p style={{ fontSize: '22px', fontWeight: 700, color: '#5B4FFF', margin: 0 }}>
+                {(plan.defaultPriceMinor / 100).toFixed(0)} {plan.defaultCurrency}
+              </p>
+              {plan.trialDays > 0 && (
+                <span style={{ fontSize: '12px', color: '#059669', fontWeight: 600, background: '#ECFDF5', padding: '2px 8px', borderRadius: '4px' }}>
+                  {plan.trialDays} Days Free
+                </span>
+              )}
+            </div>
           </div>
-          {plan.trialDays > 0 && (
-            <p style={{ fontSize: '13px', color: '#D14D28', marginTop: '8px', marginBottom: 0 }}>
-              Includes {plan.trialDays}-day free trial
-            </p>
-          )}
         </div>
       </div>
     </div>

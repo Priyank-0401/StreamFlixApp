@@ -15,10 +15,16 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
 }) => {
   return (
     <div className="auth-page">
+      {/* Background Blobs matching Landing Page */}
+      <div className="auth-blob-container">
+        <div className="auth-blob auth-blob-1"></div>
+        <div className="auth-blob auth-blob-2"></div>
+      </div>
+
       {/* Header with Logo */}
       <header className="auth-header">
         <Link to="/" className="auth-logo">
-          <span>STREAMFLIX</span>
+          STREAM<span>FLIX</span>
         </Link>
       </header>
 

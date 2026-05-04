@@ -10,7 +10,7 @@ import { useAuthContext } from '../../context/AuthContext';
 export const SubscriptionFlow: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuthContext();
+  const { isAuthenticated, refreshUserStatus } = useAuthContext();
   
   const planId = parseInt(searchParams.get('planId') || '0');
   const currentStep = parseInt(searchParams.get('step') || '1');
@@ -61,8 +61,11 @@ export const SubscriptionFlow: React.FC = () => {
       setPaymentMethodId(data.paymentMethodId);
       navigate(`/subscribe?planId=${planId}&step=3`);
     } else if (step === 3) {
-      // Subscription complete - redirect to landing page with success
-      navigate('/?subscription=success');
+      // Refresh user status so Navbar shows "Dashboard"
+      refreshUserStatus().then(() => {
+        // Redirect to landing page without query params
+        navigate('/', { replace: true });
+      });
     }
   };
 
@@ -107,7 +110,7 @@ export const SubscriptionFlow: React.FC = () => {
   ];
 
   return (
-    <div style={{ background: '#f8f9fa', minHeight: '100vh' }}>
+    <div style={{ background: '#F9FAFB', minHeight: '100vh', fontFamily: 'Inter, sans-serif' }}>
       {/* Header */}
       <header className="py-4 px-4 border-bottom" style={{ borderColor: '#e5e7eb', background: 'white' }}>
         <div className="mx-auto" style={{ maxWidth: '800px' }}>
@@ -115,7 +118,9 @@ export const SubscriptionFlow: React.FC = () => {
             <button 
               onClick={handleBack}
               className="btn btn-link text-decoration-none d-flex align-items-center gap-2 p-0"
-              style={{ color: '#1f2937' }}
+              style={{ color: '#4B5563', transition: 'color 0.2s' }}
+              onMouseEnter={(e) => e.currentTarget.style.color = '#111827'}
+              onMouseLeave={(e) => e.currentTarget.style.color = '#4B5563'}
             >
               <ArrowLeft size={20} />
               <span style={{ fontSize: '14px', fontWeight: 500 }}>
@@ -124,11 +129,12 @@ export const SubscriptionFlow: React.FC = () => {
             </button>
             
             <h1 style={{ 
-              fontFamily: '"Playfair Display", serif', 
-              fontSize: '22px', 
-              fontWeight: 600, 
-              color: '#1f2937',
-              margin: 0 
+              fontFamily: 'Outfit, sans-serif', 
+              fontSize: '24px', 
+              fontWeight: 700, 
+              color: '#111827',
+              margin: 0,
+              letterSpacing: '-0.5px'
             }}>
               Complete Your Subscription
             </h1>
@@ -141,48 +147,57 @@ export const SubscriptionFlow: React.FC = () => {
       {/* Step Indicator */}
       <div className="py-4 px-4" style={{ background: 'white', borderBottom: '1px solid #e5e7eb' }}>
         <div className="mx-auto" style={{ maxWidth: '600px' }}>
-          <div className="d-flex justify-content-between">
-            {steps.map((step, index) => {
+          <div className="d-flex justify-content-between position-relative">
+            {/* Progress Bar Background */}
+            <div 
+              style={{
+                position: 'absolute',
+                top: '20px',
+                left: '10%',
+                right: '10%',
+                height: '2px',
+                background: '#E5E7EB',
+                zIndex: 0
+              }}
+            />
+            {/* Active Progress Bar */}
+            <div 
+              style={{
+                position: 'absolute',
+                top: '20px',
+                left: '10%',
+                width: currentStep === 1 ? '0%' : currentStep === 2 ? '40%' : '80%',
+                height: '2px',
+                background: '#5B4FFF',
+                transition: 'width 0.3s ease',
+                zIndex: 0
+              }}
+            />
+
+            {steps.map((step) => {
               const Icon = step.icon;
               const isActive = currentStep === step.number;
               const isCompleted = currentStep > step.number;
               const isPending = currentStep < step.number;
 
               return (
-                <div key={step.number} className="d-flex flex-column align-items-center" style={{ flex: 1 }}>
-                  {/* Connector Line */}
-                  {index > 0 && (
-                    <div 
-                      style={{
-                        position: 'absolute',
-                        left: 0,
-                        right: 0,
-                        top: '20px',
-                        height: '2px',
-                        background: isCompleted ? '#5b4fff' : '#e5e7eb',
-                        transform: `translateX(${(index - 1) * -50}%)`,
-                        width: '100%',
-                        zIndex: 0
-                      }}
-                    />
-                  )}
-
+                <div key={step.number} className="d-flex flex-column align-items-center" style={{ flex: 1, zIndex: 1 }}>
                   {/* Step Circle */}
                   <div
                     className="d-flex align-items-center justify-content-center rounded-circle"
                     style={{
                       width: '40px',
                       height: '40px',
-                      background: isCompleted ? '#5b4fff' : isActive ? '#1f2937' : 'white',
-                      border: isPending ? '2px solid #e5e7eb' : 'none',
-                      zIndex: 1,
-                      position: 'relative'
+                      background: isCompleted ? '#5B4FFF' : isActive ? '#111827' : 'white',
+                      border: isPending ? '2px solid #E5E7EB' : 'none',
+                      transition: 'all 0.3s ease',
+                      boxShadow: isActive ? '0 0 0 4px rgba(91, 79, 255, 0.1)' : 'none'
                     }}
                   >
                     {isCompleted ? (
                       <Check size={20} color="white" />
                     ) : (
-                      <Icon size={18} color={isActive ? 'white' : isPending ? '#999' : 'white'} />
+                      <Icon size={18} color={isActive ? 'white' : '#9CA3AF'} />
                     )}
                   </div>
 
@@ -190,9 +205,10 @@ export const SubscriptionFlow: React.FC = () => {
                   <span 
                     className="mt-2"
                     style={{
-                      fontSize: '12px',
-                      fontWeight: isActive ? 600 : 400,
-                      color: isActive ? '#1f2937' : isPending ? '#9ca3af' : '#6b7280'
+                      fontSize: '13px',
+                      fontWeight: isActive ? 600 : 500,
+                      color: isActive ? '#111827' : '#9CA3AF',
+                      transition: 'color 0.3s ease'
                     }}
                   >
                     {step.title}

@@ -72,31 +72,33 @@ export const LandingPage: React.FC = () => {
   const currentRegion = REGIONS.find(r => r.code === selectedRegion) || REGIONS[0];
 
   useEffect(() => {
+    // Prevent scroll jump on refresh
+    window.scrollTo(0, 0);
     publicService.getPublicPlans().then(setPlans);
   }, []);
 
   const formatPrice = (priceMinor: number) => {
     // Backend returns INR in paise (minor units)
     const baseInr = priceMinor / 100;
-    
+
     // If it's India, keep the exact base price, otherwise convert
     if (currentRegion.code === 'IN') {
       return baseInr.toLocaleString('en-IN');
     }
-    
+
     // Simple mock conversion for UI demonstration
     const converted = baseInr / currentRegion.exchangeRate;
-    
+
     // Make US/GB prices look nice (e.g. $9.99 instead of $11.89)
     // Find the nearest .99 if it's over 1
     if (converted > 1) {
-       return (Math.floor(converted) + 0.99).toFixed(2);
+      return (Math.floor(converted) + 0.99).toFixed(2);
     }
     return converted.toFixed(2);
   };
 
   const currentBillingPeriod = isYearly ? 'YEARLY' : 'MONTHLY';
-  
+
   // Sort plans so Basic is first, Standard is middle, Premium is last
   const displayedPlans = [...plans]
     .filter(p => p.billingPeriod === currentBillingPeriod)
@@ -113,7 +115,7 @@ export const LandingPage: React.FC = () => {
               {isCustomer === true ? (
                 <Link to="/dashboard" className="sf-nav-login">Customer Dashboard</Link>
               ) : (
-                <Link to="/admin" className="sf-nav-login">Admin Console</Link>
+                <Link to="/plans" className="sf-nav-login">Explore Plans</Link>
               )}
               <button onClick={logout} className="sf-nav-login" style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Logout</button>
             </>
@@ -139,16 +141,16 @@ export const LandingPage: React.FC = () => {
           </p>
           <div className="sf-hero-actions">
             {isAuthenticated ? (
-               <Link to={isCustomer ? "/dashboard" : "/admin"} className="sf-btn-primary">Go to Dashboard</Link>
+              <Link to={isCustomer ? "/dashboard" : "/admin"} className="sf-btn-primary">Go to Dashboard</Link>
             ) : (
-               <>
-                 <Link to="/register" className="sf-btn-primary">Get started</Link>
-                 <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="sf-btn-secondary">View plans</button>
-               </>
+              <>
+                <Link to="/register" className="sf-btn-primary">Get started</Link>
+                <button onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })} className="sf-btn-secondary">View plans</button>
+              </>
             )}
           </div>
         </div>
-        
+
         {/* Curved 3D Poster Carousel */}
         <div className="sf-hero-carousel-container">
           <div className="sf-hero-carousel">
@@ -190,7 +192,7 @@ export const LandingPage: React.FC = () => {
               </div>
               <span className={`sf-toggle-label ${isYearly ? 'active' : ''}`}>Yearly</span>
             </div>
-            
+
             <select
               className="sf-region-select"
               value={selectedRegion}
@@ -211,7 +213,7 @@ export const LandingPage: React.FC = () => {
               const isPopular = plan.name.includes('Standard');
               const isFeatured = plan.name.includes('Premium');
               const baseName = plan.name.replace(' Monthly', '').replace(' Yearly', '');
-              
+
               return (
                 <div key={plan.planId} className={`sf-plan-card ${isFeatured ? 'featured' : ''}`}>
                   {isPopular && <div className="sf-plan-badge" style={{ backgroundColor: '#4B5563' }}>Popular</div>}
