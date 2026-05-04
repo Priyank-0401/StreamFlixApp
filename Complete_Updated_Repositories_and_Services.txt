@@ -1,0 +1,1440 @@
+=====================================================
+COMPLETE UPDATED REPOSITORIES (ALL METHODS)
+=====================================================
+
+These repositories include:
+- Existing methods used by AdminDashboardService
+- New methods needed for Customer Services
+- All using proper Enum types
+
+=====================================================
+REPOSITORY: UserRepository.java (EXISTING - No changes needed)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.User;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByEmail(String email);
+    boolean existsByEmail(String email);
+}
+
+=====================================================
+REPOSITORY: CustomerRepository.java (UPDATED)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.Customer;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface CustomerRepository extends JpaRepository<Customer, Long> {
+    // Existing methods for Admin
+    List<Customer> findAll();
+    Optional<Customer> findById(Long id);
+    
+    // NEW methods for Customer Services
+    Optional<Customer> findByUser_Id(Long userId);
+}
+
+=====================================================
+REPOSITORY: ProductRepository.java (EXISTING - No changes needed)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.Product;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface ProductRepository extends JpaRepository<Product, Long> {
+    List<Product> findAll();
+    Optional<Product> findById(Long id);
+}
+
+=====================================================
+REPOSITORY: PlanRepository.java (UPDATED)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.Plan;
+import com.infy.billing.enums.CommonStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface PlanRepository extends JpaRepository<Plan, Long> {
+    // Existing methods for Admin
+    List<Plan> findAll();
+    Optional<Plan> findById(Long id);
+    
+    // NEW methods for Customer Services
+    List<Plan> findByStatusAndEffectiveToIsNull(CommonStatus status);
+    List<Plan> findByStatus(CommonStatus status);
+}
+
+=====================================================
+REPOSITORY: PriceBookEntryRepository.java (EXISTING - No changes needed)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.PriceBookEntry;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface PriceBookEntryRepository extends JpaRepository<PriceBookEntry, Long> {
+    List<PriceBookEntry> findAll();
+    Optional<PriceBookEntry> findById(Long id);
+}
+
+=====================================================
+REPOSITORY: AddOnRepository.java (UPDATED)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.AddOn;
+import com.infy.billing.enums.CommonStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface AddOnRepository extends JpaRepository<AddOn, Long> {
+    // Existing methods for Admin
+    List<AddOn> findAll();
+    Optional<AddOn> findById(Long id);
+    
+    // NEW methods for Customer Services
+    List<AddOn> findByStatus(CommonStatus status);
+}
+
+=====================================================
+REPOSITORY: MeteredComponentRepository.java (EXISTING - No changes needed)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.MeteredComponent;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface MeteredComponentRepository extends JpaRepository<MeteredComponent, Long> {
+    List<MeteredComponent> findAll();
+    Optional<MeteredComponent> findById(Long id);
+}
+
+=====================================================
+REPOSITORY: SubscriptionRepository.java (UPDATED)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.Subscription;
+import com.infy.billing.enums.SubscriptionStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
+    // Existing methods for Admin
+    List<Subscription> findAll();
+    Optional<Subscription> findById(Long id);
+    long countByStatus(SubscriptionStatus status);
+    
+    // NEW methods for Customer Services
+    List<Subscription> findByCustomer_IdAndStatusIn(Long customerId, List<SubscriptionStatus> statuses);
+    Optional<Subscription> findByCustomer_IdAndStatus(Long customerId, SubscriptionStatus status);
+}
+
+=====================================================
+REPOSITORY: TaxRateRepository.java (EXISTING - No changes needed)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.TaxRate;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface TaxRateRepository extends JpaRepository<TaxRate, Long> {
+    List<TaxRate> findAll();
+    Optional<TaxRate> findById(Long id);
+}
+
+=====================================================
+REPOSITORY: CouponRepository.java (UPDATED)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.Coupon;
+import com.infy.billing.enums.CouponStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface CouponRepository extends JpaRepository<Coupon, Long> {
+    // Existing methods for Admin
+    List<Coupon> findAll();
+    Optional<Coupon> findById(Long id);
+    boolean existsByCode(String code);
+    
+    // NEW methods for Customer Services
+    Optional<Coupon> findByCodeAndStatus(String code, CouponStatus status);
+}
+
+=====================================================
+REPOSITORY: SubscriptionItemRepository.java (NEW)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.SubscriptionItem;
+import com.infy.billing.enums.ItemType;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface SubscriptionItemRepository extends JpaRepository<SubscriptionItem, Long> {
+    List<SubscriptionItem> findBySubscription_Id(Long subscriptionId);
+    SubscriptionItem findBySubscription_IdAndItemType(Long subscriptionId, ItemType itemType);
+    SubscriptionItem findBySubscription_IdAndAddOn_Id(Long subscriptionId, Long addonId);
+}
+
+=====================================================
+REPOSITORY: UsageRecordRepository.java (NEW)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.UsageRecord;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
+import java.util.List;
+
+@Repository
+public interface UsageRecordRepository extends JpaRepository<UsageRecord, Long> {
+    List<UsageRecord> findBySubscription_IdAndBillingPeriodStartGreaterThanEqualAndBillingPeriodEndLessThanEqual(
+            Long subscriptionId, LocalDate start, LocalDate end);
+    
+    @Query("SELECT SUM(u.quantity) FROM UsageRecord u WHERE u.subscription.id = :subscriptionId AND u.component.id = :componentId")
+    Long sumQuantityBySubscriptionIdAndComponentId(@Param("subscriptionId") Long subscriptionId, @Param("componentId") Long componentId);
+}
+
+=====================================================
+REPOSITORY: InvoiceRepository.java (NEW)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.Invoice;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
+    List<Invoice> findByCustomer_IdOrderByIssueDateDesc(Long customerId);
+    List<Invoice> findByCustomer_IdAndStatus(Long customerId, String status);
+    List<Invoice> findByCustomer_Id(Long customerId);
+}
+
+=====================================================
+REPOSITORY: InvoiceLineItemRepository.java (NEW)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.InvoiceLineItem;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface InvoiceLineItemRepository extends JpaRepository<InvoiceLineItem, Long> {
+    List<InvoiceLineItem> findByInvoice_Id(Long invoiceId);
+}
+
+=====================================================
+REPOSITORY: CreditNoteRepository.java (NEW)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.CreditNote;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface CreditNoteRepository extends JpaRepository<CreditNote, Long> {
+    List<CreditNote> findByInvoice_Customer_Id(Long customerId);
+}
+
+=====================================================
+REPOSITORY: PaymentRepository.java (NEW)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.Payment;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface PaymentRepository extends JpaRepository<Payment, Long> {
+    List<Payment> findByInvoice_Customer_Id(Long customerId);
+}
+
+=====================================================
+REPOSITORY: PaymentMethodRepository.java (NEW)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.PaymentMethod;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface PaymentMethodRepository extends JpaRepository<PaymentMethod, Long> {
+    List<PaymentMethod> findByCustomer_Id(Long customerId);
+}
+
+=====================================================
+REPOSITORY: NotificationRepository.java (NEW)
+=====================================================
+package com.infy.billing.repository;
+
+import com.infy.billing.entity.Notification;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface NotificationRepository extends JpaRepository<Notification, Long> {
+    List<Notification> findByCustomer_IdOrderByCreatedAtDesc(Long customerId);
+}
+
+
+=====================================================
+COMPLETE CUSTOMER SERVICES (UPDATED WITH ENUMS)
+=====================================================
+
+=====================================================
+SERVICE 1: CustomerService.java
+=====================================================
+package com.infy.billing.service;
+
+import com.infy.billing.dto.customer.*;
+import com.infy.billing.entity.*;
+import com.infy.billing.enums.CommonStatus;
+import com.infy.billing.repository.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class CustomerService {
+
+    private final CustomerRepository customerRepository;
+    private final UserRepository userRepository;
+    private final NotificationRepository notificationRepository;
+    private final PlanRepository planRepository;
+    private final AddOnRepository addOnRepository;
+
+    public CustomerProfileDTO getProfile(String email) {
+        Customer customer = getCustomerByEmail(email);
+        return mapToProfileDTO(customer);
+    }
+
+    @Transactional
+    public CustomerProfileDTO updateProfile(String email, CustomerProfileDTO dto) {
+        Customer customer = getCustomerByEmail(email);
+        customer.setPhone(dto.getPhone());
+        customer.setState(dto.getState());
+        customer.setCity(dto.getCity());
+        customer.setAddressLine1(dto.getAddressLine1());
+        customer.setPostalCode(dto.getPostalCode());
+        customerRepository.save(customer);
+        return mapToProfileDTO(customer);
+    }
+
+    public List<PlanDTO> getAvailablePlans() {
+        return planRepository.findByStatusAndEffectiveToIsNull(CommonStatus.ACTIVE).stream()
+                .map(this::mapToPlanDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<AddOnDTO> getAvailableAddOns() {
+        return addOnRepository.findByStatus(CommonStatus.ACTIVE).stream()
+                .map(this::mapToAddOnDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<NotificationDTO> getNotifications(String email) {
+        Customer customer = getCustomerByEmail(email);
+        return notificationRepository.findByCustomer_IdOrderByCreatedAtDesc(customer.getId()).stream()
+                .map(this::mapToNotificationDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void markNotificationAsRead(String email, Long notificationId) {
+        Customer customer = getCustomerByEmail(email);
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new RuntimeException("Notification not found"));
+        if (!notification.getCustomer().getId().equals(customer.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+        notification.setStatus(Notification.Status.SENT);
+        notificationRepository.save(notification);
+    }
+
+    private Customer getCustomerByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return customerRepository.findByUser_Id(user.getId())
+                .orElseThrow(() -> new RuntimeException("Customer not found"));
+    }
+
+    private CustomerProfileDTO mapToProfileDTO(Customer customer) {
+        User user = customer.getUser();
+        CustomerProfileDTO dto = new CustomerProfileDTO();
+        dto.setCustomerId(customer.getId());
+        dto.setUserId(user.getId());
+        dto.setFullName(user.getFullName());
+        dto.setEmail(user.getEmail());
+        dto.setPhone(customer.getPhone());
+        dto.setCurrency(customer.getCurrency());
+        dto.setCountry(customer.getCountry());
+        dto.setState(customer.getState());
+        dto.setCity(customer.getCity());
+        dto.setAddressLine1(customer.getAddressLine1());
+        dto.setPostalCode(customer.getPostalCode());
+        dto.setStatus(customer.getStatus().name());
+        dto.setCreatedAt(customer.getCreatedAt());
+        return dto;
+    }
+
+    private PlanDTO mapToPlanDTO(Plan plan) {
+        PlanDTO dto = new PlanDTO();
+        dto.setPlanId(plan.getId());
+        dto.setName(plan.getName());
+        dto.setBillingPeriod(plan.getBillingPeriod().name());
+        dto.setDefaultPriceMinor(plan.getDefaultPriceMinor());
+        dto.setDefaultCurrency(plan.getDefaultCurrency());
+        dto.setTrialDays(plan.getTrialDays());
+        dto.setSetupFeeMinor(plan.getSetupFeeMinor());
+        dto.setTaxMode(plan.getTaxMode().name());
+        dto.setEffectiveFrom(plan.getEffectiveFrom().toString());
+        dto.setEffectiveTo(plan.getEffectiveTo() != null ? plan.getEffectiveTo().toString() : null);
+        dto.setStatus(plan.getStatus().name());
+        dto.setProductName("StreamFlix");
+        return dto;
+    }
+
+    private AddOnDTO mapToAddOnDTO(AddOn addOn) {
+        AddOnDTO dto = new AddOnDTO();
+        dto.setAddOnId(addOn.getId());
+        dto.setName(addOn.getName());
+        dto.setPriceMinor(addOn.getPriceMinor());
+        dto.setCurrency(addOn.getCurrency());
+        dto.setBillingPeriod(addOn.getBillingPeriod().name());
+        dto.setStatus(addOn.getStatus().name());
+        return dto;
+    }
+
+    private NotificationDTO mapToNotificationDTO(Notification notification) {
+        NotificationDTO dto = new NotificationDTO();
+        dto.setNotificationId(notification.getId());
+        dto.setType(notification.getType());
+        dto.setSubject(notification.getSubject());
+        dto.setBody(notification.getBody());
+        dto.setChannel(notification.getChannel().name());
+        dto.setStatus(notification.getStatus().name());
+        dto.setScheduledAt(notification.getScheduledAt());
+        dto.setSentAt(notification.getSentAt());
+        dto.setCreatedAt(notification.getCreatedAt());
+        dto.setIsRead(notification.getStatus() == Notification.Status.SENT);
+        return dto;
+    }
+}
+
+=====================================================
+SERVICE 2: CustomerSubscriptionService.java
+=====================================================
+package com.infy.billing.service;
+
+import com.infy.billing.dto.customer.*;
+import com.infy.billing.entity.*;
+import com.infy.billing.enums.*;
+import com.infy.billing.repository.*;
+import com.infy.billing.request.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class CustomerSubscriptionService {
+
+    private final SubscriptionRepository subscriptionRepository;
+    private final SubscriptionItemRepository subscriptionItemRepository;
+    private final CustomerRepository customerRepository;
+    private final UserRepository userRepository;
+    private final PlanRepository planRepository;
+    private final AddOnRepository addOnRepository;
+    private final MeteredComponentRepository meteredComponentRepository;
+    private final UsageRecordRepository usageRecordRepository;
+    private final PaymentMethodRepository paymentMethodRepository;
+
+    public SubscriptionDTO getCurrentSubscription(String email) {
+        Customer customer = getCustomerByEmail(email);
+        Subscription subscription = subscriptionRepository.findByCustomer_IdAndStatusIn(
+                customer.getId(),
+                List.of(SubscriptionStatus.TRIALING, SubscriptionStatus.ACTIVE, 
+                       SubscriptionStatus.PAST_DUE, SubscriptionStatus.PAUSED, SubscriptionStatus.ON_HOLD)
+        ).stream().findFirst().orElse(null);
+        
+        if (subscription == null) return null;
+        return mapToSubscriptionDTO(subscription);
+    }
+
+    @Transactional
+    public SubscriptionDTO createSubscription(String email, CreateSubscriptionRequest request) {
+        Customer customer = getCustomerByEmail(email);
+        
+        if (!subscriptionRepository.findByCustomer_IdAndStatusIn(customer.getId(), 
+                List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING, SubscriptionStatus.PAST_DUE)).isEmpty()) {
+            throw new RuntimeException("Customer already has an active subscription");
+        }
+
+        Plan plan = planRepository.findById(request.getPlanId())
+                .orElseThrow(() -> new RuntimeException("Plan not found"));
+        
+        PaymentMethod paymentMethod = paymentMethodRepository.findById(request.getPaymentMethodId())
+                .orElseThrow(() -> new RuntimeException("Payment method not found"));
+
+        LocalDate now = LocalDate.now();
+        LocalDate trialEnd = now.plusDays(plan.getTrialDays());
+        LocalDate periodEnd = plan.getBillingPeriod() == BillingPeriod.MONTHLY ? now.plusMonths(1) : now.plusYears(1);
+
+        Subscription subscription = new Subscription();
+        subscription.setCustomer(customer);
+        subscription.setPlan(plan);
+        subscription.setStatus(plan.getTrialDays() > 0 ? SubscriptionStatus.TRIALING : SubscriptionStatus.ACTIVE);
+        subscription.setStartDate(now);
+        subscription.setTrialEndDate(trialEnd);
+        subscription.setCurrentPeriodStart(now);
+        subscription.setCurrentPeriodEnd(periodEnd);
+        subscription.setCancelAtPeriodEnd(false);
+        subscription.setPaymentMethod(paymentMethod);
+        subscription.setCurrency(customer.getCurrency());
+        subscription.setCreatedAt(LocalDateTime.now());
+
+        subscription = subscriptionRepository.save(subscription);
+
+        SubscriptionItem planItem = new SubscriptionItem();
+        planItem.setSubscription(subscription);
+        planItem.setItemType(ItemType.PLAN);
+        planItem.setPlan(plan);
+        planItem.setUnitPriceMinor(plan.getDefaultPriceMinor());
+        planItem.setQuantity(1);
+        planItem.setTaxMode(plan.getTaxMode());
+        subscriptionItemRepository.save(planItem);
+
+        return mapToSubscriptionDTO(subscription);
+    }
+
+    @Transactional
+    public SubscriptionDTO upgradeSubscription(String email, UpgradeSubscriptionRequest request) {
+        Customer customer = getCustomerByEmail(email);
+        Subscription subscription = getActiveSubscription(customer.getId());
+        
+        Plan newPlan = planRepository.findById(request.getPlanId())
+                .orElseThrow(() -> new RuntimeException("Plan not found"));
+
+        subscription.setPlan(newPlan);
+        subscription.setUpdatedAt(LocalDateTime.now());
+        subscriptionRepository.save(subscription);
+
+        SubscriptionItem planItem = subscriptionItemRepository.findBySubscription_IdAndItemType(
+                subscription.getId(), ItemType.PLAN);
+        planItem.setPlan(newPlan);
+        planItem.setUnitPriceMinor(newPlan.getDefaultPriceMinor());
+        subscriptionItemRepository.save(planItem);
+
+        return mapToSubscriptionDTO(subscription);
+    }
+
+    @Transactional
+    public void cancelSubscription(String email, boolean atPeriodEnd) {
+        Customer customer = getCustomerByEmail(email);
+        Subscription subscription = getActiveSubscription(customer.getId());
+        
+        if (atPeriodEnd) {
+            subscription.setCancelAtPeriodEnd(true);
+        } else {
+            subscription.setStatus(SubscriptionStatus.CANCELED);
+            subscription.setCanceledAt(LocalDateTime.now());
+        }
+        subscriptionRepository.save(subscription);
+    }
+
+    @Transactional
+    public SubscriptionDTO pauseSubscription(String email, PauseSubscriptionRequest request) {
+        Customer customer = getCustomerByEmail(email);
+        Subscription subscription = getActiveSubscription(customer.getId());
+        
+        subscription.setStatus(SubscriptionStatus.PAUSED);
+        subscription.setPausedFrom(LocalDate.now());
+        subscription.setPausedTo(LocalDate.parse(request.getPausedTo()));
+        subscriptionRepository.save(subscription);
+        
+        return mapToSubscriptionDTO(subscription);
+    }
+
+    @Transactional
+    public SubscriptionDTO resumeSubscription(String email) {
+        Customer customer = getCustomerByEmail(email);
+        Subscription subscription = subscriptionRepository.findByCustomer_IdAndStatus(
+                customer.getId(), SubscriptionStatus.PAUSED)
+                .orElseThrow(() -> new RuntimeException("No paused subscription found"));
+        
+        subscription.setStatus(SubscriptionStatus.ACTIVE);
+        subscription.setPausedFrom(null);
+        subscription.setPausedTo(null);
+        subscriptionRepository.save(subscription);
+        
+        return mapToSubscriptionDTO(subscription);
+    }
+
+    @Transactional
+    public void addAddOn(String email, Long addonId) {
+        Customer customer = getCustomerByEmail(email);
+        Subscription subscription = getActiveSubscription(customer.getId());
+        AddOn addOn = addOnRepository.findById(addonId)
+                .orElseThrow(() -> new RuntimeException("Add-on not found"));
+
+        SubscriptionItem item = new SubscriptionItem();
+        item.setSubscription(subscription);
+        item.setItemType(ItemType.ADDON);
+        item.setAddOn(addOn);
+        item.setUnitPriceMinor(addOn.getPriceMinor());
+        item.setQuantity(1);
+        item.setTaxMode(addOn.getTaxMode());
+        subscriptionItemRepository.save(item);
+    }
+
+    @Transactional
+    public void removeAddOn(String email, Long addonId) {
+        Customer customer = getCustomerByEmail(email);
+        Subscription subscription = getActiveSubscription(customer.getId());
+        
+        SubscriptionItem item = subscriptionItemRepository.findBySubscription_IdAndAddOn_Id(
+                subscription.getId(), addonId);
+        if (item != null) {
+            subscriptionItemRepository.delete(item);
+        }
+    }
+
+    public List<UsageRecordDTO> getMeteredUsage(String email, String startDate, String endDate) {
+        Customer customer = getCustomerByEmail(email);
+        Subscription subscription = getActiveSubscription(customer.getId());
+        
+        LocalDate start = startDate != null ? LocalDate.parse(startDate) : subscription.getCurrentPeriodStart();
+        LocalDate end = endDate != null ? LocalDate.parse(endDate) : subscription.getCurrentPeriodEnd();
+        
+        List<UsageRecord> usage = usageRecordRepository.findBySubscription_IdAndBillingPeriodStartGreaterThanEqualAndBillingPeriodEndLessThanEqual(
+                subscription.getId(), start, end);
+        
+        return usage.stream().map(this::mapToUsageRecordDTO).collect(Collectors.toList());
+    }
+
+    private Customer getCustomerByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return customerRepository.findByUser_Id(user.getId())
+                .orElseThrow(() -> new RuntimeException("Customer not found"));
+    }
+
+    private Subscription getActiveSubscription(Long customerId) {
+        return subscriptionRepository.findByCustomer_IdAndStatusIn(customerId,
+                List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING, 
+                       SubscriptionStatus.PAST_DUE, SubscriptionStatus.PAUSED, 
+                       SubscriptionStatus.ON_HOLD)).stream()
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("No active subscription found"));
+    }
+
+    private SubscriptionDTO mapToSubscriptionDTO(Subscription subscription) {
+        SubscriptionDTO dto = new SubscriptionDTO();
+        dto.setSubscriptionId(subscription.getId());
+        dto.setCustomerId(subscription.getCustomer().getId());
+        dto.setPlanId(subscription.getPlan().getId());
+        dto.setPlanName(subscription.getPlan() != null ? subscription.getPlan().getName() : "Unknown");
+        dto.setStatus(subscription.getStatus().name());
+        dto.setStartDate(subscription.getStartDate().toString());
+        dto.setTrialEndDate(subscription.getTrialEndDate() != null ? subscription.getTrialEndDate().toString() : null);
+        dto.setCurrentPeriodStart(subscription.getCurrentPeriodStart().toString());
+        dto.setCurrentPeriodEnd(subscription.getCurrentPeriodEnd().toString());
+        dto.setCancelAtPeriodEnd(subscription.isCancelAtPeriodEnd());
+        dto.setCanceledAt(subscription.getCanceledAt() != null ? subscription.getCanceledAt().toString() : null);
+        dto.setPausedFrom(subscription.getPausedFrom() != null ? subscription.getPausedFrom().toString() : null);
+        dto.setPausedTo(subscription.getPausedTo() != null ? subscription.getPausedTo().toString() : null);
+        dto.setCurrency(subscription.getCurrency());
+
+        List<SubscriptionItem> items = subscriptionItemRepository.findBySubscription_Id(subscription.getId());
+        dto.setAddOns(items.stream()
+                .filter(i -> i.getItemType() == ItemType.ADDON)
+                .map(this::mapToSubscriptionAddOnDTO)
+                .collect(Collectors.toList()));
+
+        dto.setMeteredUsage(items.stream()
+                .filter(i -> i.getItemType() == ItemType.METERED)
+                .map(this::mapToMeteredUsageDTO)
+                .collect(Collectors.toList()));
+
+        return dto;
+    }
+
+    private SubscriptionItemDTO mapToSubscriptionAddOnDTO(SubscriptionItem item) {
+        SubscriptionItemDTO dto = new SubscriptionItemDTO();
+        dto.setItemId(item.getId());
+        dto.setAddonId(item.getAddOn().getId());
+        AddOn addOn = item.getAddOn();
+        dto.setAddonName(addOn != null ? addOn.getName() : "Unknown");
+        dto.setUnitPriceMinor(item.getUnitPriceMinor());
+        dto.setQuantity(item.getQuantity());
+        return dto;
+    }
+
+    private MeteredUsageDTO mapToMeteredUsageDTO(SubscriptionItem item) {
+        MeteredUsageDTO dto = new MeteredUsageDTO();
+        dto.setComponentId(item.getComponent().getId());
+        MeteredComponent comp = item.getComponent();
+        dto.setComponentName(comp != null ? comp.getName() : "Unknown");
+        dto.setUnitName(comp != null ? comp.getUnitName() : "unit");
+        dto.setPricePerUnitMinor(comp != null ? comp.getPricePerUnitMinor() : 0);
+        dto.setFreeTierQuantity(comp != null ? comp.getFreeTierQuantity() : 0);
+        Long usage = usageRecordRepository.sumQuantityBySubscriptionIdAndComponentId(
+                item.getSubscription().getId(), item.getComponent().getId());
+        dto.setQuantityUsed(usage != null ? usage : 0);
+        long billable = Math.max(0, dto.getQuantityUsed() - dto.getFreeTierQuantity());
+        dto.setCostMinor(billable * dto.getPricePerUnitMinor());
+        return dto;
+    }
+
+    private UsageRecordDTO mapToUsageRecordDTO(UsageRecord usage) {
+        UsageRecordDTO dto = new UsageRecordDTO();
+        dto.setUsageId(usage.getId());
+        dto.setComponentId(usage.getComponent().getId());
+        MeteredComponent comp = usage.getComponent();
+        dto.setComponentName(comp != null ? comp.getName() : "Unknown");
+        dto.setQuantity(usage.getQuantity());
+        dto.setUnitName(comp != null ? comp.getUnitName() : "unit");
+        dto.setRecordedAt(usage.getRecordedAt().toString());
+        dto.setBillingPeriodStart(usage.getBillingPeriodStart().toString());
+        dto.setBillingPeriodEnd(usage.getBillingPeriodEnd().toString());
+        return dto;
+    }
+}
+
+=====================================================
+SERVICE 3: CustomerBillingService.java
+=====================================================
+package com.infy.billing.service;
+
+import com.infy.billing.dto.customer.*;
+import com.infy.billing.entity.*;
+import com.infy.billing.enums.*;
+import com.infy.billing.repository.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class CustomerBillingService {
+
+    private final InvoiceRepository invoiceRepository;
+    private final InvoiceLineItemRepository invoiceLineItemRepository;
+    private final PaymentRepository paymentRepository;
+    private final CreditNoteRepository creditNoteRepository;
+    private final CouponRepository couponRepository;
+    private final SubscriptionRepository subscriptionRepository;
+    private final CustomerRepository customerRepository;
+    private final UserRepository userRepository;
+
+    public List<InvoiceDTO> getInvoices(String email, String status, String from, String to) {
+        Customer customer = getCustomerByEmail(email);
+        List<Invoice> invoices;
+        
+        if (status != null) {
+            invoices = invoiceRepository.findByCustomer_IdAndStatus(customer.getId(), status);
+        } else {
+            invoices = invoiceRepository.findByCustomer_IdOrderByIssueDateDesc(customer.getId());
+        }
+        
+        return invoices.stream().map(this::mapToInvoiceDTO).collect(Collectors.toList());
+    }
+
+    public InvoiceDTO getInvoiceDetail(String email, Long invoiceId) {
+        Customer customer = getCustomerByEmail(email);
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new RuntimeException("Invoice not found"));
+        
+        if (!invoice.getCustomer().getId().equals(customer.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+        
+        return mapToInvoiceDTO(invoice);
+    }
+
+    public byte[] generateInvoicePdf(String email, Long invoiceId) {
+        return new byte[0];
+    }
+
+    public List<PaymentDTO> getPayments(String email) {
+        Customer customer = getCustomerByEmail(email);
+        return paymentRepository.findByInvoice_Customer_Id(customer.getId()).stream()
+                .map(this::mapToPaymentDTO)
+                .collect(Collectors.toList());
+    }
+
+    public List<CreditNoteDTO> getCreditNotes(String email) {
+        Customer customer = getCustomerByEmail(email);
+        return creditNoteRepository.findByInvoice_Customer_Id(customer.getId()).stream()
+                .map(this::mapToCreditNoteDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public CouponDTO applyCoupon(String email, String code) {
+        Customer customer = getCustomerByEmail(email);
+        Coupon coupon = couponRepository.findByCodeAndStatus(code, CouponStatus.ACTIVE)
+                .orElseThrow(() -> new RuntimeException("Invalid or expired coupon"));
+        
+        subscriptionRepository.findByCustomer_IdAndStatusIn(
+                customer.getId(), List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING)).stream()
+                .findFirst()
+                .orElseThrow(() -> new RuntimeException("No active subscription"));
+        
+        return mapToCouponDTO(coupon);
+    }
+
+    private Customer getCustomerByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return customerRepository.findByUser_Id(user.getId())
+                .orElseThrow(() -> new RuntimeException("Customer not found"));
+    }
+
+    private InvoiceDTO mapToInvoiceDTO(Invoice invoice) {
+        InvoiceDTO dto = new InvoiceDTO();
+        dto.setInvoiceId(invoice.getId());
+        dto.setInvoiceNumber(invoice.getInvoiceNumber());
+        dto.setSubscriptionId(invoice.getSubscription().getId());
+        dto.setStatus(invoice.getStatus().name());
+        dto.setBillingReason(invoice.getBillingReason().name());
+        dto.setIssueDate(invoice.getIssueDate().toString());
+        dto.setDueDate(invoice.getDueDate() != null ? invoice.getDueDate().toString() : null);
+        dto.setSubtotalMinor(invoice.getSubtotalMinor());
+        dto.setTaxMinor(invoice.getTaxMinor());
+        dto.setDiscountMinor(invoice.getDiscountMinor());
+        dto.setTotalMinor(invoice.getTotalMinor());
+        dto.setBalanceMinor(invoice.getBalanceMinor());
+        dto.setCurrency(invoice.getCurrency());
+        
+        List<InvoiceLineItem> items = invoiceLineItemRepository.findByInvoice_Id(invoice.getId());
+        dto.setLineItems(items.stream().map(this::mapToLineItemDTO).collect(Collectors.toList()));
+        
+        return dto;
+    }
+
+    private InvoiceLineItemDTO mapToLineItemDTO(InvoiceLineItem item) {
+        InvoiceLineItemDTO dto = new InvoiceLineItemDTO();
+        dto.setLineItemId(item.getId());
+        dto.setDescription(item.getDescription());
+        dto.setLineType(item.getLineType().name());
+        dto.setQuantity(item.getQuantity());
+        dto.setUnitPriceMinor(item.getUnitPriceMinor());
+        dto.setAmountMinor(item.getAmountMinor());
+        dto.setPeriodStart(item.getPeriodStart() != null ? item.getPeriodStart().toString() : null);
+        dto.setPeriodEnd(item.getPeriodEnd() != null ? item.getPeriodEnd().toString() : null);
+        return dto;
+    }
+
+    private PaymentDTO mapToPaymentDTO(Payment payment) {
+        PaymentDTO dto = new PaymentDTO();
+        dto.setPaymentId(payment.getId());
+        dto.setInvoiceId(payment.getInvoice().getId());
+        Invoice inv = payment.getInvoice();
+        dto.setInvoiceNumber(inv != null ? inv.getInvoiceNumber() : "N/A");
+        dto.setAmountMinor(payment.getAmountMinor());
+        dto.setCurrency(payment.getCurrency());
+        dto.setStatus(payment.getStatus().name());
+        dto.setAttemptNo(payment.getAttemptNo());
+        dto.setFailureReason(payment.getFailureReason());
+        dto.setCreatedAt(payment.getCreatedAt().toString());
+        return dto;
+    }
+
+    private CreditNoteDTO mapToCreditNoteDTO(CreditNote creditNote) {
+        CreditNoteDTO dto = new CreditNoteDTO();
+        dto.setCreditNoteId(creditNote.getId());
+        dto.setCreditNoteNumber(creditNote.getCreditNoteNumber());
+        dto.setInvoiceId(creditNote.getInvoice().getId());
+        Invoice inv = creditNote.getInvoice();
+        dto.setInvoiceNumber(inv != null ? inv.getInvoiceNumber() : "N/A");
+        dto.setReason(creditNote.getReason());
+        dto.setAmountMinor(creditNote.getAmountMinor());
+        dto.setStatus(creditNote.getStatus().name());
+        dto.setCreatedAt(creditNote.getCreatedAt().toString());
+        return dto;
+    }
+
+    private CouponDTO mapToCouponDTO(Coupon coupon) {
+        CouponDTO dto = new CouponDTO();
+        dto.setCouponId(coupon.getId());
+        dto.setCode(coupon.getCode());
+        dto.setName(coupon.getName());
+        dto.setType(coupon.getType().name());
+        dto.setAmount(coupon.getAmount());
+        dto.setCurrency(coupon.getCurrency());
+        dto.setDuration(coupon.getDuration().name());
+        dto.setDurationInMonths(coupon.getDurationInMonths());
+        dto.setValidFrom(coupon.getValidFrom().toString());
+        dto.setValidTo(coupon.getValidTo() != null ? coupon.getValidTo().toString() : null);
+        dto.setStatus(coupon.getStatus().name());
+        return dto;
+    }
+}
+
+=====================================================
+SERVICE 4: CustomerPaymentService.java
+=====================================================
+package com.infy.billing.service;
+
+import com.infy.billing.dto.customer.PaymentMethodDTO;
+import com.infy.billing.entity.*;
+import com.infy.billing.enums.*;
+import com.infy.billing.repository.*;
+import com.infy.billing.request.AddPaymentMethodRequest;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class CustomerPaymentService {
+
+    private final PaymentMethodRepository paymentMethodRepository;
+    private final CustomerRepository customerRepository;
+    private final UserRepository userRepository;
+
+    public List<PaymentMethodDTO> getPaymentMethods(String email) {
+        Customer customer = getCustomerByEmail(email);
+        return paymentMethodRepository.findByCustomer_Id(customer.getId()).stream()
+                .map(this::mapToPaymentMethodDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public PaymentMethodDTO addPaymentMethod(String email, AddPaymentMethodRequest request) {
+        Customer customer = getCustomerByEmail(email);
+
+        PaymentMethod method = new PaymentMethod();
+        method.setCustomer(customer);
+        method.setPaymentType(PaymentType.valueOf(request.getPaymentType()));
+        method.setIsDefault(request.getIsDefault());
+        method.setStatus(PaymentMethodStatus.ACTIVE);
+        method.setCreatedAt(LocalDateTime.now());
+
+        if ("CARD".equals(request.getPaymentType())) {
+            method.setCardLast4(request.getCardNumber().substring(request.getCardNumber().length() - 4));
+            method.setCardBrand(detectCardBrand(request.getCardNumber()));
+            method.setExpiryMonth(request.getExpiryMonth());
+            method.setExpiryYear(request.getExpiryYear());
+            method.setGatewayToken("tok_" + System.currentTimeMillis());
+        } else {
+            method.setGatewayToken("upi_" + System.currentTimeMillis());
+        }
+
+        List<PaymentMethod> existing = paymentMethodRepository.findByCustomer_Id(customer.getId());
+        if (existing.isEmpty() || request.getIsDefault()) {
+            existing.stream().filter(PaymentMethod::getIsDefault).forEach(m -> {
+                m.setIsDefault(false);
+                paymentMethodRepository.save(m);
+            });
+            method.setIsDefault(true);
+        }
+
+        PaymentMethod saved = paymentMethodRepository.save(method);
+        return mapToPaymentMethodDTO(saved);
+    }
+
+    @Transactional
+    public void setDefaultPaymentMethod(String email, Long paymentMethodId) {
+        Customer customer = getCustomerByEmail(email);
+        
+        List<PaymentMethod> methods = paymentMethodRepository.findByCustomer_Id(customer.getId());
+        methods.forEach(m -> {
+            m.setIsDefault(false);
+            paymentMethodRepository.save(m);
+        });
+
+        PaymentMethod method = paymentMethodRepository.findById(paymentMethodId)
+                .orElseThrow(() -> new RuntimeException("Payment method not found"));
+        
+        if (!method.getCustomer().getId().equals(customer.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+        
+        method.setIsDefault(true);
+        paymentMethodRepository.save(method);
+    }
+
+    @Transactional
+    public void deletePaymentMethod(String email, Long paymentMethodId) {
+        Customer customer = getCustomerByEmail(email);
+        PaymentMethod method = paymentMethodRepository.findById(paymentMethodId)
+                .orElseThrow(() -> new RuntimeException("Payment method not found"));
+        
+        if (!method.getCustomer().getId().equals(customer.getId())) {
+            throw new RuntimeException("Unauthorized");
+        }
+
+        List<PaymentMethod> remaining = paymentMethodRepository.findByCustomer_Id(customer.getId());
+        if (method.getIsDefault() && remaining.size() == 1) {
+            throw new RuntimeException("Cannot delete your only payment method");
+        }
+
+        if (method.getIsDefault() && remaining.size() > 1) {
+            PaymentMethod newDefault = remaining.stream()
+                    .filter(m -> !m.getId().equals(paymentMethodId))
+                    .findFirst()
+                    .orElse(null);
+            if (newDefault != null) {
+                newDefault.setIsDefault(true);
+                paymentMethodRepository.save(newDefault);
+            }
+        }
+
+        paymentMethodRepository.delete(method);
+    }
+
+    private Customer getCustomerByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return customerRepository.findByUser_Id(user.getId())
+                .orElseThrow(() -> new RuntimeException("Customer not found"));
+    }
+
+    private String detectCardBrand(String cardNumber) {
+        if (cardNumber.startsWith("4")) return "VISA";
+        if (cardNumber.startsWith("5")) return "MASTERCARD";
+        if (cardNumber.startsWith("34") || cardNumber.startsWith("37")) return "AMEX";
+        return "UNKNOWN";
+    }
+
+    private PaymentMethodDTO mapToPaymentMethodDTO(PaymentMethod method) {
+        PaymentMethodDTO dto = new PaymentMethodDTO();
+        dto.setPaymentMethodId(method.getId());
+        dto.setPaymentType(method.getPaymentType().name());
+        dto.setCardLast4(method.getCardLast4());
+        dto.setCardBrand(method.getCardBrand());
+        dto.setUpiId(method.getPaymentType() == PaymentType.UPI ? method.getGatewayToken() : null);
+        dto.setIsDefault(method.getIsDefault());
+        dto.setExpiryMonth(method.getExpiryMonth());
+        dto.setExpiryYear(method.getExpiryYear());
+        dto.setStatus(method.getStatus().name());
+        return dto;
+    }
+}
+
+=====================================================
+SERVICE 5: CustomerSupportService.java
+=====================================================
+package com.infy.billing.service;
+
+import com.infy.billing.dto.customer.SupportMessageDTO;
+import com.infy.billing.entity.*;
+import com.infy.billing.enums.*;
+import com.infy.billing.repository.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+public class CustomerSupportService {
+
+    private final CustomerRepository customerRepository;
+    private final UserRepository userRepository;
+    private final NotificationRepository notificationRepository;
+
+    public List<Map<String, String>> getFAQs() {
+        return List.of(
+                Map.of("question", "How do I change my plan?", 
+                       "answer", "Go to the Subscription page and click 'Change Plan' to upgrade or downgrade.",
+                       "category", "ACCOUNT"),
+                Map.of("question", "Can I cancel anytime?", 
+                       "answer", "Yes! You can cancel at any time. Access continues until the end of your billing period.",
+                       "category", "BILLING"),
+                Map.of("question", "How do I update my payment method?", 
+                       "answer", "Visit Payment Methods page to add, edit, or remove payment options.",
+                       "category", "PAYMENT"),
+                Map.of("question", "What happens when my trial ends?", 
+                       "answer", "Your subscription will automatically start billing based on your selected plan.",
+                       "category", "BILLING"),
+                Map.of("question", "How do I download my invoices?", 
+                       "answer", "Go to the Billing page, find your invoice, and click the download button.",
+                       "category", "BILLING"),
+                Map.of("question", "What is the Ad-Free add-on?", 
+                       "answer", "The Ad-Free add-on removes all advertisements for ₹99/month.",
+                       "category", "FEATURES"),
+                Map.of("question", "How is download storage calculated?", 
+                       "answer", "You get 5-10GB free depending on your plan. Additional storage is ₹20/GB.",
+                       "category", "FEATURES"),
+                Map.of("question", "Can I pause my subscription?", 
+                       "answer", "Yes, you can pause for up to 1 month. You won't be charged during the pause period.",
+                       "category", "ACCOUNT")
+        );
+    }
+
+    public void sendSupportMessage(String email, SupportMessageDTO message) {
+        Customer customer = getCustomerByEmail(email);
+        
+        Notification notification = new Notification();
+        notification.setCustomer(customer);
+        notification.setType("SUPPORT_REQUEST");
+        notification.setSubject(message.getSubject());
+        notification.setBody(message.getMessage());
+        notification.setChannel(Channel.EMAIL);
+        notification.setStatus(NotificationStatus.PENDING);
+        notification.setCreatedAt(LocalDateTime.now());
+        notificationRepository.save(notification);
+    }
+
+    private Customer getCustomerByEmail(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return customerRepository.findByUser_Id(user.getId())
+                .orElseThrow(() -> new RuntimeException("Customer not found"));
+    }
+}
+
+
+=====================================================
+ENUMS NEEDED (Add to com.infy.billing.enums package)
+=====================================================
+
+// CommonStatus.java
+package com.infy.billing.enums;
+
+public enum CommonStatus {
+    ACTIVE, INACTIVE, SUSPENDED
+}
+
+// SubscriptionStatus.java
+package com.infy.billing.enums;
+
+public enum SubscriptionStatus {
+    DRAFT, TRIALING, ACTIVE, PAST_DUE, PAUSED, CANCELED, ON_HOLD
+}
+
+// InvoiceStatus.java
+package com.infy.billing.enums;
+
+public enum InvoiceStatus {
+    DRAFT, OPEN, PAID, VOID, UNCOLLECTIBLE
+}
+
+// InvoiceBillingReason.java
+package com.infy.billing.enums;
+
+public enum InvoiceBillingReason {
+    SUBSCRIPTION_CREATE, SUBSCRIPTION_CYCLE, SUBSCRIPTION_UPDATE, MANUAL
+}
+
+// PaymentStatus.java
+package com.infy.billing.enums;
+
+public enum PaymentStatus {
+    PENDING, SUCCESS, FAILED, REFUNDED, PARTIALLY_REFUNDED
+}
+
+// PaymentMethodStatus.java
+package com.infy.billing.enums;
+
+public enum PaymentMethodStatus {
+    ACTIVE, EXPIRED, REVOKED
+}
+
+// CouponStatus.java
+package com.infy.billing.enums;
+
+public enum CouponStatus {
+    ACTIVE, EXPIRED, DISABLED
+}
+
+// CreditNoteStatus.java
+package com.infy.billing.enums;
+
+public enum CreditNoteStatus {
+    DRAFT, ISSUED, APPLIED, VOIDED
+}
+
+// NotificationStatus.java
+package com.infy.billing.enums;
+
+public enum NotificationStatus {
+    PENDING, SENT, FAILED, SKIPPED
+}
+
+// BillingPeriod.java
+package com.infy.billing.enums;
+
+public enum BillingPeriod {
+    MONTHLY, YEARLY
+}
+
+// TaxMode.java
+package com.infy.billing.enums;
+
+public enum TaxMode {
+    INCLUSIVE, EXCLUSIVE
+}
+
+// ItemType.java
+package com.infy.billing.enums;
+
+public enum ItemType {
+    PLAN, ADDON, METERED
+}
+
+// PaymentType.java
+package com.infy.billing.enums;
+
+public enum PaymentType {
+    CARD, UPI
+}
+
+// CouponType.java
+package com.infy.billing.enums;
+
+public enum CouponType {
+    PERCENT, FIXED
+}
+
+// Duration.java
+package com.infy.billing.enums;
+
+public enum Duration {
+    ONCE, REPEATING, FOREVER
+}
+
+// Channel.java
+package com.infy.billing.enums;
+
+public enum Channel {
+    EMAIL, SMS
+}
+
+// LineItemType.java (for InvoiceLineItem)
+package com.infy.billing.enums;
+
+public enum LineItemType {
+    PLAN, ADDON, METERED, PRORATION, DISCOUNT, TAX
+}
+
+
+=====================================================
+ENTITY STATUS FIELD UPDATES NEEDED
+=====================================================
+
+In each entity, change status field from String to appropriate Enum:
+
+@Entity
+public class User {
+    @Enumerated(EnumType.STRING)
+    private CommonStatus status;  // Was: private String status;
+}
+
+@Entity
+public class Customer {
+    @Enumerated(EnumType.STRING)
+    private CommonStatus status;
+}
+
+@Entity
+public class Product {
+    @Enumerated(EnumType.STRING)
+    private CommonStatus status;
+}
+
+@Entity
+public class Plan {
+    @Enumerated(EnumType.STRING)
+    private BillingPeriod billingPeriod;
+    
+    @Enumerated(EnumType.STRING)
+    private TaxMode taxMode;
+    
+    @Enumerated(EnumType.STRING)
+    private CommonStatus status;
+}
+
+@Entity
+public class AddOn {
+    @Enumerated(EnumType.STRING)
+    private BillingPeriod billingPeriod;
+    
+    @Enumerated(EnumType.STRING)
+    private TaxMode taxMode;
+    
+    @Enumerated(EnumType.STRING)
+    private CommonStatus status;
+}
+
+@Entity
+public class MeteredComponent {
+    @Enumerated(EnumType.STRING)
+    private CommonStatus status;
+}
+
+@Entity
+public class Subscription {
+    @Enumerated(EnumType.STRING)
+    private SubscriptionStatus status;
+}
+
+@Entity
+public class SubscriptionItem {
+    @Enumerated(EnumType.STRING)
+    private ItemType itemType;
+    
+    @Enumerated(EnumType.STRING)
+    private TaxMode taxMode;
+}
+
+@Entity
+public class Invoice {
+    @Enumerated(EnumType.STRING)
+    private InvoiceStatus status;
+    
+    @Enumerated(EnumType.STRING)
+    private InvoiceBillingReason billingReason;
+}
+
+@Entity
+public class InvoiceLineItem {
+    @Enumerated(EnumType.STRING)
+    private LineItemType lineType;
+}
+
+@Entity
+public class Payment {
+    @Enumerated(EnumType.STRING)
+    private PaymentStatus status;
+}
+
+@Entity
+public class PaymentMethod {
+    @Enumerated(EnumType.STRING)
+    private PaymentType paymentType;
+    
+    @Enumerated(EnumType.STRING)
+    private PaymentMethodStatus status;
+}
+
+@Entity
+public class Coupon {
+    @Enumerated(EnumType.STRING)
+    private CouponType type;
+    
+    @Enumerated(EnumType.STRING)
+    private Duration duration;
+    
+    @Enumerated(EnumType.STRING)
+    private CouponStatus status;
+}
+
+@Entity
+public class CreditNote {
+    @Enumerated(EnumType.STRING)
+    private CreditNoteStatus status;
+}
+
+@Entity
+public class Notification {
+    @Enumerated(EnumType.STRING)
+    private Channel channel;
+    
+    @Enumerated(EnumType.STRING)
+    private NotificationStatus status;
+}
+
+
+=====================================================
+END OF FILE
+=====================================================

@@ -1,0 +1,66 @@
+package com.infy.billing.service;
+
+import com.infy.billing.dto.admin.*;
+import com.infy.billing.entity.*;
+import java.util.List;
+import java.util.Map;
+
+public interface AdminDashboardService {
+
+   // Dashboard
+   Map<String, Object> getDashboardStats();
+
+   // Product (returns entity directly — no relationships)
+   List<Product> getAllProducts();
+   Product getProductById(Long id);
+   Product createProduct(Product product);
+   Product updateProduct(Long id, Product product);
+   void toggleProductStatus(Long id);
+
+   // Plan (returns DTO — has Product relationship)
+   List<PlanResponse> getAllPlans();
+   PlanResponse createPlan(Plan plan);
+   PlanResponse updatePlan(Long id, Plan plan);
+   void togglePlanStatus(Long id);
+
+   // Price Book (returns DTO — has Plan relationship)
+   List<PriceBookResponse> getAllPriceBookEntries();
+   PriceBookResponse createPriceBookEntry(PriceBookEntry entry);
+   PriceBookResponse updatePriceBookEntry(Long id, PriceBookEntry entry);
+   void deletePriceBookEntry(Long id);
+
+   // Add-on (returns DTO)
+   List<AddOnResponse> getAllAddOns();
+   AddOnResponse createAddOn(AddOn addOn);
+   AddOnResponse updateAddOn(Long id, AddOn addOn);
+   void toggleAddOnStatus(Long id);
+
+   // Metered Component (returns DTO — has Plan relationship)
+   List<MeteredComponentResponse> getAllMeteredComponents();
+   MeteredComponentResponse createMeteredComponent(MeteredComponent component);
+   MeteredComponentResponse updateMeteredComponent(Long id, MeteredComponent component);
+   void toggleMeteredComponentStatus(Long id);
+
+   // Tax Rate (returns entity directly — no relationships)
+   List<TaxRate> getAllTaxRates();
+   TaxRate createTaxRate(TaxRate taxRate);
+   TaxRate updateTaxRate(Long id, TaxRate taxRate);
+   void deleteTaxRate(Long id);
+
+   // Coupon (returns entity directly — no relationships)
+   List<Coupon> getAllCoupons();
+   Coupon createCoupon(Coupon coupon);
+   Coupon updateCoupon(Long id, Coupon coupon);
+   void toggleCouponStatus(Long id);
+
+   // Users
+   List<CustomerResponse> getAllCustomers();
+   void toggleCustomerStatus(Long id);
+   List<StaffResponse> getAllStaff();
+   StaffResponse createStaff(User user);
+   void deleteStaff(Long id);
+
+   // Subscriptions
+   List<SubscriptionResponse> getAllSubscriptions();
+   SubscriptionResponse getSubscriptionById(Long id);
+}

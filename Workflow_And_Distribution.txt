@@ -1,0 +1,1485 @@
+================================================================
+  SECTION 1 — COMPLETE APPLICATION WORKFLOW
+================================================================
+
+Below is the full end-to-end workflow of the application.
+Every step mentions which user story it connects to.
+
+
+----------------------------------------------------------------
+PHASE 1: SYSTEM SETUP (Admin sets up before customers arrive)
+----------------------------------------------------------------
+
+Step 1: Admin logs into the Admin Console.
+  System authenticates via OAuth2/JWT, checks role = ADMIN.
+  -> Connects to US 10 (RBAC)
+
+Step 2: Admin creates Products (e.g., "StreamMax Platform").
+  Under each product, Admin creates Plans:
+    - Basic Plan:  Rs.299/month, 7-day trial, no setup fee
+    - Pro Plan:    Rs.599/month, 14-day trial, Rs.99 setup fee
+    - Annual Plan: Rs.4999/year, no trial, no setup fee
+  -> Connects to US 03 (Product/Plan/Pricing Configuration)
+
+Step 3: Admin sets up Tax Rules:
+    - India: 18% GST, exclusive
+    - EU:   20% VAT, inclusive
+  Admin creates Coupons:
+    - "WELCOME20": 20% off, first month only, max 500 uses
+    - "FLAT100":   Rs.100 off, recurring 3 months, no limit
+  -> Connects to US 04 (Taxes & Discounts)
+
+Step 4: Admin configures Dunning retry strategy:
+    - Retry after 1 day, 3 days, 7 days
+    - After all retries fail: cancel subscription
+  -> Connects to US 09 (Dunning & Retry)
+
+Step 5: Admin configures Notification templates:
+    - Renewal reminder at T-7 and T-1 days before billing
+    - Receipt email after successful payment
+    - Payment failure alert with "Update Card" link
+  -> Connects to US 05 (Renewal Reminders)
+
+
+----------------------------------------------------------------
+PHASE 2: CUSTOMER ONBOARDING
+----------------------------------------------------------------
+
+Step 6: Customer creates an account.
+  System stores: name, email, phone, currency, address.
+  Customer logs in, JWT token issued, role = CUSTOMER.
+  -> Connects to US 10 (RBAC - customer role)
+
+Step 7: Customer browses the Product Catalog.
+  Sees available plans with prices, features, trial info.
+  -> Connects to US 03 (Plan listing)
+
+Step 8: Customer selects a Plan (e.g., Pro Plan Rs.599/month
+  with 14-day trial).
+  Optionally adds Add-ons.
+  Enters payment method (tokenized, no raw card stored).
+  -> Connects to US 01 (Subscribe to a Plan)
+
+Step 9: Customer applies coupon code "WELCOME20" at checkout.
+  System validates: not expired, usage limit OK, plan OK.
+  Total updates: Rs.599 -> Rs.479.20 + 18% GST = Rs.565.46
+  -> Connects to US 14 (Apply Coupon at Checkout)
+
+Step 10: System creates the Subscription:
+  - Plan has trial? -> status = TRIALING, no charge now
+  - No trial?       -> status = ACTIVE, invoice generated
+  - Setup fee?      -> charge setup fee immediately
+  On payment success -> send receipt email
+  On payment failure -> mark past_due, schedule retry
+  -> Connects to US 01 + US 02
+
+
+----------------------------------------------------------------
+PHASE 3: SUBSCRIPTION LIFECYCLE (Day-to-day usage)
+----------------------------------------------------------------
+
+Step 11: 7 days before renewal, system sends reminder:
+  "Your Pro Plan renews on 15-May-2026.
+   Amount: Rs.565.46. Manage subscription: [link]"
+  1 day before, another reminder is sent.
+  -> Connects to US 05 (Renewal Reminders)
+
+Step 12: Customer upgrades from Pro (Rs.599) to Annual
+  (Rs.4999).
+  System calculates proration:
+    - 20 days remaining on Pro -> credit Rs.399.33
+    - 20 days on Annual -> charge Rs.273.89
+    - Net charge: Rs.200 (charged now or next invoice)
+  -> Connects to US 06 (Upgrade/Downgrade with Proration)
+
+Step 13: Customer requests to pause subscription.
+  Support agent sets pause: May 20 -> June 10.
+  Status = PAUSED. Billing engine skips paused subs.
+  On June 10, status auto-reverts to ACTIVE.
+  -> Connects to US 12 (Pause/Resume)
+
+Step 14: Customer manages notification preferences:
+  Turns off SMS marketing. Keeps email receipts ON.
+  Mandatory alerts (payment failed) cannot be turned off.
+  -> Connects to US 15 (Notification Preferences)
+
+
+----------------------------------------------------------------
+PHASE 4: AUTOMATED BILLING (Runs daily at 2 AM via Cron)
+----------------------------------------------------------------
+
+Step 15: Billing engine wakes up (Cron job).
+  Finds all ACTIVE subscriptions expiring tomorrow.
+  Skips PAUSED or already-invoiced subs (idempotency).
+  -> Connects to US 02 (Automated Billing Cycles)
+
+Step 16: For each due subscription:
+  a) Fetch plan price, tax rate, active coupon
+  b) Generate Invoice with line items:
+       Line 1: "Pro Plan - Monthly"     Rs.599.00
+       Line 2: "Discount (WELCOME20)"  -Rs.119.80
+       Line 3: "GST 18%"               +Rs.86.26
+       Total:                           Rs.565.46
+  c) Attempt payment via mock gateway
+  d) SUCCESS -> invoice = PAID, send receipt email
+  e) FAILURE -> invoice = PAYMENT_FAILED, enter dunning
+  -> Connects to US 02 + US 04 + US 11
+
+Step 17: Customer views invoice history in their portal.
+  Sees: Invoice #1042 | May 2026 | Rs.565.46 | PAID
+  Clicks [Download PDF] -> formatted PDF with line items.
+  -> Connects to US 11 (Invoice History & PDF)
+
+
+----------------------------------------------------------------
+PHASE 5: PAYMENT FAILURE & DUNNING
+----------------------------------------------------------------
+
+Step 18: Payment attempt fails (card expired, etc.).
+  System marks subscription as PAST_DUE.
+  Dunning engine schedules retries:
+    Day 1: Retry -> fails -> "update your card" email
+    Day 3: Retry -> fails -> another reminder
+    Day 7: Retry -> fails -> MAX RETRIES EXHAUSTED
+  -> Connects to US 09 (Dunning & Retry)
+
+Step 19: After all retries exhausted:
+  System cancels subscription (or on_hold - configurable).
+  Sends: "Subscription canceled due to payment failure."
+  -> Connects to US 09 + US 05
+
+
+----------------------------------------------------------------
+PHASE 6: CUSTOMER SUPPORT
+----------------------------------------------------------------
+
+Step 20: Customer calls support about a wrong charge.
+  Support agent logs in (role = SUPPORT).
+  Looks up customer -> subscription history, invoices.
+  -> Connects to US 10 (RBAC - support role)
+
+Step 21: Support agent issues a full refund of Rs.565.46.
+  System processes refund via mock gateway.
+  Auto-creates a Credit Note linked to original invoice.
+  Audit log records: who, amount, reason, timestamp.
+  -> Connects to US 08 (Refunds & Credit Notes)
+
+
+----------------------------------------------------------------
+PHASE 7: FINANCE & REPORTING
+----------------------------------------------------------------
+
+Step 22: Finance Manager logs in (role = FINANCE).
+  Dashboard shows real-time KPIs:
+    MRR:         Rs.4,52,000
+    ARR:         Rs.54,24,000
+    ARPU:        Rs.487
+    Gross Churn: 3.2%
+    Net Churn:   1.8%
+    LTV:         Rs.14,610
+  Charts show trends over the selected time range.
+  -> Connects to US 07 (Revenue Analytics)
+
+Step 23: Finance Manager exports monthly report as CSV.
+  Downloads churn report as PDF for board presentation.
+  -> Connects to US 07 (Export)
+
+Step 24: Finance Manager checks audit logs:
+  Filters by action = "REFUND".
+  Sees: Agent X refunded Rs.565.46 for Customer Y
+        on 12-May-2026, reason: "Service not used".
+  Logs are immutable - cannot be edited or deleted.
+  -> Connects to US 13 (Audit Log)
+
+
+----------------------------------------------------------------
+COMPLETE FLOW DIAGRAM
+----------------------------------------------------------------
+
+[Admin Setup]
+    |
+    v
+[Products, Plans, Tax Rules, Coupons, Dunning Config]
+    |
+    v
+[Customer Signs Up] --> [Subscribes to Plan]
+    |
+    v
+[Trial Period or Immediate Billing]
+    |
+    v
+[Billing Engine Runs Daily (Cron)]
+    |
+    +---------- SUCCESS ----------+
+    |                             |
+    v                             v
+[Payment FAILED]            [Invoice PAID]
+    |                        [Receipt Sent]
+    v
+[Dunning Retries: 1d -> 3d -> 7d]
+    |
+    +--- All Retries Fail? ---+
+    |                         |
+   YES                        NO
+    |                         |
+    v                         v
+[Cancel Subscription]   [Payment Recovered]
+[Notify User]           [Invoice PAID]
+
+
+[Customer Actions at any time]:
+  -> Upgrade/Downgrade (proration calculated)
+  -> Pause/Resume subscription
+  -> Apply coupon
+  -> View/Download invoices
+  -> Manage notification preferences
+
+[Support Actions]:
+  -> Look up customer
+  -> Issue refund -> credit note -> audit log
+
+[Finance Actions]:
+  -> View MRR/ARR/Churn dashboards
+  -> Export reports (CSV/PDF)
+  -> Review audit logs
+
+
+================================================================
+  SECTION 2 — ALL 15 USER STORIES
+================================================================
+
+
+----------------------------------------------------------------
+QUICK REFERENCE: ONE LINE EACH
+----------------------------------------------------------------
+
+US 01 - Customer subscribes to a plan (with add-ons/trial)
+US 02 - System auto-bills subscriptions daily via cron job
+US 03 - Admin creates and manages products, plans, pricing
+US 04 - System applies correct taxes (GST/VAT) and discounts
+US 05 - System sends renewal reminders before charges
+US 06 - Customer upgrades/downgrades mid-cycle with proration
+US 07 - Finance manager views revenue dashboards (MRR/Churn)
+US 08 - Support agent issues refunds with credit notes
+US 09 - System retries failed payments before canceling
+US 10 - Admin manages role-based access control (RBAC)
+US 11 - Customer views past invoices and downloads PDF
+US 12 - Support agent pauses/resumes a subscription
+US 13 - Finance manager views immutable audit logs
+US 14 - Customer applies coupon code at checkout
+US 15 - Customer manages notification preferences
+
+
+----------------------------------------------------------------
+DETAILED EXPLANATION
+----------------------------------------------------------------
+
+US 01 — Must Have | SUBSCRIBE TO A PLAN
+
+  As a Customer, I want to subscribe to a plan (with
+  optional add-ons) so that I can start using the service.
+
+  What this means:
+  - Customer picks a plan (e.g., Basic Rs.299/month)
+  - Optionally selects add-ons (e.g., Extra Storage Rs.99)
+  - Chooses billing cycle (monthly or yearly)
+  - Enters payment details (tokenized, no raw card)
+  - Plan has trial? -> starts as TRIALING, no charge
+  - No trial? -> starts as ACTIVE, first invoice generated
+
+  Acceptance Criteria:
+  - Choose plan, billing cycle, add-ons
+  - Enter payment method
+  - Trial start/end dates shown when applicable
+  - Active on success; past_due on failure
+
+................................................................
+
+US 02 — Must Have | AUTOMATED BILLING
+
+  As a System, I want to run automated billing cycles so
+  that subscriptions are renewed on time.
+
+  What this means:
+  - A Cron job runs every day (e.g., at 2 AM)
+  - Finds subscriptions whose period ends tomorrow
+  - Generates invoice with line items, taxes, discounts
+  - Attempts payment via mock gateway
+  - Success: invoice = PAID, sends receipt email
+  - Failure: invoice = FAILED, starts dunning
+  - Idempotency keys prevent double-charging
+
+  Acceptance Criteria:
+  - Cron detects subs due in next 24 hours
+  - Generate invoice -> charge -> update status
+  - Success: receipt; Failure: past_due + retry
+  - Idempotency key prevents duplicate charges
+
+................................................................
+
+US 03 — Must Have | PRODUCT & PLAN MANAGEMENT
+
+  As an Admin, I want to configure products, plans, and
+  pricing to offer flexible subscriptions.
+
+  What this means:
+  - Admin creates a Product (e.g., "StreamMax")
+  - Under it, creates Plans with different prices/features
+  - Each plan has: billing period, price, trial days, fee
+  - Price books for different currencies (INR, USD, EUR)
+  - Plans can have effective date ranges (future pricing)
+
+  Acceptance Criteria:
+  - CRUD for product, plan, add-on, metered component
+  - Define price, billing period, trial, setup fee
+  - Price books per currency; effective start/end dates
+
+................................................................
+
+US 04 — Must Have | TAXES & DISCOUNTS
+
+  As a Finance Manager, I want taxes and discounts applied
+  correctly for compliance and transparency.
+
+  What this means:
+  - Tax rules per region (India=18% GST, EU=20% VAT)
+  - Tax can be inclusive or exclusive
+  - Coupons: percentage (20% off) or fixed (Rs.100 off)
+  - Coupons: one-time, recurring N months, or forever
+  - Coupons have expiry dates and usage limits
+  - Invoices show tax and discount as separate line items
+
+  Acceptance Criteria:
+  - Tax rules by region, inclusive/exclusive
+  - Coupons: amount/%, one-time/recurring, expiry, limits
+  - Invoices show line-item taxes and discounts
+
+................................................................
+
+US 05 — Must Have | RENEWAL REMINDERS
+
+  As a Customer, I want renewal reminders so that I am
+  informed before charges.
+
+  What this means:
+  - System sends email/SMS reminders before auto-charging
+  - Default: 7 days and 1 day before renewal (configurable)
+  - Includes: amount, date, link to manage subscription
+  - All notifications are logged (who, what, when, status)
+  - Respects opt-out preferences for non-mandatory alerts
+
+  Acceptance Criteria:
+  - Reminders at T-7 and T-1 days (configurable)
+  - Email/SMS with amount, date, manage link (Mock)
+  - Notification logs maintained
+
+................................................................
+
+US 06 — Must Have | MID-CYCLE UPGRADE/DOWNGRADE
+
+  As a Customer, I want upgrades/downgrades mid-cycle with
+  proration so charges are fair.
+
+  What this means:
+  - Customer switches plans mid-billing period
+  - System calculates proration:
+    Credit for unused days on old plan
+    Charge for remaining days on new plan
+  - Example: 10 days into 30-day month
+    Old plan Rs.300, new plan Rs.600
+    Credit: Rs.200, Charge: Rs.400, Net: Rs.200
+  - Proration amounts appear on the invoice
+
+  Acceptance Criteria:
+  - Proration based on remaining days/usage
+  - Charge immediately or at next renewal
+  - Proration lines appear on invoice
+
+................................................................
+
+US 07 — Must Have | REVENUE ANALYTICS
+
+  As a Finance Manager, I want revenue analytics so that
+  I can track MRR/ARR and churn.
+
+  What this means:
+  - Dashboard shows key business metrics:
+    MRR  = total monthly income from active subs
+    ARR  = MRR x 12
+    ARPU = MRR / active customers
+    Gross Churn = % customers who canceled this month
+    Net Churn   = churn minus revenue from upgrades
+    LTV  = avg revenue per customer over lifetime
+  - Metrics stored as daily snapshots
+  - Filterable by time range, plan, region
+  - Export as CSV or PDF
+
+  Acceptance Criteria:
+  - KPIs: MRR, ARR, ARPU, Net & Gross Churn, LTV
+  - Filters by time range, plan, region
+  - Export CSV/PDF
+
+................................................................
+
+US 08 — Must Have | REFUNDS & CREDIT NOTES
+
+  As a Support Agent, I want to issue refunds/credit notes
+  so that customer disputes are handled.
+
+  What this means:
+  - Full refund (entire amount) or partial refund
+  - Must provide a reason (for compliance)
+  - System auto-creates Credit Note linked to invoice
+  - Revenue reports updated to reflect refund
+  - Every refund recorded in audit log
+
+  Acceptance Criteria:
+  - Full/partial refund with reason
+  - Auto-create credit note; update reports
+  - Audit log captured
+
+................................................................
+
+US 09 — Must Have | DUNNING & RETRY
+
+  As an Admin, I want dunning & retry strategies so failed
+  payments recover automatically.
+
+  What this means:
+  - When payment fails, system retries on a schedule
+  - Schedule: retry after 1 day, 3 days, 7 days
+  - After each failure: "please update your card" email
+  - All retries fail? -> cancel or on_hold (configurable)
+  - "Dunning" = the process of recovering failed revenue
+
+  Acceptance Criteria:
+  - Retry schedule (e.g., after 1d, 3d, 7d)
+  - Card update reminder to customer
+  - After max retries: cancel or hold (configurable)
+
+................................................................
+
+US 10 — Must Have | ROLE-BASED ACCESS CONTROL (RBAC)
+
+  As an Admin, I want role-based access so staff only see
+  what's relevant to their jobs.
+
+  What this means:
+  - 4 roles: Admin, Finance, Support, Customer
+  - Admin: manage products, plans, coupons, tax, roles
+  - Finance: view invoices, reports, audit logs
+            (cannot edit products)
+  - Support: look up customers, issue refunds
+            (cannot view company revenue)
+  - Customer: manage own subscription, own invoices
+  - Unauthorized access returns 403 Forbidden
+
+  Acceptance Criteria:
+  - Finance cannot edit product catalogs
+  - Support cannot view total company MRR/ARR
+  - Unauthorized access returns 403
+  - Role assignments managed through admin interface
+
+................................................................
+
+US 11 — Must Have | INVOICE HISTORY & PDF DOWNLOAD
+
+  As a Customer, I want to view past invoices and download
+  them as PDFs for my records.
+
+  What this means:
+  - Customer portal shows paginated list of invoices
+  - Each shows: number, date, amount, status (PAID/DUE)
+  - Click "Download PDF" for formatted document
+  - PDF: company header, customer details, line items,
+         taxes, discounts, total, payment status
+
+  Acceptance Criteria:
+  - Paginated list of past invoices
+  - One-click PDF download with full details
+  - Invoices clearly show "Paid" or "Due" status
+
+................................................................
+
+US 12 — Should Have | PAUSE & RESUME SUBSCRIPTION
+
+  As a Support Agent, I want to pause and resume a
+  subscription to prevent the customer from churning.
+
+  What this means:
+  - Customer requests a pause (vacation, etc.)
+  - Set pause start date and auto-resume date
+  - While paused: status = PAUSED, billing skips it
+  - On resume date: status -> ACTIVE, new period starts
+  - No charges during the pause period
+
+  Acceptance Criteria:
+  - Pause start date and auto-resume date
+  - Billing engine skips paused accounts
+  - Status: "paused" -> "active" upon resume
+
+................................................................
+
+US 13 — Must Have | AUDIT LOG
+
+  As a Finance Manager, I want an immutable audit log of
+  all monetary actions for compliance.
+
+  What this means:
+  - Every financial action logged: refunds, plan changes,
+    cancellations, manual adjustments
+  - Each entry: who (actor), what (action), old value,
+    new value, timestamp
+  - Immutable: cannot be edited or deleted
+  - Filterable by customer ID, action type, date range
+
+  Acceptance Criteria:
+  - Captures Actor, Action, Old/New Value, Timestamp
+  - Cannot be edited or deleted from frontend
+  - Filterable by Customer ID or Action Type
+
+................................................................
+
+US 14 — Must Have | APPLY COUPON AT CHECKOUT
+
+  As a Customer, I want to apply a coupon code during
+  checkout or upgrade to get a discount.
+
+  What this means:
+  - Input field for coupon code on checkout page
+  - Customer enters code (e.g., "WELCOME20")
+  - System validates: expired? limit reached? right plan?
+  - Valid: total updates showing the discount
+  - Invalid: clear error message (expired, wrong plan)
+
+  Acceptance Criteria:
+  - Input field for coupon code on the frontend
+  - Backend validates expiry, limits, applicable plans
+  - Total dynamically updates to reflect discount
+
+................................................................
+
+US 15 — Should Have | NOTIFICATION PREFERENCES
+
+  As a Customer, I want to manage my notification
+  preferences to control what alerts I receive.
+
+  What this means:
+  - Toggle switches in Customer Portal:
+    Email receipts: ON/OFF
+    SMS alerts: ON/OFF
+    Renewal reminders: ON/OFF
+    Marketing emails: ON/OFF
+  - System checks preferences before sending
+  - Mandatory alerts cannot be turned off:
+    Payment failure, subscription cancellation
+
+  Acceptance Criteria:
+  - Toggle switches for Email and SMS channels
+  - System respects opt-out flags
+  - Mandatory transactional emails cannot be opted out
+
+
+================================================================
+  SECTION 3 — USER STORY DISTRIBUTION
+  (STORIES FIRST -> DOMAINS EMERGE)
+================================================================
+
+Approach: We start from 15 user stories. We group them by
+natural affinity - stories that share the same tables,
+business logic, or system flow go to the same person.
+The "domain" label is just a name for each group.
+
+DISTRIBUTION PRINCIPLES:
+  - Each person gets 2-4 user stories
+  - Work balanced by COMPLEXITY, not just story count
+  - Stories sharing tables/APIs stay together
+  - One team member handles frontend centrally
+    (all UI screens, all API integrations)
+
+
+----------------------------------------------------------------
+WORK DISTRIBUTION
+----------------------------------------------------------------
+
+PERSON 1 | 2 stories | HEAVY workload
+  US 03 — Product/Plan/Pricing CRUD
+  US 10 — RBAC & Role Management
+
+  Why together:
+    Both share the same tables (Customer, Product, Plan)
+    and the same security layer (OAuth2, JWT).
+    Auth setup is foundational — all other domains
+    depend on it. This person also sets up the API
+    Gateway which routes all requests.
+
+  Why HEAVY despite only 2 stories:
+    Full OAuth2/JWT setup, RBAC for 4 roles, API Gateway,
+    Customer CRUD, Product CRUD, Plan CRUD, Add-on CRUD,
+    Price Books = very large scope.
+
+................................................................
+
+PERSON 2 | 3 stories | HEAVY workload
+  US 01 — Subscribe to a Plan
+  US 06 — Upgrade/Downgrade + Proration
+  US 12 — Pause/Resume Subscription
+
+  Why together:
+    All 3 operate on the Subscription and
+    SubscriptionItem tables. The subscription state
+    machine (draft -> trialing -> active -> paused ->
+    canceled) is one cohesive unit.
+
+  Why HEAVY:
+    Proration math is the most complex business logic
+    in the entire system. State machine with 6 states
+    and multiple transition rules.
+
+................................................................
+
+PERSON 3 | 3 stories | HEAVY workload
+  US 02 — Automated Billing Cycles
+  US 09 — Dunning & Retry Strategies
+  US 11 — Invoice History & PDF Download
+
+  Why together:
+    All 3 revolve around invoices. The billing cron
+    generates invoices, dunning retries failed invoice
+    payments, and US 11 lets customers view/download
+    those invoices.
+    Tables: Invoice, InvoiceLineItem, CreditNote,
+    DunningSchedule.
+
+  Why HEAVY:
+    Cron scheduler setup, dunning state machine, PDF
+    generation, idempotency checks.
+
+................................................................
+
+PERSON 4 | 3 stories | MEDIUM-HEAVY workload
+  US 04 — Taxes & Discounts
+  US 08 — Refunds & Credit Notes
+  US 14 — Apply Coupon at Checkout
+
+  Why together:
+    All 3 are about money math: calculating tax,
+    validating coupons, processing payments/refunds.
+    Tables: Payment, TaxRate, Coupon.
+    This person owns the mock payment gateway,
+    tax engine, and coupon engine.
+
+  Why MEDIUM-HEAVY:
+    Idempotent payment processing and tax
+    inclusive/exclusive modes are key challenges.
+
+................................................................
+
+PERSON 5 | 4 stories | MEDIUM workload
+  US 05 — Renewal Reminders
+  US 07 — Revenue Analytics (MRR/Churn)
+  US 13 — Audit Log Viewing
+  US 15 — Notification Preferences
+
+  Why together:
+    All 4 are outputs of the system: sending alerts,
+    computing metrics, logging actions, managing prefs.
+    Tables: Notification, AuditLog, RevenueSnapshot.
+
+  Why MEDIUM despite 4 stories:
+    Notification templates are straightforward.
+    Audit log is append-only. Preferences are toggles.
+    MRR/ARR calculations are the main weight.
+
+
+----------------------------------------------------------------
+COMPLEXITY BALANCE SUMMARY
+----------------------------------------------------------------
+
+  Person 1 | 2 stories | VERY HEAVY
+    Full OAuth2/JWT, RBAC 4 roles, Gateway,
+    Customer + Product + Plan + Add-on CRUD
+
+  Person 2 | 3 stories | HEAVY
+    State machine (6 states), proration math,
+    pause/resume logic
+
+  Person 3 | 3 stories | HEAVY
+    Cron scheduler, invoice generation,
+    dunning retries, PDF generation
+
+  Person 4 | 3 stories | MEDIUM-HEAVY
+    Mock payment gateway, tax engine,
+    coupon engine, refund processing
+
+  Person 5 | 4 stories | MEDIUM
+    Notification templates, MRR/ARR calcs,
+    audit log (append-only), preference toggles
+
+  RESULT: Person 1 and 3 have heaviest backend work.
+  Person 5 has most stories but lightest individual
+  complexity. Person 2 has the most critical business
+  logic (proration). This balances out.
+
+
+----------------------------------------------------------------
+FRONTEND OWNERSHIP (CENTRALIZED)
+----------------------------------------------------------------
+
+One team member handles ALL frontend development:
+  - Builds all 4 portals:
+      Customer Portal
+      Admin Console
+      Finance Dashboard
+      Support Console
+  - Integrates APIs from every domain into the UI
+  - Ensures consistent UX (same layout, components)
+
+All other members work on BACKEND ONLY:
+  - They build APIs, business logic, DB queries, tests
+  - They deliver:
+      Swagger documentation
+      Postman collections
+      Sample JSON responses
+  - Frontend developer uses those API contracts to
+    build the corresponding screens
+
+This avoids duplicate work, prevents UI merge conflicts,
+and ensures visual consistency across the application.
+
+
+================================================================
+  SECTION 4 — DOMAIN NAMES (EMERGED FROM USER STORIES)
+================================================================
+
+These are NOT pre-defined boxes. They are labels that
+naturally emerged from grouping related user stories.
+Stories came first; domain names came second.
+
+  DOMAIN 1: Auth & Product Management
+    Stories:       US 03, US 10
+    Microservices: auth-service, customer-service,
+                   catalog-service, api-gateway
+    Features:      Login, Roles, Catalog
+
+  DOMAIN 2: Subscription Management
+    Stories:       US 01, US 06, US 12
+    Microservices: subscription-service
+    Features:      Lifecycle, Proration, Pause/Resume
+
+  DOMAIN 3: Billing & Invoicing
+    Stories:       US 02, US 09, US 11
+    Microservices: billing-service, invoice-service
+    Features:      Cron, Invoices, Dunning, PDF
+
+  DOMAIN 4: Payments & Pricing
+    Stories:       US 04, US 08, US 14
+    Microservices: payment-service
+    Features:      Gateway, Taxes, Coupons, Refunds
+
+  DOMAIN 5: Analytics & Notifications
+    Stories:       US 05, US 07, US 13, US 15
+    Microservices: reporting-service,
+                   notification-service
+    Features:      Dashboards, Alerts, Audit Logs
+
+NOTE: Frontend development is centralized under one
+team member (not listed as a separate domain).
+That person also takes ownership of one backend domain,
+making them a full-stack contributor.
+
+
+================================================================
+  SECTION 5 — TECH STACK PER DOMAIN
+================================================================
+
+COMMON (all domains):
+  Backend:  Spring Boot, Spring Data JPA, Spring REST
+  Database: MySQL
+  API Docs: Swagger / OpenAPI
+  Build:    Maven
+  Testing:  JUnit + Mockito (>= 80% coverage)
+
+DOMAIN-SPECIFIC:
+  Auth & Product Mgmt  -> + Spring Security (OAuth2),
+                             Spring Cloud Gateway
+  Subscription Mgmt    -> (standard stack)
+  Billing & Invoicing  -> + Spring @Scheduled (Cron),
+                             iText/PDFBox (PDF)
+  Payments & Pricing   -> (standard stack)
+  Analytics & Notif    -> + Chart.js/Recharts (charts),
+                             CSV export library
+
+FRONTEND (centralized):
+  React (or Angular), TypeScript/JavaScript
+  HTML5, CSS3, Bootstrap
+
+
+================================================================
+  SECTION 6 — DATABASE SCHEMA
+================================================================
+
+All monetary amounts are stored in MINOR UNITS:
+  Rs.499.00 is stored as 49900 (paise, not rupees)
+  $9.99 is stored as 999 (cents, not dollars)
+
+Currency follows ISO-4217 (INR, USD, EUR, etc.)
+All timestamps are stored in UTC.
+
+
+----------------------------------------------------------------
+ALL TABLE NAMES (18 tables total)
+----------------------------------------------------------------
+
+  From SRS (13 tables):
+   1. Customer
+   2. Product
+   3. Plan
+   4. Subscription
+   5. SubscriptionItem
+   6. Invoice
+   7. InvoiceLineItem
+   8. Payment
+   9. TaxRate
+  10. Coupon
+  11. CreditNote
+  12. AuditLog
+  13. Notification
+
+  Additional tables needed (5 tables):
+  14. User             (login credentials and roles)
+  15. AddOn            (optional extras for plans)
+  16. PaymentMethod    (stored card tokens per customer)
+  17. DunningSchedule  (retry tracking for failed payments)
+  18. RevenueSnapshot  (daily KPI snapshots for analytics)
+
+
+----------------------------------------------------------------
+WHICH DOMAIN OWNS WHICH TABLES
+----------------------------------------------------------------
+
+  Domain 1 (Auth & Product Management):
+    User, Customer, Product, Plan, AddOn
+
+  Domain 2 (Subscription Management):
+    Subscription, SubscriptionItem, PaymentMethod
+
+  Domain 3 (Billing & Invoicing):
+    Invoice, InvoiceLineItem, CreditNote, DunningSchedule
+
+  Domain 4 (Payments & Pricing):
+    Payment, TaxRate, Coupon
+
+  Domain 5 (Analytics & Notifications):
+    AuditLog, Notification, RevenueSnapshot
+
+
+================================================================
+  TABLE DETAILS
+================================================================
+
+
+----------------------------------------------------------------
+TABLE 1: User
+----------------------------------------------------------------
+Purpose: Stores login credentials and role assignments.
+         Separate from Customer because not all users are
+         customers (Admin, Finance, Support are also users).
+
+  Column          Type           Constraints
+  ------          ----           -----------
+  id              BIGINT         PK, AUTO_INCREMENT
+  email           VARCHAR(255)   UNIQUE, NOT NULL
+  password_hash   VARCHAR(255)   NOT NULL
+  role            ENUM           NOT NULL
+                                 (ADMIN, FINANCE,
+                                  SUPPORT, CUSTOMER)
+  is_active       BOOLEAN        DEFAULT TRUE
+  created_at      TIMESTAMP      NOT NULL
+  updated_at      TIMESTAMP      NOT NULL
+
+  Notes:
+  - Password is stored as a BCrypt hash, never plaintext
+  - One User maps to one Customer (via email)
+  - Role determines what APIs the user can access
+
+
+----------------------------------------------------------------
+TABLE 2: Customer
+----------------------------------------------------------------
+Purpose: Stores customer profile information.
+         Linked to subscriptions, invoices, and payments.
+
+  Column          Type           Constraints
+  ------          ----           -----------
+  id              BIGINT         PK, AUTO_INCREMENT
+  name            VARCHAR(255)   NOT NULL
+  email           VARCHAR(255)   UNIQUE, NOT NULL
+  phone           VARCHAR(20)    NULLABLE
+  currency        VARCHAR(3)     NOT NULL (e.g., INR)
+  address         TEXT           NULLABLE
+  region          VARCHAR(50)    NULLABLE (for tax calc)
+  status          ENUM           NOT NULL
+                                 (ACTIVE, INACTIVE,
+                                  SUSPENDED)
+  created_at      TIMESTAMP      NOT NULL
+  updated_at      TIMESTAMP      NOT NULL
+
+  Notes:
+  - Currency determines which price book to use
+  - Region determines which tax rate applies
+  - A customer can have multiple subscriptions
+
+
+----------------------------------------------------------------
+TABLE 3: Product
+----------------------------------------------------------------
+Purpose: Top-level catalog item. A product contains
+         multiple plans. Example: "StreamMax Platform"
+
+  Column          Type           Constraints
+  ------          ----           -----------
+  id              BIGINT         PK, AUTO_INCREMENT
+  name            VARCHAR(255)   NOT NULL
+  description     TEXT           NULLABLE
+  status          ENUM           NOT NULL
+                                 (ACTIVE, ARCHIVED)
+  created_at      TIMESTAMP      NOT NULL
+  updated_at      TIMESTAMP      NOT NULL
+
+  Notes:
+  - A product can have multiple plans under it
+  - Archiving a product hides it from catalog
+    but does not cancel existing subscriptions
+
+
+----------------------------------------------------------------
+TABLE 4: Plan
+----------------------------------------------------------------
+Purpose: A specific pricing tier under a product.
+         Example: "Pro Plan - Rs.599/month"
+
+  Column           Type          Constraints
+  ------           ----          -----------
+  id               BIGINT        PK, AUTO_INCREMENT
+  product_id       BIGINT        FK -> Product(id)
+  name             VARCHAR(255)  NOT NULL
+  billing_period   ENUM          NOT NULL
+                                 (MONTHLY, YEARLY)
+  price_minor      BIGINT        NOT NULL (e.g., 59900)
+  currency         VARCHAR(3)    NOT NULL (e.g., INR)
+  trial_days       INT           DEFAULT 0
+  setup_fee_minor  BIGINT        DEFAULT 0
+  tax_mode         ENUM          NOT NULL
+                                 (INCLUSIVE, EXCLUSIVE)
+  proration_mode   ENUM          DEFAULT 'PRORATED'
+                                 (PRORATED, FULL_CYCLE)
+  effective_from   DATE          NOT NULL
+  effective_to     DATE          NULLABLE
+  status           ENUM          NOT NULL
+                                 (ACTIVE, INACTIVE)
+  created_at       TIMESTAMP     NOT NULL
+  updated_at       TIMESTAMP     NOT NULL
+
+  Notes:
+  - price_minor = 59900 means Rs.599.00
+  - effective_from/to enable future pricing changes
+  - tax_mode tells whether price includes tax or not
+  - trial_days = 14 means 14-day free trial
+
+
+----------------------------------------------------------------
+TABLE 5: AddOn
+----------------------------------------------------------------
+Purpose: Optional extras that can be added to a plan.
+         Example: "Extra Storage - Rs.99/month"
+
+  Column           Type          Constraints
+  ------           ----          -----------
+  id               BIGINT        PK, AUTO_INCREMENT
+  product_id       BIGINT        FK -> Product(id)
+  name             VARCHAR(255)  NOT NULL
+  price_minor      BIGINT        NOT NULL
+  currency         VARCHAR(3)    NOT NULL
+  billing_period   ENUM          NOT NULL
+                                 (MONTHLY, YEARLY)
+  status           ENUM          NOT NULL
+                                 (ACTIVE, INACTIVE)
+  created_at       TIMESTAMP     NOT NULL
+
+  Notes:
+  - Add-ons are linked to a product, not a plan
+  - A subscription can have multiple add-ons
+  - Each add-on becomes a SubscriptionItem
+
+
+----------------------------------------------------------------
+TABLE 6: Subscription
+----------------------------------------------------------------
+Purpose: Core entity. Represents a customer's active
+         relationship with a plan. Tracks lifecycle state.
+
+  Column                Type      Constraints
+  ------                ----      -----------
+  id                    BIGINT    PK, AUTO_INCREMENT
+  customer_id           BIGINT    FK -> Customer(id)
+  plan_id               BIGINT    FK -> Plan(id)
+  status                ENUM      NOT NULL
+                                  (DRAFT, TRIALING,
+                                   ACTIVE, PAST_DUE,
+                                   PAUSED, CANCELED)
+  start_date            DATE      NOT NULL
+  current_period_start  DATE      NOT NULL
+  current_period_end    DATE      NOT NULL
+  cancel_at_period_end  BOOLEAN   DEFAULT FALSE
+  paused_from           DATE      NULLABLE
+  paused_to             DATE      NULLABLE
+  payment_method_id     BIGINT    FK -> PaymentMethod(id)
+  currency              VARCHAR(3) NOT NULL
+  created_at            TIMESTAMP NOT NULL
+  updated_at            TIMESTAMP NOT NULL
+
+  Notes:
+  - status is the state machine:
+    DRAFT -> TRIALING -> ACTIVE -> PAST_DUE -> CANCELED
+                         ACTIVE <-> PAUSED
+  - current_period_start/end define the billing window
+  - cancel_at_period_end = true means cancel at renewal
+    (not immediately)
+  - A customer can have multiple subscriptions
+
+
+----------------------------------------------------------------
+TABLE 7: SubscriptionItem
+----------------------------------------------------------------
+Purpose: Individual line items within a subscription.
+         Base plan + any add-ons = separate items.
+
+  Column           Type          Constraints
+  ------           ----          -----------
+  id               BIGINT        PK, AUTO_INCREMENT
+  subscription_id  BIGINT        FK -> Subscription(id)
+  item_type        ENUM          NOT NULL
+                                 (BASE_PLAN, ADD_ON)
+  reference_id     BIGINT        NOT NULL
+                                 (Plan ID or AddOn ID)
+  unit_price_minor BIGINT        NOT NULL
+  quantity         INT           DEFAULT 1
+  tax_mode         ENUM          NOT NULL
+                                 (INCLUSIVE, EXCLUSIVE)
+  discount_id      BIGINT        FK -> Coupon(id),
+                                 NULLABLE
+  created_at       TIMESTAMP     NOT NULL
+
+  Notes:
+  - A subscription with Pro Plan + Extra Storage
+    = 2 SubscriptionItems
+  - Changes during upgrade/downgrade update these items
+  - discount_id links to a coupon if one is applied
+
+
+----------------------------------------------------------------
+TABLE 8: PaymentMethod
+----------------------------------------------------------------
+Purpose: Stores tokenized payment methods per customer.
+         No raw card numbers are ever stored.
+
+  Column           Type          Constraints
+  ------           ----          -----------
+  id               BIGINT        PK, AUTO_INCREMENT
+  customer_id      BIGINT        FK -> Customer(id)
+  token            VARCHAR(255)  NOT NULL (mock token)
+  card_last_four   VARCHAR(4)    NOT NULL (e.g., "4242")
+  card_brand       VARCHAR(20)   NOT NULL
+                                 (VISA, MASTERCARD, etc.)
+  expiry_month     INT           NOT NULL
+  expiry_year      INT           NOT NULL
+  is_default       BOOLEAN       DEFAULT FALSE
+  created_at       TIMESTAMP     NOT NULL
+
+  Notes:
+  - Token is a reference, NOT the actual card number
+  - Only last 4 digits stored for display purposes
+  - A customer can have multiple payment methods
+  - is_default = true is used for auto-billing
+
+
+----------------------------------------------------------------
+TABLE 9: Invoice
+----------------------------------------------------------------
+Purpose: A bill generated for a subscription renewal
+         or one-time charge. Contains line items, taxes,
+         discounts, and total.
+
+  Column            Type          Constraints
+  ------            ----          -----------
+  id                BIGINT        PK, AUTO_INCREMENT
+  invoice_number    VARCHAR(50)   UNIQUE, NOT NULL
+  customer_id       BIGINT        FK -> Customer(id)
+  subscription_id   BIGINT        FK -> Subscription(id)
+  status            ENUM          NOT NULL
+                                  (DRAFT, FINALIZED,
+                                   PAID, VOID,
+                                   PAYMENT_FAILED)
+  issue_date        DATE          NOT NULL
+  due_date          DATE          NOT NULL
+  subtotal_minor    BIGINT        NOT NULL
+  tax_minor         BIGINT        NOT NULL
+  discount_minor    BIGINT        DEFAULT 0
+  total_minor       BIGINT        NOT NULL
+  balance_minor     BIGINT        NOT NULL
+  currency          VARCHAR(3)    NOT NULL
+  idempotency_key   VARCHAR(255)  UNIQUE, NULLABLE
+  created_at        TIMESTAMP     NOT NULL
+  updated_at        TIMESTAMP     NOT NULL
+
+  Notes:
+  - total = subtotal + tax - discount
+  - balance = total - amount_paid (0 when fully paid)
+  - idempotency_key prevents duplicate invoices
+    for the same billing period
+  - VOID means the invoice was canceled/reversed
+
+
+----------------------------------------------------------------
+TABLE 10: InvoiceLineItem
+----------------------------------------------------------------
+Purpose: Individual charges on an invoice.
+         Example: plan fee, add-on fee, proration credit.
+
+  Column            Type          Constraints
+  ------            ----          -----------
+  id                BIGINT        PK, AUTO_INCREMENT
+  invoice_id        BIGINT        FK -> Invoice(id)
+  description       VARCHAR(500)  NOT NULL
+  quantity          INT           DEFAULT 1
+  unit_price_minor  BIGINT        NOT NULL
+  amount_minor      BIGINT        NOT NULL
+  tax_rate_id       BIGINT        FK -> TaxRate(id),
+                                  NULLABLE
+  discount_id       BIGINT        FK -> Coupon(id),
+                                  NULLABLE
+  line_type         ENUM          DEFAULT 'CHARGE'
+                                  (CHARGE, CREDIT,
+                                   PRORATION)
+  metadata          TEXT          NULLABLE (JSON)
+  created_at        TIMESTAMP     NOT NULL
+
+  Notes:
+  - An invoice typically has 2-4 line items:
+    1. "Pro Plan - Monthly" (CHARGE)
+    2. "Proration credit" (CREDIT, negative amount)
+    3. "GST 18%" (calculated from tax_rate_id)
+    4. "Discount WELCOME20" (CREDIT)
+  - amount_minor = unit_price_minor * quantity
+
+
+----------------------------------------------------------------
+TABLE 11: Payment
+----------------------------------------------------------------
+Purpose: Records every payment attempt (success or fail)
+         made against an invoice.
+
+  Column           Type          Constraints
+  ------           ----          -----------
+  id               BIGINT        PK, AUTO_INCREMENT
+  invoice_id       BIGINT        FK -> Invoice(id)
+  payment_method_id BIGINT       FK -> PaymentMethod(id)
+  gateway_ref      VARCHAR(255)  NULLABLE (mock txn ID)
+  amount_minor     BIGINT        NOT NULL
+  currency         VARCHAR(3)    NOT NULL
+  status           ENUM          NOT NULL
+                                 (PENDING, SUCCEEDED,
+                                  FAILED, REFUNDED)
+  attempt_no       INT           NOT NULL
+  response_code    VARCHAR(10)   NULLABLE
+                                 ("00" = approved,
+                                  "51" = insufficient)
+  idempotency_key  VARCHAR(255)  UNIQUE, NOT NULL
+  created_at       TIMESTAMP     NOT NULL
+
+  Notes:
+  - Each retry creates a NEW Payment row with
+    incremented attempt_no
+  - idempotency_key prevents double-charging
+  - gateway_ref is the mock transaction ID
+    (only present on success)
+  - response_code simulates real gateway codes
+
+
+----------------------------------------------------------------
+TABLE 12: TaxRate
+----------------------------------------------------------------
+Purpose: Tax rules per region. Used to calculate GST/VAT
+         on invoices.
+
+  Column           Type          Constraints
+  ------           ----          -----------
+  id               BIGINT        PK, AUTO_INCREMENT
+  region           VARCHAR(50)   NOT NULL (e.g., "IN")
+  name             VARCHAR(100)  NOT NULL (e.g., "GST")
+  rate_percent     INT           NOT NULL (e.g., 18)
+  inclusive        BOOLEAN       NOT NULL
+  effective_from   DATE          NOT NULL
+  effective_to     DATE          NULLABLE
+  created_at       TIMESTAMP     NOT NULL
+
+  Notes:
+  - inclusive = true: price already includes tax
+    Rs.599 with 18% inclusive -> tax = Rs.91.37
+    base = Rs.507.63
+  - inclusive = false: tax added on top
+    Rs.599 with 18% exclusive -> tax = Rs.107.82
+    total = Rs.706.82
+  - effective dates allow tax rate changes
+
+
+----------------------------------------------------------------
+TABLE 13: Coupon
+----------------------------------------------------------------
+Purpose: Discount codes that customers apply at checkout.
+
+  Column              Type        Constraints
+  ------              ----        -----------
+  id                  BIGINT      PK, AUTO_INCREMENT
+  code                VARCHAR(50) UNIQUE, NOT NULL
+                                  (e.g., "WELCOME20")
+  type                ENUM        NOT NULL
+                                  (PERCENT, FIXED)
+  amount              BIGINT      NOT NULL
+                                  (20 for 20%, or
+                                   10000 for Rs.100)
+  duration            ENUM        NOT NULL
+                                  (ONCE, REPEATING,
+                                   FOREVER)
+  duration_in_months  INT         NULLABLE
+                                  (for REPEATING only)
+  max_redemptions     INT         NULLABLE
+  redeemed_count      INT         DEFAULT 0
+  valid_from          DATE        NOT NULL
+  valid_to            DATE        NULLABLE
+  status              ENUM        NOT NULL
+                                  (ACTIVE, EXPIRED,
+                                   DISABLED)
+  created_at          TIMESTAMP   NOT NULL
+
+  Notes:
+  - PERCENT type: amount = 20 means 20% off
+  - FIXED type: amount = 10000 means Rs.100 off
+  - ONCE: applies to first invoice only
+  - REPEATING: applies for N months
+  - FOREVER: applies to every invoice
+  - redeemed_count tracks usage against max limit
+
+
+----------------------------------------------------------------
+TABLE 14: CreditNote
+----------------------------------------------------------------
+Purpose: Issued when a refund is processed. Links back
+         to the original invoice for audit trail.
+
+  Column           Type          Constraints
+  ------           ----          -----------
+  id               BIGINT        PK, AUTO_INCREMENT
+  credit_note_no   VARCHAR(50)   UNIQUE, NOT NULL
+  invoice_id       BIGINT        FK -> Invoice(id)
+  reason           VARCHAR(500)  NOT NULL
+  amount_minor     BIGINT        NOT NULL
+  type             ENUM          DEFAULT 'REFUND'
+                                 (REFUND, ADJUSTMENT,
+                                  PRORATION_CREDIT)
+  created_by       VARCHAR(255)  NOT NULL (actor name)
+  created_at       TIMESTAMP     NOT NULL
+
+  Notes:
+  - Every refund creates a credit note automatically
+  - Linked to the original invoice via invoice_id
+  - created_by records which support agent issued it
+  - amount_minor can be full or partial refund amount
+
+
+----------------------------------------------------------------
+TABLE 15: DunningSchedule
+----------------------------------------------------------------
+Purpose: Tracks retry attempts for failed payments.
+         The dunning state machine.
+
+  Column           Type          Constraints
+  ------           ----          -----------
+  id               BIGINT        PK, AUTO_INCREMENT
+  invoice_id       BIGINT        FK -> Invoice(id)
+  subscription_id  BIGINT        FK -> Subscription(id)
+  attempt_count    INT           DEFAULT 0
+  max_attempts     INT           DEFAULT 3
+  next_retry_date  DATE          NOT NULL
+  status           ENUM          NOT NULL
+                                 (PENDING, IN_PROGRESS,
+                                  RESOLVED, EXHAUSTED)
+  last_attempted   TIMESTAMP     NULLABLE
+  created_at       TIMESTAMP     NOT NULL
+  updated_at       TIMESTAMP     NOT NULL
+
+  Notes:
+  - Created when a payment fails for the first time
+  - attempt_count increments with each retry
+  - next_retry_date follows the retry schedule:
+    attempt 1 -> +1 day
+    attempt 2 -> +3 days
+    attempt 3 -> +7 days
+  - RESOLVED = payment eventually succeeded
+  - EXHAUSTED = all retries failed, subscription
+    canceled or put on hold
+
+
+----------------------------------------------------------------
+TABLE 16: AuditLog
+----------------------------------------------------------------
+Purpose: Immutable log of all monetary and sensitive
+         actions for compliance and dispute resolution.
+
+  Column           Type          Constraints
+  ------           ----          -----------
+  id               BIGINT        PK, AUTO_INCREMENT
+  actor            VARCHAR(255)  NOT NULL (who did it)
+  action           VARCHAR(100)  NOT NULL
+                                 (REFUND, PLAN_CHANGE,
+                                  CANCEL, PRICE_UPDATE,
+                                  COUPON_APPLIED, etc.)
+  entity_type      VARCHAR(100)  NOT NULL
+                                 (Payment, Subscription,
+                                  Invoice, etc.)
+  entity_id        BIGINT        NOT NULL
+  old_value        TEXT          NULLABLE (JSON)
+  new_value        TEXT          NULLABLE (JSON)
+  request_id       VARCHAR(255)  NULLABLE
+  ip_address       VARCHAR(50)   NULLABLE
+  created_at       TIMESTAMP     NOT NULL
+
+  Notes:
+  - APPEND-ONLY: no UPDATE or DELETE allowed
+  - old_value/new_value store JSON snapshots
+  - request_id links to the API request for tracing
+  - This table is never modified after insert
+  - Used by Finance Manager for compliance reviews
+
+
+----------------------------------------------------------------
+TABLE 17: Notification
+----------------------------------------------------------------
+Purpose: Log of all notifications sent to customers
+         (emails, SMS). Both sent and failed.
+
+  Column           Type          Constraints
+  ------           ----          -----------
+  id               BIGINT        PK, AUTO_INCREMENT
+  customer_id      BIGINT        FK -> Customer(id)
+  type             VARCHAR(50)   NOT NULL
+                                 (RECEIPT,
+                                  RENEWAL_REMINDER_7D,
+                                  RENEWAL_REMINDER_1D,
+                                  PAYMENT_FAILED,
+                                  UPDATE_CARD,
+                                  SUB_CANCELED,
+                                  WELCOME)
+  subject          VARCHAR(255)  NOT NULL
+  body             TEXT          NULLABLE
+  channel          ENUM          NOT NULL
+                                 (EMAIL, SMS)
+  status           ENUM          NOT NULL
+                                 (SENT, FAILED, SKIPPED)
+  reference_id     BIGINT        NULLABLE
+                                 (Invoice or Sub ID)
+  sent_at          TIMESTAMP     NULLABLE
+  created_at       TIMESTAMP     NOT NULL
+
+  Notes:
+  - SKIPPED status means customer opted out
+  - reference_id links to Invoice or Subscription
+  - All notification sending is MOCKED (not real)
+  - This table serves as the notification log
+
+
+----------------------------------------------------------------
+TABLE 18: RevenueSnapshot
+----------------------------------------------------------------
+Purpose: Daily snapshot of business KPIs for the
+         analytics dashboard. One row per day.
+
+  Column              Type      Constraints
+  ------              ----      -----------
+  id                  BIGINT    PK, AUTO_INCREMENT
+  snapshot_date       DATE      UNIQUE, NOT NULL
+  mrr_minor           BIGINT    NOT NULL
+  arr_minor           BIGINT    NOT NULL
+  arpu_minor          BIGINT    NOT NULL
+  active_customers    INT       NOT NULL
+  new_customers       INT       DEFAULT 0
+  churned_customers   INT       DEFAULT 0
+  gross_churn_percent DECIMAL   NOT NULL (e.g., 3.20)
+  net_churn_percent   DECIMAL   NOT NULL (e.g., 1.80)
+  ltv_minor           BIGINT    DEFAULT 0
+  total_revenue_minor BIGINT    NOT NULL
+  total_refunds_minor BIGINT    DEFAULT 0
+  created_at          TIMESTAMP NOT NULL
+
+  Notes:
+  - One row per day, captured by a daily cron job
+  - mrr_minor = sum of all active subscription prices
+    (yearly plans divided by 12)
+  - arr_minor = mrr_minor * 12
+  - arpu_minor = mrr_minor / active_customers
+  - gross_churn = churned / active at start of month
+  - Used to plot charts on Finance Dashboard
+  - Export API returns arrays of these snapshots
+
+
+================================================================
+  TABLE RELATIONSHIPS (HOW THEY CONNECT)
+================================================================
+
+  Product ---(has many)---> Plan
+  Product ---(has many)---> AddOn
+
+  Customer ---(has many)---> Subscription
+  Customer ---(has many)---> PaymentMethod
+  Customer ---(has many)---> Invoice
+  Customer ---(has many)---> Notification
+
+  Plan ---(belongs to)---> Product
+  Plan ---(has many)---> Subscription
+
+  Subscription ---(belongs to)---> Customer
+  Subscription ---(belongs to)---> Plan
+  Subscription ---(uses)---> PaymentMethod
+  Subscription ---(has many)---> SubscriptionItem
+  Subscription ---(has many)---> Invoice
+
+  SubscriptionItem ---(belongs to)---> Subscription
+  SubscriptionItem ---(may link to)---> Coupon
+
+  Invoice ---(belongs to)---> Customer
+  Invoice ---(belongs to)---> Subscription
+  Invoice ---(has many)---> InvoiceLineItem
+  Invoice ---(has many)---> Payment
+  Invoice ---(has many)---> CreditNote
+  Invoice ---(may have)---> DunningSchedule
+
+  InvoiceLineItem ---(belongs to)---> Invoice
+  InvoiceLineItem ---(may link to)---> TaxRate
+  InvoiceLineItem ---(may link to)---> Coupon
+
+  Payment ---(belongs to)---> Invoice
+  Payment ---(uses)---> PaymentMethod
+
+  CreditNote ---(belongs to)---> Invoice
+
+  DunningSchedule ---(belongs to)---> Invoice
+  DunningSchedule ---(belongs to)---> Subscription
+
+  AuditLog ---(references)---> any entity by type + ID
+  Notification ---(belongs to)---> Customer
+
+
+================================================================
+  END OF DOCUMENT
+================================================================
