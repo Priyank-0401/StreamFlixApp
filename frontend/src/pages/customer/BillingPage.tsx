@@ -6,7 +6,6 @@ import {
   XCircle,
   Clock,
   CreditCard,
-  Tag,
   Receipt,
   FileText,
   DollarSign
@@ -19,8 +18,6 @@ export const BillingPage: React.FC = () => {
   const [creditNotes, setCreditNotes] = useState<CustomerService.CreditNote[]>([]);
   const [activeTab, setActiveTab] = useState<'invoices' | 'payments' | 'credit-notes'>('invoices');
   const [loading, setLoading] = useState(true);
-  const [couponCode, setCouponCode] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<CustomerService.Coupon | null>(null);
 
   useEffect(() => {
     loadBillingData();
@@ -66,17 +63,6 @@ export const BillingPage: React.FC = () => {
       window.URL.revokeObjectURL(url);
     } catch (error) {
       alert('Failed to download invoice');
-    }
-  };
-
-  const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) return;
-    try {
-      const coupon = await CustomerService.applyCoupon(couponCode);
-      setAppliedCoupon(coupon);
-      alert(`Coupon "${coupon.name}" applied!`);
-    } catch (error) {
-      alert('Invalid or expired coupon code');
     }
   };
 
@@ -128,11 +114,6 @@ export const BillingPage: React.FC = () => {
 
   return (
     <div className="billing-page">
-      <div className="page-header">
-        <h1 className="page-title">Billing</h1>
-        <p className="page-subtitle">Manage your invoices, payments, and credit notes</p>
-      </div>
-
       {/* Summary Cards */}
       <div className="billing-summary">
         <div className="summary-card">
@@ -167,36 +148,6 @@ export const BillingPage: React.FC = () => {
             <p className="summary-label">Payments</p>
           </div>
         </div>
-      </div>
-
-      {/* Apply Coupon Section */}
-      <div className="coupon-section">
-        <div className="coupon-header">
-          <Tag size={20} className="coupon-icon" />
-          <h3 className="coupon-title">Apply Coupon</h3>
-        </div>
-        <div className="coupon-form">
-          <input
-            type="text"
-            value={couponCode}
-            onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-            placeholder="Enter coupon code (e.g., WELCOME10)"
-            className="coupon-input"
-          />
-          <button onClick={handleApplyCoupon} className="btn-coupon">
-            Apply
-          </button>
-        </div>
-        {appliedCoupon && (
-          <div className="coupon-applied">
-            <CheckCircle size={16} />
-            <span>
-              Applied: <strong>{appliedCoupon.name}</strong> — {appliedCoupon.type === 'PERCENT' 
-                ? `${appliedCoupon.amount}% off` 
-                : formatAmount(appliedCoupon.amount, appliedCoupon.currency || 'INR')}
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Tabs */}
@@ -244,9 +195,9 @@ export const BillingPage: React.FC = () => {
                         )}
                       </p>
                     </div>
-                    <span 
+                    <span
                       className="status-badge"
-                      style={{ 
+                      style={{
                         backgroundColor: `${getStatusColor(invoice.status)}20`,
                         color: getStatusColor(invoice.status)
                       }}
@@ -289,9 +240,9 @@ export const BillingPage: React.FC = () => {
                   <div className="payment-info">
                     <div className="payment-header">
                       <h4 className="payment-id">#{payment.paymentId}</h4>
-                      <span 
+                      <span
                         className="status-badge"
-                        style={{ 
+                        style={{
                           backgroundColor: `${getStatusColor(payment.status)}20`,
                           color: getStatusColor(payment.status)
                         }}
@@ -327,9 +278,9 @@ export const BillingPage: React.FC = () => {
                   <div className="credit-note-info">
                     <div className="credit-note-header">
                       <h4 className="credit-note-number">{cn.creditNoteNumber}</h4>
-                      <span 
+                      <span
                         className="status-badge"
-                        style={{ 
+                        style={{
                           backgroundColor: `${getStatusColor(cn.status)}20`,
                           color: getStatusColor(cn.status)
                         }}

@@ -11,6 +11,7 @@ public class PaymentMethodDTO {
    private PaymentType paymentType;
    private String cardLast4;
    private String cardBrand;
+   private String upiId;
    private Boolean isDefault;
    private Integer expiryMonth;
    private Integer expiryYear;

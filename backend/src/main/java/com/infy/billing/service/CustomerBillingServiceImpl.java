@@ -81,6 +81,39 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
        return mapToCouponDTO(coupon);
    }
 
+    public CouponDTO validateCoupon(String code) {
+        Coupon coupon = couponRepository.findByCodeAndStatus(code, Status.ACTIVE)
+                .orElseThrow(() -> new RuntimeException("Invalid or expired coupon"));
+
+        java.time.LocalDate today = java.time.LocalDate.now();
+
+        // Check date validity
+        if (coupon.getValidFrom() != null && today.isBefore(coupon.getValidFrom())) {
+            throw new RuntimeException("Coupon is not yet valid");
+        }
+        if (coupon.getValidTo() != null && today.isAfter(coupon.getValidTo())) {
+            throw new RuntimeException("Coupon has expired");
+        }
+
+        // Check max redemptions
+        if (coupon.getMaxRedemptions() != null && coupon.getRedeemedCount() >= coupon.getMaxRedemptions()) {
+            throw new RuntimeException("Coupon has reached maximum redemptions");
+        }
+
+        return mapToCouponDTO(coupon);
+    }
+
+    public List<CouponDTO> getAvailableCoupons() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        return couponRepository.findAll().stream()
+                .filter(c -> c.getStatus() == Status.ACTIVE)
+                .filter(c -> c.getValidFrom() == null || !today.isBefore(c.getValidFrom()))
+                .filter(c -> c.getValidTo() == null || !today.isAfter(c.getValidTo()))
+                .filter(c -> c.getMaxRedemptions() == null || c.getRedeemedCount() < c.getMaxRedemptions())
+                .map(this::mapToCouponDTO)
+                .collect(Collectors.toList());
+    }
+
    private Customer getCustomerByEmail(String email) {
        User user = userRepository.findByEmail(email)
                .orElseThrow(() -> new RuntimeException("User not found"));

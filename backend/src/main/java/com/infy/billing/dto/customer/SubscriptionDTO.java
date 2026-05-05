@@ -25,4 +25,6 @@ public class SubscriptionDTO {
    private String billingPeriod;
    private List<SubscriptionItemDTO> addOns;
    private List<MeteredUsageDTO> meteredUsage;
+   private Long discountMinor;
+   private Long totalDueMinor;
 }

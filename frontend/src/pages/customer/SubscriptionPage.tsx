@@ -168,10 +168,7 @@ export const SubscriptionPage: React.FC = () => {
   if (!subscription) {
     return (
       <div className="subscription-page">
-        <div className="page-header">
-          <h1 className="page-title">Choose Your Plan</h1>
-          <p className="page-subtitle">Select a plan to start your subscription</p>
-        </div>
+        {/* Plans Grid */}
 
         <div className="plans-grid">
           {availablePlans.map((plan) => (
@@ -211,10 +208,7 @@ export const SubscriptionPage: React.FC = () => {
 
   return (
     <div className="subscription-page">
-      <div className="page-header">
-        <h1 className="page-title">Manage Subscription</h1>
-        <p className="page-subtitle">View and manage your subscription details</p>
-      </div>
+      {/* Current Subscription Card */}
 
       {/* Current Subscription Card */}
       <div className="subscription-details-card">
@@ -249,8 +243,7 @@ export const SubscriptionPage: React.FC = () => {
                   <Zap size={16} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px', color: '#f59e0b' }} />
                   You're on a free trial until <strong>{new Date(subscription.trialEndDate!).toLocaleDateString()}</strong>.
                   Your first charge of <strong>{formatAmount(
-                    (subscription.planPriceMinor || 0) +
-                    (subscription.addOns?.reduce((sum, addon) => sum + (addon.unitPriceMinor * addon.quantity), 0) || 0),
+                    subscription.totalDueMinor || 0,
                     subscription.currency
                   )}</strong> will occur on that date.
                 </p>
@@ -276,19 +269,29 @@ export const SubscriptionPage: React.FC = () => {
           )}
         </div>
 
+        {/* Cancel Warning - show above actions */}
+        {subscription.cancelAtPeriodEnd && (
+          <div className="alert-warning">
+            <AlertCircle size={20} />
+            <p>Your subscription will be canceled at the end of the current billing period.</p>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="subscription-actions">
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setShowUpgradeModal(true);
-            }}
-            className="btn-primary"
-            disabled={actionLoading}
-          >
-            <TrendingUp size={18} /> Change Plan
-          </button>
+          {!subscription.cancelAtPeriodEnd && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowUpgradeModal(true);
+              }}
+              className="btn-primary"
+              disabled={actionLoading}
+            >
+              <TrendingUp size={18} /> Change Plan
+            </button>
+          )}
 
           {subscription.status === 'ACTIVE' && (
             <button
@@ -310,21 +313,16 @@ export const SubscriptionPage: React.FC = () => {
             </button>
           )}
 
-          <button
-            onClick={() => handleCancel(true)}
-            className="btn-danger-outline"
-            disabled={actionLoading}
-          >
-            Cancel at Period End
-          </button>
+          {!subscription.cancelAtPeriodEnd && (
+            <button
+              onClick={() => handleCancel(true)}
+              className="btn-danger-outline"
+              disabled={actionLoading}
+            >
+              Cancel at Period End
+            </button>
+          )}
         </div>
-
-        {subscription.cancelAtPeriodEnd && (
-          <div className="alert-warning">
-            <AlertCircle size={20} />
-            <p>Your subscription will be canceled at the end of the current billing period.</p>
-          </div>
-        )}
       </div>
 
       {/* Active Add-ons */}

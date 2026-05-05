@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
+import React, { useRef, useEffect, useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useAuthContext } from '../../../context/AuthContext';
 import { useCustomerContext } from '../../../context/CustomerContext';
 import {
@@ -10,7 +10,6 @@ import {
   HelpCircle,
   User,
   LogOut,
-  ChevronRight,
   Search,
   Loader2
 } from 'lucide-react';
@@ -24,12 +23,12 @@ interface NavItem {
 
 // All nav items - some require customer status
 const allNavItems: NavItem[] = [
-  { path: '/dashboard', label: 'Overview', icon: <LayoutDashboard size={20} />, requiresCustomer: false },
-  { path: '/dashboard/subscription', label: 'Subscription', icon: <CreditCard size={20} />, requiresCustomer: false },
-  { path: '/dashboard/billing', label: 'Billing', icon: <FileText size={20} />, requiresCustomer: true },
-  { path: '/dashboard/payment-methods', label: 'Payment Methods', icon: <Wallet size={20} />, requiresCustomer: true },
-  { path: '/dashboard/support', label: 'Support', icon: <HelpCircle size={20} />, requiresCustomer: false },
-  { path: '/dashboard/profile', label: 'Profile', icon: <User size={20} />, requiresCustomer: true },
+  { path: '/dashboard', label: 'Overview', icon: <LayoutDashboard size={18} />, requiresCustomer: false },
+  { path: '/dashboard/subscription', label: 'Subscription', icon: <CreditCard size={18} />, requiresCustomer: false },
+  { path: '/dashboard/billing', label: 'Billing', icon: <FileText size={18} />, requiresCustomer: true },
+  { path: '/dashboard/payment-methods', label: 'Payment Methods', icon: <Wallet size={18} />, requiresCustomer: true },
+  { path: '/dashboard/support', label: 'Support', icon: <HelpCircle size={18} />, requiresCustomer: false },
+  { path: '/dashboard/profile', label: 'Profile', icon: <User size={18} />, requiresCustomer: true },
 ];
 
 export const CustomerLayout: React.FC = () => {
@@ -37,7 +36,6 @@ export const CustomerLayout: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthContext();
   const { isCustomer, loading: customerLoading } = useCustomerContext();
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -85,166 +83,177 @@ export const CustomerLayout: React.FC = () => {
   };
 
   return (
-    <div className="d-flex min-vh-100" style={{ backgroundColor: '#ffffff' }}>
-      {/* Sidebar */}
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#f9fafb', fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+      {/* Google Fonts */}
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@700&display=swap" rel="stylesheet" />
+
+      {/* Sidebar - White theme matching admin */}
       <aside
-        className={`d-flex flex-column position-fixed h-100 ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}
         style={{
-          width: isSidebarCollapsed ? '80px' : '280px',
-          backgroundColor: '#0F172A', // Deep slate/dark theme
-          borderRight: '1px solid rgba(255, 255, 255, 0.1)',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '260px',
+          height: '100vh',
+          background: '#ffffff',
+          borderRight: '1px solid #e5e7eb',
+          display: 'flex',
+          flexDirection: 'column',
           zIndex: 100,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          boxShadow: '10px 0 30px rgba(0,0,0,0.1)'
+          overflowY: 'auto',
+          overflowX: 'hidden',
         }}
       >
-        {/* Sidebar Logo Section */}
+        {/* Logo - matching landing page "Stream<span>Flix</span>" style */}
         <div
-          className="d-flex align-items-center justify-content-between p-4"
-          style={{ height: '80px', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}
+          style={{
+            padding: '0 28px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            borderBottom: '1px solid #e5e7eb',
+            flexShrink: 0,
+            height: '72px',
+            boxSizing: 'border-box',
+          }}
         >
           <Link
             to="/"
-            className="d-flex align-items-center gap-2 text-decoration-none"
-            style={{ color: '#ffffff' }}
+            style={{
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0',
+            }}
           >
-            <div 
-              className="d-flex align-items-center justify-content-center rounded-3"
-              style={{ 
-                width: '32px', 
-                height: '32px', 
-                background: 'linear-gradient(135deg, #5B4FFF 0%, #8B5CF6 100%)',
-                boxShadow: '0 4px 12px rgba(91, 79, 255, 0.3)'
+            <span
+              style={{
+                fontFamily: "'Outfit', sans-serif",
+                fontWeight: 700,
+                fontSize: '1.1rem',
+                color: '#1f2937',
+                textTransform: 'uppercase',
+                letterSpacing: '-0.5px',
               }}
             >
-              <span style={{ color: 'white', fontWeight: 800, fontSize: '18px' }}>S</span>
-            </div>
-            {!isSidebarCollapsed && (
-              <span
-                className="fs-4 fw-bold"
-                style={{ 
-                  fontFamily: 'Outfit, sans-serif', 
-                  letterSpacing: '-0.5px',
-                  background: 'linear-gradient(to right, #fff, #94a3b8)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent'
-                }}
-              >
-                StreamFlix
-              </span>
-            )}
+              STREAM
+            </span>
+            <span
+              style={{
+                fontFamily: "'Outfit', sans-serif",
+                fontWeight: 700,
+                fontSize: '1.1rem',
+                color: '#5b4fff',
+                textTransform: 'uppercase',
+                letterSpacing: '-0.5px',
+              }}
+            >
+              FLIX
+            </span>
           </Link>
         </div>
 
-        {/* Navigation Items */}
-        <nav className="flex-grow-1 py-4 px-3 d-flex flex-column gap-2">
+        {/* Navigation - matching admin sidebar style */}
+        <nav style={{ flex: 1, padding: '16px 12px' }}>
+          <div style={{
+            fontFamily: "'Inter', sans-serif",
+            fontSize: '10px',
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.15em',
+            color: '#9ca3af',
+            padding: '16px 12px 8px',
+          }}>
+            Menu
+          </div>
+
           {customerLoading ? (
-            <div className="text-center py-3">
-              <Loader2 className="spin" size={20} color="rgba(255,255,255,0.5)" />
+            <div style={{ textAlign: 'center', padding: '16px 0' }}>
+              <Loader2 className="spin" size={20} color="#9ca3af" />
             </div>
           ) : (
             visibleNavItems.map((item) => (
-              <Link
+              <NavLink
                 key={item.path}
                 to={item.path}
-                className="d-flex align-items-center gap-3 px-3 py-3 text-decoration-none rounded-3"
+                end={item.path === '/dashboard'}
                 style={{
-                  color: isActive(item.path) ? '#ffffff' : '#94a3b8',
-                  backgroundColor: isActive(item.path) ? 'rgba(91, 79, 255, 0.15)' : 'transparent',
-                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 16px',
+                  marginBottom: '2px',
+                  borderRadius: '10px',
+                  textDecoration: 'none',
+                  fontSize: '13.5px',
                   fontWeight: isActive(item.path) ? 600 : 500,
+                  color: isActive(item.path) ? '#5b4fff' : '#6b7280',
+                  background: isActive(item.path) ? '#f0eeff' : 'transparent',
                   transition: 'all 0.2s ease',
-                  fontFamily: 'Inter, sans-serif',
-                  border: isActive(item.path) ? '1px solid rgba(91, 79, 255, 0.2)' : '1px solid transparent'
                 }}
                 onMouseEnter={(e) => {
                   if (!isActive(item.path)) {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
-                    e.currentTarget.style.color = '#ffffff';
+                    e.currentTarget.style.background = '#f9fafb';
+                    e.currentTarget.style.color = '#1f2937';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!isActive(item.path)) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.color = '#94a3b8';
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = '#6b7280';
                   }
                 }}
               >
-                <span className={`d-flex align-items-center justify-content-center flex-shrink-0 ${isActive(item.path) ? 'text-primary' : ''}`} style={{ color: isActive(item.path) ? '#8B5CF6' : 'inherit' }}>
+                <span style={{ color: isActive(item.path) ? '#5b4fff' : '#9ca3af', display: 'flex', alignItems: 'center' }}>
                   {item.icon}
                 </span>
-                {!isSidebarCollapsed && (
-                  <span className="text-truncate">{item.label}</span>
-                )}
-                {isActive(item.path) && !isSidebarCollapsed && (
-                  <div className="ms-auto rounded-circle" style={{ width: '6px', height: '6px', background: '#5B4FFF' }}></div>
-                )}
-              </Link>
+                <span>{item.label}</span>
+              </NavLink>
             ))
           )}
         </nav>
-
-        {/* Sidebar Footer with Collapse Toggle */}
-        <div className="p-3 mt-auto" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
-          <button
-            className="btn w-100 d-flex align-items-center justify-content-center gap-2"
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            style={{ 
-              color: '#94a3b8', 
-              background: 'rgba(255,255,255,0.03)', 
-              borderRadius: '12px',
-              padding: '12px',
-              border: '1px solid rgba(255,255,255,0.05)',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = '#ffffff')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = '#94a3b8')}
-          >
-            <ChevronRight
-              size={18}
-              style={{ transform: isSidebarCollapsed ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.4s' }}
-            />
-            {!isSidebarCollapsed && <span style={{ fontSize: '13px', fontWeight: 500 }}>Collapse Sidebar</span>}
-          </button>
-        </div>
       </aside>
 
       {/* Main Content Area */}
       <main
-        className="d-flex flex-column min-vh-100"
         style={{
-          marginLeft: isSidebarCollapsed ? '80px' : '280px',
+          marginLeft: '260px',
           flex: 1,
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          background: '#ffffff'
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: '100vh',
+          background: '#f9fafb',
         }}
       >
         {/* Top Header */}
         <header
-          className="d-flex align-items-center justify-content-between px-5 position-sticky top-0"
           style={{
-            height: '80px',
-            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-            backdropFilter: 'blur(12px)',
-            borderBottom: '1px solid #f1f5f9',
-            zIndex: 50
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 40px',
+            height: '72px',
+            backgroundColor: '#ffffff',
+            borderBottom: '1px solid #e5e7eb',
+            position: 'sticky',
+            top: 0,
+            zIndex: 50,
           }}
         >
-          <div className="d-flex align-items-center gap-2">
-            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1E293B', margin: 0, fontFamily: 'Outfit, sans-serif' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1f2937', margin: 0, fontFamily: "'Outfit', sans-serif" }}>
               {visibleNavItems.find(i => isActive(i.path))?.label || 'Dashboard'}
             </h2>
           </div>
 
-          <div className="d-flex align-items-center gap-4">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <form
               onSubmit={handleSearch}
-              className="d-none d-md-flex align-items-center"
               style={{ width: '300px', position: 'relative' }}
             >
               <Search
                 size={16}
-                style={{ position: 'absolute', left: '16px', color: '#94a3b8' }}
+                style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}
               />
               <input
                 type="text"
@@ -264,18 +273,24 @@ export const CustomerLayout: React.FC = () => {
               />
             </form>
 
-            <div className="customer-profile position-relative" ref={dropdownRef}>
+            <div style={{ position: 'relative' }} ref={dropdownRef}>
               <button
-                className="d-flex align-items-center gap-3 p-2 bg-transparent border-0"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '8px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                style={{ cursor: 'pointer' }}
               >
-                <div className="text-end d-none d-sm-block">
+                <div style={{ textAlign: 'right' }}>
                   <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#1E293B' }}>{user?.fullName || 'Customer'}</p>
-                  <p style={{ margin: 0, fontSize: '11px', color: '#64748B', fontWeight: 500 }}>Customer Plan</p>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#64748B', fontWeight: 500 }}>Customer</p>
                 </div>
                 <div
-                  className="d-flex align-items-center justify-content-center fw-bold"
                   style={{
                     width: '42px',
                     height: '42px',
@@ -283,6 +298,10 @@ export const CustomerLayout: React.FC = () => {
                     backgroundColor: '#5B4FFF',
                     color: 'white',
                     fontSize: '14px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     boxShadow: '0 4px 12px rgba(91, 79, 255, 0.2)'
                   }}
                 >
@@ -292,7 +311,6 @@ export const CustomerLayout: React.FC = () => {
 
               {dropdownOpen && (
                 <div
-                  className="customer-dropdown shadow-lg"
                   style={{
                     position: 'absolute',
                     top: 'calc(100% + 12px)',
@@ -302,18 +320,33 @@ export const CustomerLayout: React.FC = () => {
                     border: '1px solid #f1f5f9',
                     borderRadius: '16px',
                     zIndex: 100,
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
                   }}
                 >
-                  <div className="p-4 bg-light border-bottom">
+                  <div style={{ padding: '16px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
                     <p style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B', margin: 0 }}>{user?.fullName}</p>
                     <p style={{ fontSize: '12px', color: '#64748B', margin: 0 }}>{user?.email}</p>
                   </div>
-                  <div className="p-2">
+                  <div style={{ padding: '8px' }}>
                     <button
-                      className="w-100 d-flex align-items-center gap-3 px-3 py-2 bg-transparent border-0 rounded-3 text-start"
                       onClick={handleLogout}
-                      style={{ fontSize: '14px', color: '#EF4444', fontWeight: 600, transition: 'all 0.2s' }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '8px 12px',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '12px',
+                        textAlign: 'left',
+                        fontSize: '14px',
+                        color: '#EF4444',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#FEF2F2')}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
@@ -328,11 +361,10 @@ export const CustomerLayout: React.FC = () => {
         </header>
 
         {/* Page Content Container */}
-        <div className="flex-grow-1 p-5" style={{ overflowY: 'auto' }}>
+        <div style={{ flexGrow: 1, padding: '32px 40px', overflowY: 'auto' }}>
           <Outlet />
         </div>
       </main>
     </div>
   );
 };
-

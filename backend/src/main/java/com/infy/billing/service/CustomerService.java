@@ -16,7 +16,7 @@ public interface CustomerService {
 
    List<PlanDTO> getAllActivePlans();
 
-   List<AddOnDTO> getAvailableAddOns();
+   List<AddOnDTO> getAvailableAddOns(String email);
 
    List<NotificationDTO> getNotifications(String email);
 

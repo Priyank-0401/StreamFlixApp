@@ -6,7 +6,6 @@ import {
   Phone,
   MapPin,
   Building,
-  Hash,
   Save,
   Check,
   Shield,
@@ -47,7 +46,7 @@ export const ProfilePage: React.FC = () => {
     e.preventDefault();
     setSaving(true);
     setSaved(false);
-    
+
     try {
       await CustomerService.updateCustomerProfile(formData);
       setSaved(true);
@@ -75,11 +74,6 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="profile-page">
-      <div className="page-header">
-        <h1 className="page-title">Profile Settings</h1>
-        <p className="page-subtitle">Manage your account information and preferences</p>
-      </div>
-
       {saved && (
         <div className="success-banner">
           <Check size={20} />
@@ -115,15 +109,6 @@ export const ProfilePage: React.FC = () => {
           </div>
           <div className="info-item">
             <div className="info-icon-wrapper">
-              <Hash size={18} />
-            </div>
-            <div className="info-content">
-              <span className="info-label">Customer ID</span>
-              <span className="info-value">#{profile?.customerId}</span>
-            </div>
-          </div>
-          <div className="info-item">
-            <div className="info-icon-wrapper">
               <Building size={18} />
             </div>
             <div className="info-content">
@@ -140,7 +125,7 @@ export const ProfilePage: React.FC = () => {
           <Edit3 size={20} className="header-icon" />
           <h2 className="card-title">Contact & Address</h2>
         </div>
-        
+
         <div className="form-grid">
           <div className="form-group">
             <label className="form-label">

@@ -56,8 +56,8 @@ public class CustomerController {
    }
 
    @GetMapping("/addons")
-   public ResponseEntity<List<AddOnDTO>> getAvailableAddOns() {
-       return ResponseEntity.ok(customerService.getAvailableAddOns());
+   public ResponseEntity<List<AddOnDTO>> getAvailableAddOns(@AuthenticationPrincipal User user) {
+       return ResponseEntity.ok(customerService.getAvailableAddOns(user.getEmail()));
    }
 
    @GetMapping("/notifications")

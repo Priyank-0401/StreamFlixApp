@@ -65,4 +65,17 @@ public class CustomerBillingController {
            @RequestBody ApplyCouponRequest request) {
        return ResponseEntity.ok(billingService.applyCoupon(user.getEmail(), request.getCode()));
    }
+
+   @PostMapping("/coupons/validate")
+   @PreAuthorize("permitAll()")
+   public ResponseEntity<CouponDTO> validateCoupon(
+           @RequestBody ApplyCouponRequest request) {
+       return ResponseEntity.ok(billingService.validateCoupon(request.getCode()));
+   }
+
+   @GetMapping("/coupons")
+   @PreAuthorize("permitAll()")
+   public ResponseEntity<List<CouponDTO>> getAvailableCoupons() {
+       return ResponseEntity.ok(billingService.getAvailableCoupons());
+   }
 }

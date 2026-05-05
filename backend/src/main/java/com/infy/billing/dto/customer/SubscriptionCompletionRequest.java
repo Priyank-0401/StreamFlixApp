@@ -15,4 +15,6 @@ public class SubscriptionCompletionRequest {
     
     @NotNull(message = "Billing period is required")
     private BillingPeriod billingPeriod;
+
+    private String couponCode;  // Optional coupon code
 }

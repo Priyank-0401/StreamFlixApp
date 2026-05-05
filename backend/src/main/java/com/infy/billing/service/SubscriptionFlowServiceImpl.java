@@ -30,6 +30,9 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
     private final PriceBookEntryRepository priceBookEntryRepository;
     private final TaxRateRepository taxRateRepository;
     private final SubscriptionItemRepository subscriptionItemRepository;
+    private final CouponRepository couponRepository;
+    private final SubscriptionCouponRepository subscriptionCouponRepository;
+    private final InvoiceLineItemRepository invoiceLineItemRepository;
 
     /**
      * Step 1: Register customer details
@@ -58,7 +61,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
 
         customerRepository.save(customer);
         System.out.println("DEBUG: Customer registered for user: " + email + ", customerId: " + customer.getId());
-        
+
         return customer;
     }
 
@@ -67,7 +70,9 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
      */
     @Transactional
     public PaymentMethod createPaymentMethod(Long customerId, PaymentMethodRequest request) {
-        Customer customer = customerRepository.findById(customerId)
+        Long cid = customerId;
+        if (cid == null) throw CustomException.badRequest("Customer ID is required");
+        Customer customer = customerRepository.findById(cid)
                 .orElseThrow(() -> CustomException.notFound("Customer not found"));
 
         PaymentMethod paymentMethod = new PaymentMethod();
@@ -81,21 +86,22 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
             String cardNumber = request.getCardNumber();
             String last4 = cardNumber.substring(cardNumber.length() - 4);
             String brand = detectCardBrand(cardNumber);
-            
+
             paymentMethod.setCardLast4(last4);
             paymentMethod.setCardBrand(brand);
             paymentMethod.setExpiryMonth(Integer.parseInt(request.getExpiryMonth()));
             paymentMethod.setExpiryYear(Integer.parseInt(request.getExpiryYear()));
             paymentMethod.setGatewayToken("mock_token_card_" + UUID.randomUUID().toString().substring(0, 8));
-            
+
         } else if (request.getPaymentType() == PaymentType.UPI) {
+            paymentMethod.setUpiId(request.getUpiId());
             paymentMethod.setGatewayToken("mock_token_upi_" + request.getUpiId());
-            // UPI doesn't use card fields
         }
 
         paymentMethodRepository.save(paymentMethod);
-        System.out.println("DEBUG: Payment method created for customer: " + customerId + ", methodId: " + paymentMethod.getId());
-        
+        System.out.println(
+                "DEBUG: Payment method created for customer: " + customerId + ", methodId: " + paymentMethod.getId());
+
         return paymentMethod;
     }
 
@@ -107,29 +113,61 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> CustomException.notFound("Customer not found"));
 
-        Plan plan = planRepository.findById(request.getPlanId())
+        Long planId = request.getPlanId();
+        if (planId == null) throw CustomException.badRequest("Plan ID is required");
+        Plan plan = planRepository.findById(planId)
                 .orElseThrow(() -> CustomException.notFound("Plan not found"));
 
-        PaymentMethod paymentMethod = paymentMethodRepository.findById(request.getPaymentMethodId())
+        Long paymentMethodId = request.getPaymentMethodId();
+        if (paymentMethodId == null) throw CustomException.badRequest("Payment method ID is required");
+        PaymentMethod paymentMethod = paymentMethodRepository.findById(paymentMethodId)
                 .orElseThrow(() -> CustomException.notFound("Payment method not found"));
 
         // Calculate price based on region
         Long priceMinor = getPriceForRegion(plan, customer.getCountry(), customer.getCurrency());
-        
-        // Calculate tax
+
+        // Apply coupon discount if provided
+        LocalDate today = LocalDate.now();
+        Long discountMinor = 0L;
+        Coupon appliedCoupon = null;
+        if (request.getCouponCode() != null && !request.getCouponCode().isBlank()) {
+            appliedCoupon = couponRepository.findByCodeAndStatus(request.getCouponCode(), Status.ACTIVE)
+                    .orElse(null);
+            if (appliedCoupon != null) {
+                boolean valid = true;
+                if (appliedCoupon.getValidFrom() != null && today.isBefore(appliedCoupon.getValidFrom()))
+                    valid = false;
+                if (appliedCoupon.getValidTo() != null && today.isAfter(appliedCoupon.getValidTo()))
+                    valid = false;
+                if (appliedCoupon.getMaxRedemptions() != null
+                        && appliedCoupon.getRedeemedCount() >= appliedCoupon.getMaxRedemptions())
+                    valid = false;
+
+                if (valid) {
+                    if (appliedCoupon.getType() == CouponType.PERCENT) {
+                        discountMinor = priceMinor * appliedCoupon.getAmount() / 100;
+                    } else {
+                        discountMinor = appliedCoupon.getAmount(); // FIXED type, amount is already in minor
+                    }
+                    // Don't let discount exceed price
+                    if (discountMinor > priceMinor)
+                        discountMinor = priceMinor;
+                } else {
+                    appliedCoupon = null; // Invalid, ignore
+                }
+            }
+        }
+
+        Long priceAfterDiscount = priceMinor - discountMinor;
+
+        // Calculate tax on price after discount
         BigDecimal taxRate = getTaxRateForRegion(customer.getCountry());
-        Long taxMinor = calculateTax(priceMinor, taxRate, plan.getTaxMode());
-        Long totalMinor = priceMinor + taxMinor;
+        Long taxMinor = calculateTax(priceAfterDiscount, taxRate, plan.getTaxMode());
+        Long totalMinor = priceAfterDiscount + taxMinor;
 
         // Check if trial is applicable
         boolean isTrial = plan.getTrialDays() > 0;
-        
-        // If it's a trial, the initial charge is 0
-        Long initialPrice = isTrial ? 0L : priceMinor;
-        Long initialTax = isTrial ? 0L : taxMinor;
-        Long initialTotal = isTrial ? 0L : totalMinor;
 
-        LocalDate today = LocalDate.now();
         LocalDate periodEnd = calculatePeriodEnd(today, request.getBillingPeriod());
 
         // Create subscription
@@ -138,19 +176,20 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         subscription.setPlan(plan);
         subscription.setStatus(Status.ACTIVE);
         subscription.setStartDate(today);
-        
+
         // Set trial if applicable
         if (isTrial) {
             subscription.setStatus(Status.TRIALING);
             subscription.setTrialEndDate(today.plusDays(plan.getTrialDays()));
             // The first PAID period starts AFTER the trial
             subscription.setCurrentPeriodStart(subscription.getTrialEndDate());
-            subscription.setCurrentPeriodEnd(calculatePeriodEnd(subscription.getTrialEndDate(), request.getBillingPeriod()));
+            subscription.setCurrentPeriodEnd(
+                    calculatePeriodEnd(subscription.getTrialEndDate(), request.getBillingPeriod()));
         } else {
             subscription.setCurrentPeriodStart(today);
             subscription.setCurrentPeriodEnd(periodEnd);
         }
-        
+
         subscription.setPaymentMethodId(paymentMethod.getId());
         subscription.setCurrency(customer.getCurrency());
         subscription.setCancelAtPeriodEnd(false);
@@ -167,19 +206,76 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         planItem.setQuantity(1);
         planItem.setTaxMode(plan.getTaxMode());
         subscriptionItemRepository.save(planItem);
+        // Persist coupon linkage
+        if (appliedCoupon != null) {
+            SubscriptionCoupon sc = new SubscriptionCoupon();
+            sc.setSubscription(subscription);
+            sc.setCoupon(appliedCoupon);
+            sc.setAppliedAt(LocalDateTime.now());
+            sc.setStatus(Status.ACTIVE);
+            subscriptionCouponRepository.save(sc);
+
+            // Increment redeemed count
+            appliedCoupon.setRedeemedCount(appliedCoupon.getRedeemedCount() + 1);
+            couponRepository.save(appliedCoupon);
+        }
+
         SubscriptionResponse response = new SubscriptionResponse();
 
-        if (!isTrial) {
-            Invoice invoice = createInvoice(customer, subscription, initialPrice, initialTax, initialTotal, today);
-            System.out.println("DEBUG: Invoice created: " + invoice.getId());
+        // Create the invoice for the period
+        // If it's a trial, the status is OPEN and due date is when trial ends
+        // If not a trial, the status is PAID and due date is today
+        Status invoiceStatus = isTrial ? Status.OPEN : Status.PAID;
+        LocalDate dueDate = isTrial ? subscription.getTrialEndDate() : today;
 
-            // Create payment record for the initial amount
-            createPayment(invoice, paymentMethod, initialTotal, customer.getCurrency());
-            System.out.println("DEBUG: Payment created for invoice: " + invoice.getId());
+        Invoice invoice = createInvoice(customer, subscription, priceAfterDiscount, taxMinor, totalMinor, today,
+                dueDate, invoiceStatus);
+        invoice.setDiscountMinor(discountMinor);
+        invoiceRepository.save(invoice);
 
-            response.setInvoiceId(invoice.getId());
-            response.setInvoiceNumber(invoice.getInvoiceNumber());
+        // Add line items to the invoice
+        InvoiceLineItem planLine = new InvoiceLineItem();
+        planLine.setInvoice(invoice);
+        planLine.setDescription(plan.getName() + " Subscription" + (isTrial ? " (Starts after trial)" : ""));
+        planLine.setLineType(InvoiceLineItem.LineType.PLAN);
+        planLine.setQuantity(1);
+        planLine.setUnitPriceMinor(priceMinor);
+        planLine.setAmountMinor(priceMinor);
+        invoiceLineItemRepository.save(planLine);
+
+        // Add discount line item if coupon was applied
+        if (discountMinor > 0 && appliedCoupon != null) {
+            InvoiceLineItem discountLine = new InvoiceLineItem();
+            discountLine.setInvoice(invoice);
+            discountLine.setDescription("Coupon: " + appliedCoupon.getCode() + " (" + appliedCoupon.getName() + ")");
+            discountLine.setLineType(InvoiceLineItem.LineType.DISCOUNT);
+            discountLine.setQuantity(1);
+            discountLine.setUnitPriceMinor(-discountMinor);
+            discountLine.setAmountMinor(-discountMinor);
+            invoiceLineItemRepository.save(discountLine);
         }
+
+        // Add tax line item
+        if (taxMinor > 0) {
+            InvoiceLineItem taxLine = new InvoiceLineItem();
+            taxLine.setInvoice(invoice);
+            taxLine.setDescription("GST (18%)");
+            taxLine.setLineType(InvoiceLineItem.LineType.TAX);
+            taxLine.setQuantity(1);
+            taxLine.setUnitPriceMinor(taxMinor);
+            taxLine.setAmountMinor(taxMinor);
+            invoiceLineItemRepository.save(taxLine);
+        }
+
+        if (!isTrial) {
+            // Create payment record for the initial amount (Only if not a trial)
+            createPayment(invoice, paymentMethod, totalMinor, customer.getCurrency());
+            System.out.println("DEBUG: Payment created for invoice: " + invoice.getId());
+        }
+
+        response.setInvoiceId(invoice.getId());
+        response.setInvoiceNumber(invoice.getInvoiceNumber());
+        response.setTotalAmountMinor(totalMinor);
 
         response.setSubscriptionId(subscription.getId());
         response.setStatus(subscription.getStatus().name());
@@ -197,34 +293,45 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
     public CustomerStatusResponse checkCustomerStatus(String email) {
         Optional<User> userOpt = userRepository.findByEmail(email);
         if (userOpt.isEmpty()) {
-            return new CustomerStatusResponse(false, false, "User not found");
+            return new CustomerStatusResponse(false, false, false, "User not found");
         }
 
         User user = userOpt.get();
         Optional<Customer> customerOpt = customerRepository.findByUser_Id(user.getId());
-        
+
         if (customerOpt.isEmpty()) {
-            return new CustomerStatusResponse(false, false, "Customer record not created");
+            return new CustomerStatusResponse(false, false, false, "Customer record not created");
         }
 
         Customer customer = customerOpt.get();
-        boolean hasActiveSubscription = subscriptionRepository
-                .findByCustomer_IdAndStatusIn(customer.getId(), 
-                    java.util.List.of(Status.ACTIVE, Status.TRIALING))
-                .stream()
-                .findAny()
-                .isPresent();
+        
+        Optional<Subscription> dashboardEligibleSub = subscriptionRepository
+                .findByCustomer_IdAndStatusIn(customer.getId(),
+                        java.util.List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED, Status.ON_HOLD))
+                .stream().findAny();
 
-        return new CustomerStatusResponse(true, hasActiveSubscription, 
-                hasActiveSubscription ? "Active subscription found" : "Customer exists but no active subscription");
+        Optional<Subscription> draftSub = subscriptionRepository
+                .findByCustomer_IdAndStatusIn(customer.getId(),
+                        java.util.List.of(Status.DRAFT)).stream().findAny();
+
+        boolean isDashboardEligible = dashboardEligibleSub.isPresent();
+        boolean hasDraftSubscription = draftSub.isPresent();
+
+        // Only consider them a "full customer" if they have an active or billing-relevant subscription
+        return new CustomerStatusResponse(isDashboardEligible, isDashboardEligible, hasDraftSubscription,
+                isDashboardEligible ? "Active or relevant subscription found" : 
+                (hasDraftSubscription ? "Draft subscription found" : "Customer exists but no subscription"));
     }
 
     // Helper methods
 
     private String detectCardBrand(String cardNumber) {
-        if (cardNumber.startsWith("4")) return "VISA";
-        if (cardNumber.startsWith("5")) return "MASTERCARD";
-        if (cardNumber.startsWith("34") || cardNumber.startsWith("37")) return "AMEX";
+        if (cardNumber.startsWith("4"))
+            return "VISA";
+        if (cardNumber.startsWith("5"))
+            return "MASTERCARD";
+        if (cardNumber.startsWith("34") || cardNumber.startsWith("37"))
+            return "AMEX";
         return "UNKNOWN";
     }
 
@@ -232,17 +339,18 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         // Try to find region-specific price
         Optional<PriceBookEntry> entry = priceBookEntryRepository
                 .findByPlan_IdAndRegionAndCurrency(plan.getId(), country, currency);
-        
+
         if (entry.isPresent()) {
             return entry.get().getPriceMinor();
         }
-        
+
         // Fallback to default price
         return plan.getDefaultPriceMinor();
     }
 
     private BigDecimal getTaxRateForRegion(String country) {
-        Optional<TaxRate> taxRate = taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(country, LocalDate.now());
+        Optional<TaxRate> taxRate = taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(country,
+                LocalDate.now());
         return taxRate.map(tr -> tr.getRatePercent()).orElse(BigDecimal.ZERO);
     }
 
@@ -263,21 +371,21 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         }
     }
 
-    private Invoice createInvoice(Customer customer, Subscription subscription, 
-                                   Long subtotal, Long tax, Long total, LocalDate today) {
+    private Invoice createInvoice(Customer customer, Subscription subscription,
+            Long subtotal, Long tax, Long total, LocalDate today, LocalDate dueDate, Status status) {
         Invoice invoice = new Invoice();
         invoice.setCustomer(customer);
         invoice.setSubscription(subscription);
         invoice.setInvoiceNumber("INV-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
-        invoice.setStatus(Status.PAID);
+        invoice.setStatus(status);
         invoice.setBillingReason(BillingReason.SUBSCRIPTION_CREATE);
         invoice.setIssueDate(today);
-        invoice.setDueDate(today);
+        invoice.setDueDate(dueDate);
         invoice.setSubtotalMinor(subtotal);
         invoice.setTaxMinor(tax);
         invoice.setDiscountMinor(0L);
         invoice.setTotalMinor(total);
-        invoice.setBalanceMinor(0L);
+        invoice.setBalanceMinor(status == Status.OPEN ? total : 0L);
         invoice.setCurrency(customer.getCurrency());
         invoice.setIdempotencyKey(UUID.randomUUID().toString());
 

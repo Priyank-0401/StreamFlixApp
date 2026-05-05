@@ -12,5 +12,6 @@ public class CustomerStatusResponse {
     @JsonProperty("isCustomer")
     private boolean isCustomer;
     private boolean hasActiveSubscription;
+    private boolean hasDraftSubscription;
     private String message;
 }

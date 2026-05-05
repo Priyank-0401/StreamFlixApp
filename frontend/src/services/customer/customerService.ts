@@ -75,6 +75,8 @@ export interface Subscription {
   currency: string;
   addOns: SubscriptionAddOn[];
   meteredUsage: MeteredUsage[];
+  discountMinor?: number;
+  totalDueMinor?: number;
 }
 
 export interface SubscriptionAddOn {
@@ -372,6 +374,22 @@ export const applyCoupon = async (code: string): Promise<Coupon> => {
   return response.json();
 };
 
+export const validateCoupon = async (code: string): Promise<Coupon> => {
+  const response = await fetchWithSession(`${API_BASE}/coupons/validate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  if (!response.ok) throw new Error('Invalid or expired coupon');
+  return response.json();
+};
+
+export const getAvailableCoupons = async (): Promise<Coupon[]> => {
+  const response = await fetchWithSession(`${API_BASE}/coupons`);
+  if (!response.ok) throw new Error('Failed to fetch coupons');
+  return response.json();
+};
+
 // ==================== PAYMENT METHODS ====================
 
 export const getPaymentMethods = async (): Promise<PaymentMethod[]> => {
@@ -480,6 +498,15 @@ export interface SubscriptionCompletionRequest {
   planId: number;
   paymentMethodId: number;
   billingPeriod: 'MONTHLY' | 'YEARLY';
+  couponCode?: string;
+}
+
+export interface CustomerStatusResponse {
+  isCustomer: boolean;
+  hasActiveSubscription: boolean;
+  hasDraftSubscription: boolean;
+  message: string;
+  trialEndDate?: string;
 }
 
 export interface SubscriptionResponse {

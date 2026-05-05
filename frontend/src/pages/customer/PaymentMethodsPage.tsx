@@ -128,11 +128,7 @@ export const PaymentMethodsPage: React.FC = () => {
 
   return (
     <div className="payment-methods-page">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Payment Methods</h1>
-          <p className="page-subtitle">Manage your saved payment options</p>
-        </div>
+      <div className="payment-methods-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '24px' }}>
         <button
           onClick={() => setShowAddModal(true)}
           className="btn-primary"

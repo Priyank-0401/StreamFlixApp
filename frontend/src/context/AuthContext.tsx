@@ -11,6 +11,7 @@ interface AuthContextType {
   login: (user: User) => Promise<{ isCustomer: boolean }>;
   logout: () => void;
   isCustomer: boolean;
+  hasDraftSubscription: boolean;
   refreshUserStatus: () => Promise<void>;
 }
 
@@ -33,6 +34,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
+  const [hasDraftSubscription, setHasDraftSubscription] = useState<boolean>(() => {
+    try {
+      const cached = sessionStorage.getItem('hasDraftSubscription');
+      return cached === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   useEffect(() => {
     // On page load, ask the Spring Boot server if our JSESSIONID cookie is still valid
     const verifySession = async () => {
@@ -43,11 +53,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             const customerStatus = await CustomerService.getCustomerStatus();
             setIsCustomer(customerStatus.isCustomer);
+            setHasDraftSubscription(customerStatus.hasDraftSubscription);
             sessionStorage.setItem('isCustomer', String(customerStatus.isCustomer));
+            sessionStorage.setItem('hasDraftSubscription', String(customerStatus.hasDraftSubscription));
           } catch {
             // If customer status check fails, use cached value or assume not a customer
-            const cached = sessionStorage.getItem('isCustomer');
-            setIsCustomer(cached === 'true');
+            const cachedCustomer = sessionStorage.getItem('isCustomer');
+            const cachedDraft = sessionStorage.getItem('hasDraftSubscription');
+            setIsCustomer(cachedCustomer === 'true');
+            setHasDraftSubscription(cachedDraft === 'true');
           }
           
           // NOW set auth state after customer status is known
@@ -62,8 +76,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setAuthState(prev => ({ ...prev, isLoading: false }));
           setIsCustomer(false);
+          setHasDraftSubscription(false);
           sessionStorage.removeItem('isAuthenticated');
           sessionStorage.removeItem('isCustomer');
+          sessionStorage.removeItem('hasDraftSubscription');
         }
       } catch {
         setAuthState(prev => ({ ...prev, isLoading: false }));
@@ -100,11 +116,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const customerStatus = await CustomerService.getCustomerStatus();
       customerStatusValue = customerStatus.isCustomer;
       setIsCustomer(customerStatusValue);
+      setHasDraftSubscription(customerStatus.hasDraftSubscription);
       sessionStorage.setItem('isCustomer', String(customerStatusValue));
+      sessionStorage.setItem('hasDraftSubscription', String(customerStatus.hasDraftSubscription));
     } catch {
       // If customer status check fails, assume not a customer
       setIsCustomer(false);
+      setHasDraftSubscription(false);
       sessionStorage.setItem('isCustomer', 'false');
+      sessionStorage.setItem('hasDraftSubscription', 'false');
     }
     
     // NOW set auth state after customer status is known
@@ -128,6 +148,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Clear sessionStorage flags
     sessionStorage.removeItem('isAuthenticated');
     sessionStorage.removeItem('isCustomer');
+    sessionStorage.removeItem('hasDraftSubscription');
     // Immediate hard redirect - page reload will reset auth state naturally
     window.location.href = '/';
   };
@@ -136,7 +157,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const customerStatus = await CustomerService.getCustomerStatus();
       setIsCustomer(customerStatus.isCustomer);
+      setHasDraftSubscription(customerStatus.hasDraftSubscription);
       sessionStorage.setItem('isCustomer', String(customerStatus.isCustomer));
+      sessionStorage.setItem('hasDraftSubscription', String(customerStatus.hasDraftSubscription));
     } catch {
       // ignore
     }
@@ -150,6 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     login,
     logout,
     isCustomer,
+    hasDraftSubscription,
     refreshUserStatus
   };
   

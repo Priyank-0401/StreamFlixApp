@@ -55,20 +55,26 @@ export const SubscriptionCheckoutPage: React.FC = () => {
   }, [loadPlanAndAddons]);
 
   const formatPrice = (amount: number): string => {
-    return `₹${(amount / 100).toFixed(2)}`;
+    const currency = plan?.defaultCurrency || 'INR';
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: currency,
+    }).format(amount / 100);
   };
+
+  const TAX_RATE = 0.18; // 18% GST
 
   const calculateTotal = () => {
     if (!plan) return 0;
-    let total = plan.defaultPriceMinor;
+    let subtotal = plan.defaultPriceMinor;
     selectedAddons.forEach(addonId => {
       const addon = addons.find(a => a.addOnId === addonId);
-      if (addon) total += addon.priceMinor;
+      if (addon) subtotal += addon.priceMinor;
     });
-    total -= discount;
-    // Add 10% tax
-    total += total * 0.1;
-    return total;
+    subtotal -= discount;
+    // Add 18% GST
+    subtotal += Math.round(subtotal * TAX_RATE);
+    return subtotal;
   };
 
   const handleApplyCoupon = () => {
@@ -347,19 +353,28 @@ export const SubscriptionCheckoutPage: React.FC = () => {
               )}
 
               <div className="summary-item">
-                <span className="item-label">Tax (10%)</span>
-                <span className="item-value">+{formatPrice((plan.defaultPriceMinor + selectedAddons.reduce((sum, id) => {
+                <span className="item-label">GST (18%)</span>
+                <span className="item-value">+{formatPrice(Math.round((plan.defaultPriceMinor + selectedAddons.reduce((sum, id) => {
                   const addon = addons.find(a => a.addOnId === id);
                   return sum + (addon?.priceMinor || 0);
-                }, 0) - discount) * 0.1)}</span>
+                }, 0) - discount) * 0.18))}</span>
               </div>
 
               <div className="summary-divider"></div>
 
               <div className="summary-total">
-                <span className="total-label">Total Due</span>
-                <span className="total-value">{formatPrice(calculateTotal())} / month</span>
+                <span className="total-label">{plan.trialDays > 0 ? 'Due Today' : 'Total Due'}</span>
+                <span className="total-value">
+                  {plan.trialDays > 0 
+                    ? formatPrice(0) 
+                    : `${formatPrice(calculateTotal())} / ${plan.billingPeriod === 'YEARLY' ? 'year' : 'month'}`}
+                </span>
               </div>
+              {plan.trialDays > 0 && (
+                <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '8px', marginBottom: 0 }}>
+                  After your {plan.trialDays}-day trial, you'll be charged <strong>{formatPrice(calculateTotal())}</strong> per {plan.billingPeriod === 'YEARLY' ? 'year' : 'month'} (incl. tax)
+                </p>
+              )}
             </div>
 
             <div className="secure-checkout-card">

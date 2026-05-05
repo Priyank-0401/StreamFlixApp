@@ -3,7 +3,7 @@ package com.infy.billing.service;
 import com.infy.billing.dto.customer.*;
 import com.infy.billing.entity.*;
 import com.infy.billing.enums.*;
-import com.infy.billing.exception.CustomException;
+
 import com.infy.billing.repository.*;
 import com.infy.billing.request.*;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -34,6 +35,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
    private final InvoiceRepository invoiceRepository;
    private final InvoiceLineItemRepository invoiceLineItemRepository;
    private final PaymentRepository paymentRepository;
+   private final SubscriptionCouponRepository subscriptionCouponRepository;
 
    public SubscriptionDTO getCurrentSubscription(String email) {
        Customer customer = getCustomerByEmail(email);
@@ -255,75 +257,141 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
        
        return mapToSubscriptionDTO(subscription);
    }
+@Transactional
+    public SubscriptionDTO addAddOn(String email, Long addonId) {
+        Customer customer = getCustomerByEmail(email);
+        Subscription subscription = getActiveSubscription(customer.getId());
+        AddOn addOn = addOnRepository.findById(addonId)
+                .orElseThrow(() -> new RuntimeException("Add-on not found"));
 
-   @Transactional
-   public SubscriptionDTO addAddOn(String email, Long addonId) {
-       Customer customer = getCustomerByEmail(email);
-       Subscription subscription = getActiveSubscription(customer.getId());
-       AddOn addOn = addOnRepository.findById(addonId)
-               .orElseThrow(() -> new RuntimeException("Add-on not found"));
+        // Compatibility check: Monthly add-ons only for monthly plans, etc.
+        if (addOn.getBillingPeriod() != subscription.getPlan().getBillingPeriod()) {
+            throw new RuntimeException("Add-on billing period (" + addOn.getBillingPeriod() + 
+                    ") must match your plan's billing period (" + subscription.getPlan().getBillingPeriod() + ")");
+        }
 
-       // Check if already added
-       SubscriptionItem existing = subscriptionItemRepository.findBySubscription_IdAndAddOn_Id(
-               subscription.getId(), addonId);
-       if (existing != null) {
-           throw new RuntimeException("Add-on already active on this subscription");
-       }
+        // Check if already added
+        SubscriptionItem existing = subscriptionItemRepository.findBySubscription_IdAndAddOn_Id(
+                subscription.getId(), addonId);
+        if (existing != null) {
+            throw new RuntimeException("Add-on already active on this subscription");
+        }
 
-       SubscriptionItem item = new SubscriptionItem();
-       item.setSubscription(subscription);
-       item.setItemType(ItemType.ADDON);
-       item.setAddOn(addOn);
-       item.setUnitPriceMinor(addOn.getPriceMinor());
-       item.setQuantity(1);
-       item.setTaxMode(addOn.getTaxMode());
-       subscriptionItemRepository.save(item);
+        SubscriptionItem item = new SubscriptionItem();
+        item.setSubscription(subscription);
+        item.setItemType(ItemType.ADDON);
+        item.setAddOn(addOn);
+        item.setUnitPriceMinor(addOn.getPriceMinor());
+        item.setQuantity(1);
+        item.setTaxMode(addOn.getTaxMode());
+        subscriptionItemRepository.save(item);
 
-       // If NOT trialing, generate a prorated invoice for the add-on
-       // If trialing, defer — the add-on will be included in the first real invoice
-       boolean isTrialing = subscription.getStatus() == Status.TRIALING;
-       if (!isTrialing) {
-           LocalDate today = LocalDate.now();
-           LocalDate periodEnd = subscription.getCurrentPeriodEnd();
-           long totalDays = ChronoUnit.DAYS.between(subscription.getCurrentPeriodStart(), periodEnd);
-           long remainingDays = ChronoUnit.DAYS.between(today, periodEnd);
-           if (totalDays <= 0) totalDays = 1;
-           if (remainingDays <= 0) remainingDays = 1;
+        LocalDate today = LocalDate.now();
+        boolean isTrialing = subscription.getStatus() == Status.TRIALING;
 
-           long proratedAmount = (addOn.getPriceMinor() * remainingDays) / totalDays;
-           
-           Invoice invoice = new Invoice();
-           invoice.setCustomer(customer);
-           invoice.setSubscription(subscription);
-           invoice.setInvoiceNumber("INV-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
-           invoice.setStatus(Status.PAID);
-           invoice.setBillingReason(BillingReason.SUBSCRIPTION_UPDATE);
-           invoice.setIssueDate(today);
-           invoice.setDueDate(today);
-           invoice.setSubtotalMinor(proratedAmount);
-           invoice.setTaxMinor(0L);
-           invoice.setDiscountMinor(0L);
-           invoice.setTotalMinor(proratedAmount);
-           invoice.setBalanceMinor(0L);
-           invoice.setCurrency(subscription.getCurrency());
-           invoice.setIdempotencyKey(UUID.randomUUID().toString());
-           invoiceRepository.save(invoice);
+        if (isTrialing) {
+            // Update the existing OPEN trial invoice
+            Optional<Invoice> openInvoiceOpt = invoiceRepository.findBySubscription_IdAndStatus(subscription.getId(), Status.OPEN);
+            if (openInvoiceOpt.isPresent()) {
+                Invoice invoice = openInvoiceOpt.get();
+                
+                // Add Add-on line
+                InvoiceLineItem addonLine = new InvoiceLineItem();
+                addonLine.setInvoice(invoice);
+                addonLine.setDescription("Add-on: " + addOn.getName() + " (Starts after trial)");
+                addonLine.setLineType(InvoiceLineItem.LineType.ADDON);
+                addonLine.setQuantity(1);
+                addonLine.setUnitPriceMinor(addOn.getPriceMinor());
+                addonLine.setAmountMinor(addOn.getPriceMinor());
+                invoiceLineItemRepository.save(addonLine);
 
-           // Line item
-           InvoiceLineItem lineItem = new InvoiceLineItem();
-           lineItem.setInvoice(invoice);
-           lineItem.setDescription("Add-on: " + addOn.getName() + " (prorated)");
-           lineItem.setLineType(InvoiceLineItem.LineType.ADDON);
-           lineItem.setQuantity(1);
-           lineItem.setUnitPriceMinor(proratedAmount);
-           lineItem.setAmountMinor(proratedAmount);
-           lineItem.setPeriodStart(today);
-           lineItem.setPeriodEnd(periodEnd);
-           invoiceLineItemRepository.save(lineItem);
-       }
+                // Add Tax line for this addon
+                Long addonTax = Math.round(addOn.getPriceMinor() * 0.18);
+                InvoiceLineItem taxLine = new InvoiceLineItem();
+                taxLine.setInvoice(invoice);
+                taxLine.setDescription("GST (18%) - " + addOn.getName());
+                taxLine.setLineType(InvoiceLineItem.LineType.TAX);
+                taxLine.setQuantity(1);
+                taxLine.setUnitPriceMinor(addonTax);
+                taxLine.setAmountMinor(addonTax);
+                invoiceLineItemRepository.save(taxLine);
 
-       return mapToSubscriptionDTO(subscription);
-   }
+                // Update invoice totals
+                invoice.setSubtotalMinor(invoice.getSubtotalMinor() + addOn.getPriceMinor());
+                invoice.setTaxMinor(invoice.getTaxMinor() + addonTax);
+                invoice.setTotalMinor(invoice.getTotalMinor() + addOn.getPriceMinor() + addonTax);
+                invoice.setBalanceMinor(invoice.getTotalMinor());
+                invoiceRepository.save(invoice);
+            }
+        } else {
+            // Generate a prorated invoice for the add-on immediately
+            LocalDate periodEnd = subscription.getCurrentPeriodEnd();
+            long totalDays = ChronoUnit.DAYS.between(subscription.getCurrentPeriodStart(), periodEnd);
+            long remainingDays = ChronoUnit.DAYS.between(today, periodEnd);
+            if (totalDays <= 0) totalDays = 1;
+            if (remainingDays <= 0) remainingDays = 1;
+
+            long proratedAmount = (addOn.getPriceMinor() * remainingDays) / totalDays;
+            Long taxMinor = Math.round(proratedAmount * 0.18);
+            Long totalMinor = proratedAmount + taxMinor;
+            
+            Invoice invoice = new Invoice();
+            invoice.setCustomer(customer);
+            invoice.setSubscription(subscription);
+            invoice.setInvoiceNumber("INV-ADDON-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
+            invoice.setStatus(Status.PAID);
+            invoice.setBillingReason(BillingReason.SUBSCRIPTION_UPDATE);
+            invoice.setIssueDate(today);
+            invoice.setDueDate(today);
+            invoice.setSubtotalMinor(proratedAmount);
+            invoice.setTaxMinor(taxMinor);
+            invoice.setDiscountMinor(0L);
+            invoice.setTotalMinor(totalMinor);
+            invoice.setBalanceMinor(0L);
+            invoice.setCurrency(subscription.getCurrency());
+            invoice.setIdempotencyKey(UUID.randomUUID().toString());
+            invoiceRepository.save(invoice);
+
+            // Line items
+            InvoiceLineItem addonLine = new InvoiceLineItem();
+            addonLine.setInvoice(invoice);
+            addonLine.setDescription("Add-on: " + addOn.getName() + " (prorated)");
+            addonLine.setLineType(InvoiceLineItem.LineType.ADDON);
+            addonLine.setQuantity(1);
+            addonLine.setUnitPriceMinor(proratedAmount);
+            addonLine.setAmountMinor(proratedAmount);
+            addonLine.setPeriodStart(today);
+            addonLine.setPeriodEnd(periodEnd);
+            invoiceLineItemRepository.save(addonLine);
+
+            InvoiceLineItem taxLine = new InvoiceLineItem();
+            taxLine.setInvoice(invoice);
+            taxLine.setDescription("GST (18%)");
+            taxLine.setLineType(InvoiceLineItem.LineType.TAX);
+            taxLine.setQuantity(1);
+            taxLine.setUnitPriceMinor(taxMinor);
+            taxLine.setAmountMinor(taxMinor);
+            invoiceLineItemRepository.save(taxLine);
+
+            // Create payment
+            PaymentMethod pm = paymentMethodRepository.findById(subscription.getPaymentMethodId()).orElse(null);
+            Payment payment = new Payment();
+            payment.setInvoice(invoice);
+            payment.setPaymentMethod(pm);
+            payment.setAmountMinor(totalMinor);
+            payment.setCurrency(invoice.getCurrency());
+            payment.setStatus(Status.SUCCESS);
+            payment.setIdempotencyKey(UUID.randomUUID().toString());
+            payment.setAttemptNo(1);
+            paymentRepository.save(payment);
+            paymentRepository.flush();
+        }
+        
+        subscriptionItemRepository.flush();
+        invoiceRepository.flush();
+
+        return mapToSubscriptionDTO(subscription);
+    }
 
    @Transactional
    public SubscriptionDTO removeAddOn(String email, Long addonId) {
@@ -417,41 +485,67 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
                .orElseThrow(() -> new RuntimeException("No active subscription found"));
    }
 
-   private SubscriptionDTO mapToSubscriptionDTO(Subscription subscription) {
-       SubscriptionDTO dto = new SubscriptionDTO();
-       dto.setSubscriptionId(subscription.getId());
-       dto.setCustomerId(subscription.getCustomer().getId());
-       dto.setPlanId(subscription.getPlan().getId());
+    private SubscriptionDTO mapToSubscriptionDTO(Subscription subscription) {
+        SubscriptionDTO dto = new SubscriptionDTO();
+        dto.setSubscriptionId(subscription.getId());
+        dto.setCustomerId(subscription.getCustomer().getId());
+        dto.setPlanId(subscription.getPlan().getId());
 
-       Plan plan = subscription.getPlan();
-       dto.setPlanName(plan.getName());
-       dto.setPlanPriceMinor(plan.getDefaultPriceMinor());
-       dto.setBillingPeriod(plan.getBillingPeriod() != null ? plan.getBillingPeriod().name() : "MONTHLY");
+        Plan plan = subscription.getPlan();
+        dto.setPlanName(plan.getName());
+        dto.setPlanPriceMinor(plan.getDefaultPriceMinor());
+        dto.setBillingPeriod(plan.getBillingPeriod() != null ? plan.getBillingPeriod().name() : "MONTHLY");
 
-       dto.setStatus(subscription.getStatus());
-       dto.setStartDate(subscription.getStartDate().toString());
-       dto.setTrialEndDate(subscription.getTrialEndDate() != null ? subscription.getTrialEndDate().toString() : null);
-       dto.setCurrentPeriodStart(subscription.getCurrentPeriodStart().toString());
-       dto.setCurrentPeriodEnd(subscription.getCurrentPeriodEnd().toString());
-       dto.setCancelAtPeriodEnd(subscription.getCancelAtPeriodEnd());
-       dto.setCanceledAt(subscription.getCanceledAt() != null ? subscription.getCanceledAt().toString() : null);
-       dto.setPausedFrom(subscription.getPausedFrom() != null ? subscription.getPausedFrom().toString() : null);
-       dto.setPausedTo(subscription.getPausedTo() != null ? subscription.getPausedTo().toString() : null);
-       dto.setCurrency(subscription.getCurrency());
+        dto.setStatus(subscription.getStatus());
+        dto.setStartDate(subscription.getStartDate().toString());
+        dto.setTrialEndDate(subscription.getTrialEndDate() != null ? subscription.getTrialEndDate().toString() : null);
+        dto.setCurrentPeriodStart(subscription.getCurrentPeriodStart().toString());
+        dto.setCurrentPeriodEnd(subscription.getCurrentPeriodEnd().toString());
+        dto.setCancelAtPeriodEnd(subscription.getCancelAtPeriodEnd());
+        dto.setCanceledAt(subscription.getCanceledAt() != null ? subscription.getCanceledAt().toString() : null);
+        dto.setPausedFrom(subscription.getPausedFrom() != null ? subscription.getPausedFrom().toString() : null);
+        dto.setPausedTo(subscription.getPausedTo() != null ? subscription.getPausedTo().toString() : null);
+        dto.setCurrency(subscription.getCurrency());
 
-       List<SubscriptionItem> items = subscriptionItemRepository.findBySubscription_Id(subscription.getId());
-       dto.setAddOns(items.stream()
-               .filter(i -> i.getItemType() == ItemType.ADDON)
-               .map(this::mapToSubscriptionAddOnDTO)
-               .collect(Collectors.toList()));
+        List<SubscriptionItem> items = subscriptionItemRepository.findBySubscription_Id(subscription.getId());
+        dto.setAddOns(items.stream()
+                .filter(i -> i.getItemType() == ItemType.ADDON)
+                .map(this::mapToSubscriptionAddOnDTO)
+                .collect(Collectors.toList()));
 
-       dto.setMeteredUsage(items.stream()
-               .filter(i -> i.getItemType() == ItemType.METERED)
-               .map(this::mapToMeteredUsageDTO)
-               .collect(Collectors.toList()));
+        dto.setMeteredUsage(items.stream()
+                .filter(i -> i.getItemType() == ItemType.METERED)
+                .map(this::mapToMeteredUsageDTO)
+                .collect(Collectors.toList()));
 
-       return dto;
-   }
+        // Calculate discount if any
+        Long discountMinor = 0L;
+        Optional<SubscriptionCoupon> scOpt = subscriptionCouponRepository.findBySubscription_IdAndStatus(subscription.getId(), Status.ACTIVE);
+        if (scOpt.isPresent()) {
+            Coupon coupon = scOpt.get().getCoupon();
+            if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
+                discountMinor = plan.getDefaultPriceMinor() * coupon.getAmount() / 100;
+            } else {
+                discountMinor = coupon.getAmount();
+            }
+        }
+        dto.setDiscountMinor(discountMinor);
+
+        // Calculate total due (Plan + Add-ons - Discount + 18% Tax)
+        Long basePrice = plan.getDefaultPriceMinor() != null ? plan.getDefaultPriceMinor() : 0L;
+        Long addOnTotal = items.stream()
+                .filter(i -> i.getItemType() == ItemType.ADDON)
+                .mapToLong(i -> i.getUnitPriceMinor() != null ? i.getUnitPriceMinor() * i.getQuantity() : 0L)
+                .sum();
+        
+        Long subtotal = basePrice + addOnTotal - discountMinor;
+        if (subtotal < 0) subtotal = 0L;
+        
+        Long taxMinor = Math.round(subtotal * 0.18);
+        dto.setTotalDueMinor(subtotal + taxMinor);
+
+        return dto;
+    }
 
    private SubscriptionItemDTO mapToSubscriptionAddOnDTO(SubscriptionItem item) {
        SubscriptionItemDTO dto = new SubscriptionItemDTO();

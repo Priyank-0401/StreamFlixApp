@@ -46,6 +46,9 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
            method.setExpiryMonth(request.getExpiryMonth());
            method.setExpiryYear(request.getExpiryYear());
            method.setGatewayToken("tok_" + System.currentTimeMillis());
+       } else if (PaymentType.UPI.equals(request.getPaymentType())) {
+           method.setUpiId(request.getUpiId());
+           method.setGatewayToken("tok_upi_" + System.currentTimeMillis());
        }
 
        List<PaymentMethod> existing = paymentMethodRepository.findByCustomer_Id(customer.getId());
@@ -131,6 +134,7 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
        dto.setPaymentType(method.getPaymentType());
        dto.setCardLast4(method.getCardLast4());
        dto.setCardBrand(method.getCardBrand());
+       dto.setUpiId(method.getUpiId());
        dto.setIsDefault(method.getIsDefault());
        dto.setExpiryMonth(method.getExpiryMonth());
        dto.setExpiryYear(method.getExpiryYear());

@@ -17,4 +17,8 @@ public interface CustomerBillingService {
    List<CreditNoteDTO> getCreditNotes(String email);
 
    CouponDTO applyCoupon(String email, String code);
+
+   CouponDTO validateCoupon(String code);
+
+   List<CouponDTO> getAvailableCoupons();
 }

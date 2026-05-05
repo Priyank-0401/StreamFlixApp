@@ -10,7 +10,6 @@ com\infy\billing\entity\Plan$PlanBuilder.class
 com\infy\billing\entity\User.class
 com\infy\billing\service\CustomerPaymentService.class
 com\infy\billing\entity\Invoice.class
-com\infy\billing\controller\CustomerBillingController.class
 com\infy\billing\request\ApplyCouponRequest.class
 com\infy\billing\repository\NotificationRepository.class
 com\infy\billing\entity\Product$ProductBuilder.class
@@ -84,7 +83,6 @@ com\infy\billing\repository\TaxRateRepository.class
 com\infy\billing\repository\ProductRepository.class
 com\infy\billing\entity\AddOn.class
 com\infy\billing\repository\SubscriptionRepository.class
-com\infy\billing\config\SecurityConfig$CsrfCookieFilter.class
 com\infy\billing\dto\admin\StaffResponse.class
 com\infy\billing\dto\customer\NotificationDTO.class
 com\infy\billing\entity\CreditNote.class
@@ -102,7 +100,6 @@ com\infy\billing\controller\CustomerPaymentController.class
 com\infy\billing\entity\Plan.class
 com\infy\billing\entity\MeteredComponent.class
 com\infy\billing\dto\admin\AddOnResponse.class
-com\infy\billing\config\SecurityConfig$SpaCsrfTokenRequestHandler.class
 com\infy\billing\request\CreateSubscriptionRequest.class
 com\infy\billing\entity\InvoiceLineItem.class
 com\infy\billing\dto\admin\CustomerResponse.class

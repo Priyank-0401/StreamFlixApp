@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Loader2, CheckCircle, Shield } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Loader2, CheckCircle, Shield, Tag, X, Ticket } from 'lucide-react';
 import * as CustomerService from '../../../services/customer/customerService';
 
 interface MockPaymentStepProps {
@@ -8,6 +8,8 @@ interface MockPaymentStepProps {
   paymentMethodId: number;
   onComplete: (data: any) => void;
 }
+
+const TAX_RATE_PERCENT = 18; // GST for India
 
 export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({ 
   plan, 
@@ -18,6 +20,68 @@ export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<CustomerService.Coupon | null>(null);
+  const [couponError, setCouponError] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [availableCoupons, setAvailableCoupons] = useState<CustomerService.Coupon[]>([]);
+
+  useEffect(() => {
+    // Fetch available coupons
+    CustomerService.getAvailableCoupons()
+      .then(setAvailableCoupons)
+      .catch(() => {}); // Silent fail
+  }, []);
+
+  const formatPrice = (amount: number, currency: string): string => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: currency || 'INR',
+    }).format(amount / 100);
+  };
+
+  // Calculate discount
+  const calculateDiscount = (): number => {
+    if (!appliedCoupon) return 0;
+    if (appliedCoupon.type === 'PERCENT') {
+      return Math.round(plan.defaultPriceMinor * appliedCoupon.amount / 100);
+    } else {
+      // FIXED type — amount is in minor units
+      return Math.min(appliedCoupon.amount, plan.defaultPriceMinor);
+    }
+  };
+
+  const discountMinor = calculateDiscount();
+  const priceAfterDiscount = plan.defaultPriceMinor - discountMinor;
+  const taxMinor = Math.round(priceAfterDiscount * TAX_RATE_PERCENT / 100);
+  const totalMinor = priceAfterDiscount + taxMinor;
+  const isTrial = plan.trialDays > 0;
+
+  const handleApplyCoupon = async (code?: string) => {
+    const codeToApply = code || couponCode.trim();
+    if (!codeToApply) return;
+    
+    setCouponError('');
+    setCouponLoading(true);
+    try {
+      const coupon = await CustomerService.validateCoupon(codeToApply);
+      setAppliedCoupon(coupon);
+      setCouponCode(coupon.code);
+    } catch (err: any) {
+      setCouponError(err.message || 'Invalid coupon code');
+      setAppliedCoupon(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+    setCouponError('');
+  };
 
   const handlePay = async () => {
     setError('');
@@ -28,6 +92,7 @@ export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({
         planId: plan.planId,
         paymentMethodId: paymentMethodId,
         billingPeriod: plan.billingPeriod,
+        couponCode: appliedCoupon?.code,
       });
 
       setShowSuccess(true);
@@ -39,15 +104,6 @@ export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatPrice = (amount: number, currency: string): string => {
-    const symbols: Record<string, string> = {
-      'INR': '₹',
-      'USD': '$',
-      'GBP': '£',
-    };
-    return `${symbols[currency] || '₹'}${(amount / 100).toFixed(0)}`;
   };
 
   if (showSuccess) {
@@ -72,11 +128,11 @@ export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({
             marginBottom: '12px',
             letterSpacing: '-1px'
           }}>
-            {plan.trialDays > 0 ? 'Trial Started!' : 'Payment Successful!'}
+            {isTrial ? 'Trial Started!' : 'Payment Successful!'}
           </h2>
           <p style={{ color: '#6B7280', fontSize: '16px', lineHeight: '1.6' }}>
-            {plan.trialDays > 0 
-              ? `Your ${plan.trialDays}-day free trial is now active. Your first charge will occur on ${new Date(Date.now() + plan.trialDays * 24 * 60 * 60 * 1000).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}.` 
+            {isTrial 
+              ? `Your ${plan.trialDays}-day free trial is now active. Your first charge of ${formatPrice(totalMinor, plan.defaultCurrency)} will occur on ${new Date(Date.now() + plan.trialDays * 24 * 60 * 60 * 1000).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}.` 
               : 'Your subscription is now active. Redirecting you home...'}
           </p>
         </div>
@@ -116,6 +172,7 @@ export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({
             Order Summary
           </h4>
           
+          {/* Plan Price */}
           <div className="d-flex justify-content-between align-items-start mb-3">
             <div>
               <p style={{ fontSize: '16px', fontWeight: 600, color: '#111827', margin: 0 }}>
@@ -130,7 +187,31 @@ export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({
             </p>
           </div>
 
-          {plan.trialDays > 0 && (
+          {/* Coupon Discount Line */}
+          {appliedCoupon && discountMinor > 0 && (
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div className="d-flex align-items-center gap-2">
+                <Tag size={14} color="#059669" />
+                <span style={{ fontSize: '14px', fontWeight: 500, color: '#059669' }}>
+                  {appliedCoupon.code} — {appliedCoupon.type === 'PERCENT' ? `${appliedCoupon.amount}% off` : `${formatPrice(appliedCoupon.amount, plan.defaultCurrency)} off`}
+                </span>
+              </div>
+              <span style={{ fontSize: '14px', fontWeight: 600, color: '#059669' }}>
+                -{formatPrice(discountMinor, plan.defaultCurrency)}
+              </span>
+            </div>
+          )}
+
+          {/* Tax */}
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <span style={{ fontSize: '14px', color: '#6B7280' }}>GST ({TAX_RATE_PERCENT}%)</span>
+            <span style={{ fontSize: '14px', color: '#6B7280' }}>
+              +{formatPrice(taxMinor, plan.defaultCurrency)}
+            </span>
+          </div>
+
+          {/* Trial Banner */}
+          {isTrial && (
             <div 
               className="p-3 mb-3" 
               style={{ background: '#ECFDF5', borderRadius: '12px', border: '1px solid #A7F3D0' }}
@@ -144,19 +225,137 @@ export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({
             </div>
           )}
 
+          {/* Total */}
           <div 
             className="pt-3 mt-3"
             style={{ borderTop: '1px dashed #D1D5DB' }}
           >
             <div className="d-flex justify-content-between align-items-center">
               <p style={{ fontSize: '16px', fontWeight: 600, color: '#111827', margin: 0 }}>
-                Total (today)
+                {isTrial ? 'Due today' : 'Total'}
               </p>
               <p style={{ fontSize: '24px', fontWeight: 700, color: '#5B4FFF', margin: 0 }}>
-                {plan.trialDays > 0 ? 'FREE' : formatPrice(plan.defaultPriceMinor, plan.defaultCurrency)}
+                {isTrial ? 'FREE' : formatPrice(totalMinor, plan.defaultCurrency)}
               </p>
             </div>
+            {isTrial && (
+              <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '8px', marginBottom: 0 }}>
+                After trial ends, you'll be charged <strong style={{ color: '#111827' }}>{formatPrice(totalMinor, plan.defaultCurrency)}</strong> per {plan.billingPeriod === 'YEARLY' ? 'year' : 'month'} (incl. tax)
+              </p>
+            )}
           </div>
+        </div>
+
+        {/* Coupon Code Section */}
+        <div className="mb-4">
+          <label style={{ fontSize: '14px', fontWeight: 600, color: '#374151', marginBottom: '8px', display: 'block' }}>
+            <Ticket size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-bottom' }} />
+            Have a coupon code?
+          </label>
+          
+          {appliedCoupon ? (
+            <div 
+              className="d-flex align-items-center justify-content-between p-3"
+              style={{ background: '#ECFDF5', borderRadius: '12px', border: '1px solid #A7F3D0' }}
+            >
+              <div className="d-flex align-items-center gap-2">
+                <Tag size={16} color="#059669" />
+                <div>
+                  <span style={{ fontSize: '14px', fontWeight: 600, color: '#065F46' }}>
+                    {appliedCoupon.code}
+                  </span>
+                  <span style={{ fontSize: '13px', color: '#047857', marginLeft: '8px' }}>
+                    — You save {formatPrice(discountMinor, plan.defaultCurrency)}!
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={handleRemoveCoupon}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={18} color="#6B7280" />
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="d-flex gap-2">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Enter coupon code"
+                  value={couponCode}
+                  onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError(''); }}
+                  style={{ 
+                    borderRadius: '12px', 
+                    border: '1px solid #E5E7EB', 
+                    padding: '10px 16px',
+                    fontSize: '14px',
+                    flex: 1
+                  }}
+                />
+                <button
+                  onClick={() => handleApplyCoupon()}
+                  disabled={couponLoading || !couponCode.trim()}
+                  className="btn"
+                  style={{
+                    background: '#5B4FFF',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    padding: '10px 20px',
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    opacity: couponLoading || !couponCode.trim() ? 0.6 : 1,
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {couponLoading ? 'Checking...' : 'Apply'}
+                </button>
+              </div>
+              {couponError && (
+                <p style={{ fontSize: '13px', color: '#DC2626', marginTop: '6px', marginBottom: 0 }}>
+                  {couponError}
+                </p>
+              )}
+              
+              {/* Available Coupons */}
+              {availableCoupons.length > 0 && (
+                <div style={{ marginTop: '12px' }}>
+                  <p style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>
+                    Available Coupons
+                  </p>
+                  <div className="d-flex flex-wrap gap-2">
+                    {availableCoupons.map(c => (
+                      <button
+                        key={c.couponId}
+                        onClick={() => { setCouponCode(c.code); handleApplyCoupon(c.code); }}
+                        className="d-flex align-items-center gap-1"
+                        style={{
+                          background: '#F3F4F6',
+                          border: '1px dashed #D1D5DB',
+                          borderRadius: '8px',
+                          padding: '6px 12px',
+                          cursor: 'pointer',
+                          fontSize: '13px',
+                          fontWeight: 500,
+                          color: '#374151',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = '#EEF2FF'; e.currentTarget.style.borderColor = '#818CF8'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = '#F3F4F6'; e.currentTarget.style.borderColor = '#D1D5DB'; }}
+                      >
+                        <Tag size={12} />
+                        <span>{c.code}</span>
+                        <span style={{ color: '#6B7280', fontSize: '12px' }}>
+                          ({c.type === 'PERCENT' ? `${c.amount}% off` : `${formatPrice(c.amount, plan.defaultCurrency)} off`})
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
         {/* Security Badge */}
@@ -192,7 +391,7 @@ export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({
             </>
           ) : (
             <>
-              {plan.trialDays > 0 ? 'Start Free Trial' : `Pay ${formatPrice(plan.defaultPriceMinor, plan.defaultCurrency)}`}
+              {isTrial ? 'Start Free Trial' : `Pay ${formatPrice(totalMinor, plan.defaultCurrency)}`}
             </>
           )}
         </button>

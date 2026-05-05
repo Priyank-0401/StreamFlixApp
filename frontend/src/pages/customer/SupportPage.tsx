@@ -91,10 +91,7 @@ export const SupportPage: React.FC = () => {
 
   return (
     <div className="support-page">
-      <div className="page-header">
-        <h1 className="page-title">Help & Support</h1>
-        <p className="page-subtitle">Find answers or contact our support team</p>
-      </div>
+      {/* FAQs Section */}
 
       {/* FAQs Section */}
       <div className="support-card">

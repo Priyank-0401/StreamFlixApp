@@ -51,6 +51,7 @@ D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\entity\PriceBookEntry.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\entity\Product.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\entity\Subscription.java
+D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\entity\SubscriptionCoupon.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\entity\SubscriptionItem.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\entity\TaxRate.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\entity\UsageRecord.java
@@ -80,6 +81,7 @@ D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\repository\PlanRepository.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\repository\PriceBookEntryRepository.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\repository\ProductRepository.java
+D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\repository\SubscriptionCouponRepository.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\repository\SubscriptionItemRepository.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\repository\SubscriptionRepository.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\repository\TaxRateRepository.java

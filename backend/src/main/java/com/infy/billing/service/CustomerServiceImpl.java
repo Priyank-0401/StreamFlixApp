@@ -21,6 +21,7 @@ public class CustomerServiceImpl implements CustomerService {
    private final NotificationRepository notificationRepository;
    private final PlanRepository planRepository;
    private final AddOnRepository addOnRepository;
+   private final SubscriptionRepository subscriptionRepository;
 
    public CustomerProfileDTO getProfile(String email) {
        Customer customer = getCustomerByEmail(email);
@@ -68,11 +69,26 @@ public class CustomerServiceImpl implements CustomerService {
                .collect(Collectors.toList());
    }
 
-   public List<AddOnDTO> getAvailableAddOns() {
-       return addOnRepository.findByStatus(Status.ACTIVE).stream()
-               .map(this::mapToAddOnDTO)
-               .collect(Collectors.toList());
-   }
+    public List<AddOnDTO> getAvailableAddOns(String email) {
+        Customer customer = getCustomerByEmail(email);
+        
+        // Find current subscription period (include DRAFT for checkout flow)
+        final com.infy.billing.enums.BillingPeriod currentPeriod = subscriptionRepository.findByCustomer_IdAndStatusIn(
+                customer.getId(),
+                List.of(com.infy.billing.enums.Status.ACTIVE, com.infy.billing.enums.Status.TRIALING, 
+                        com.infy.billing.enums.Status.DRAFT, com.infy.billing.enums.Status.PAST_DUE,
+                        com.infy.billing.enums.Status.PAUSED)
+        ).stream()
+        .sorted((s1, s2) -> s2.getId().compareTo(s1.getId()))
+        .findFirst()
+        .map(s -> s.getPlan().getBillingPeriod())
+        .orElse(com.infy.billing.enums.BillingPeriod.MONTHLY);
+
+        return addOnRepository.findByStatus(com.infy.billing.enums.Status.ACTIVE).stream()
+                .filter(a -> a.getBillingPeriod() == currentPeriod)
+                .map(this::mapToAddOnDTO)
+                .collect(Collectors.toList());
+    }
 
    public List<NotificationDTO> getNotifications(String email) {
        Customer customer = getCustomerByEmail(email);

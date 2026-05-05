@@ -35,7 +35,7 @@ export const OverviewPage: React.FC = () => {
           CustomerService.getPaymentMethods()
         ]);
         setSubscription(sub);
-        setInvoices(inv.slice(0, 5));
+        setInvoices(inv); // Use all invoices to ensure OPEN ones are found
         setPaymentMethods(pm);
         setIsCustomer(true);
       } catch (err: any) {
@@ -71,8 +71,14 @@ export const OverviewPage: React.FC = () => {
 
   const getNextBillingAmount = () => {
     if (!subscription) return 0;
-    return subscription.addOns.reduce((sum, addon) =>
+    if (subscription.totalDueMinor !== undefined) return subscription.totalDueMinor;
+    
+    const planAmount = subscription.planPriceMinor || 0;
+    const addonAmount = subscription.addOns.reduce((sum, addon) =>
       sum + (addon.unitPriceMinor * addon.quantity), 0);
+    const subtotal = planAmount + addonAmount;
+    // Add 18% tax
+    return Math.round(subtotal * 1.18);
   };
 
   const getStatusColor = (status: string) => {
@@ -128,13 +134,7 @@ export const OverviewPage: React.FC = () => {
 
   return (
     <div className="overview-page">
-      {/* Page Header */}
-      <div className="page-header">
-        <h1 className="page-title">Dashboard Overview</h1>
-        <p className="page-subtitle">
-          Welcome back! Here&apos;s what&apos;s happening with your account.
-        </p>
-      </div>
+      {/* Page Content */}
 
       {/* Stats Grid */}
       <div className="stats-grid">
@@ -162,14 +162,20 @@ export const OverviewPage: React.FC = () => {
             <div className="stat-card-header">
               <div>
                 <p className="stat-label">Next Billing</p>
-                <p className="stat-value">{subscription ? formatDate(subscription.currentPeriodEnd) : 'N/A'}</p>
+                <p className="stat-value">
+                  {subscription 
+                    ? formatDate(subscription.status === 'TRIALING' ? subscription.trialEndDate : subscription.currentPeriodEnd)
+                    : 'N/A'}
+                </p>
               </div>
               <div className="stat-icon" style={{ color: '#5b4fff' }}>
                 <Calendar size={24} />
               </div>
             </div>
             <p className="stat-subtext">
-              Amount: {formatAmount(getNextBillingAmount(), subscription?.currency || 'INR')}
+              {subscription?.status === 'TRIALING' 
+                ? `Amount after trial: ${formatAmount(getNextBillingAmount(), subscription?.currency || 'INR')}`
+                : `Amount: ${formatAmount(getNextBillingAmount(), subscription?.currency || 'INR')}`}
             </p>
           </div>
         </div>
@@ -180,14 +186,16 @@ export const OverviewPage: React.FC = () => {
             <div className="stat-card-header">
               <div>
                 <p className="stat-label">Download Storage</p>
-                <p className="stat-value">7.2 GB</p>
+                <p className="stat-value">
+                  2.2 GB
+                </p>
               </div>
               <div className="stat-icon" style={{ color: '#5b4fff' }}>
                 <Database size={24} />
               </div>
             </div>
             <p className="stat-subtext">
-              2.2 GB of 10 GB free tier used
+              2.2 GB of 5.0 GB free tier used
             </p>
           </div>
         </div>
@@ -266,8 +274,7 @@ export const OverviewPage: React.FC = () => {
                   <p className="detail-label">First Payment</p>
                   <p className="detail-value">
                     {formatAmount(
-                      (subscription.planPriceMinor || 0) + 
-                      (subscription.addOns?.reduce((sum, addon) => sum + (addon.unitPriceMinor * addon.quantity), 0) || 0), 
+                      subscription.totalDueMinor || 0, 
                       subscription.currency
                     )} due on {formatDate(subscription.trialEndDate)}
                   </p>

@@ -14,4 +14,5 @@ public class SubscriptionResponse {
     private String status;
     private String message;
     private String trialEndDate;
+    private Long totalAmountMinor;
 }
