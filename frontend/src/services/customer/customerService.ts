@@ -163,19 +163,6 @@ export interface Coupon {
   status: 'ACTIVE' | 'EXPIRED' | 'DISABLED';
 }
 
-export interface Notification {
-  notificationId: number;
-  type: string;
-  subject: string;
-  body: string;
-  channel: 'EMAIL' | 'SMS';
-  status: 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED';
-  scheduledAt: string | null;
-  sentAt: string | null;
-  createdAt: string;
-  isRead: boolean;
-}
-
 export interface UsageRecord {
   usageId: number;
   componentId: number;
@@ -428,21 +415,6 @@ export const deletePaymentMethod = async (paymentMethodId: number): Promise<void
     method: 'DELETE',
   });
   if (!response.ok) throw new Error('Failed to delete payment method');
-};
-
-// ==================== NOTIFICATIONS ====================
-
-export const getNotifications = async (): Promise<Notification[]> => {
-  const response = await fetchWithSession(`${API_BASE}/notifications`);
-  if (!response.ok) throw new Error('Failed to fetch notifications');
-  return response.json();
-};
-
-export const markNotificationAsRead = async (notificationId: number): Promise<void> => {
-  const response = await fetchWithSession(`${API_BASE}/notifications/${notificationId}/read`, {
-    method: 'PUT',
-  });
-  if (!response.ok) throw new Error('Failed to mark notification as read');
 };
 
 // ==================== SUPPORT ====================

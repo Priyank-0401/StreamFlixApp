@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,7 +18,6 @@ public class CustomerServiceImpl implements CustomerService {
 
    private final CustomerRepository customerRepository;
    private final UserRepository userRepository;
-   private final NotificationRepository notificationRepository;
    private final PlanRepository planRepository;
    private final AddOnRepository addOnRepository;
    private final SubscriptionRepository subscriptionRepository;
@@ -90,25 +89,6 @@ public class CustomerServiceImpl implements CustomerService {
                 .collect(Collectors.toList());
     }
 
-   public List<NotificationDTO> getNotifications(String email) {
-       Customer customer = getCustomerByEmail(email);
-       return notificationRepository.findByCustomer_IdOrderByCreatedAtDesc(customer.getId()).stream()
-               .map(this::mapToNotificationDTO)
-               .collect(Collectors.toList());
-   }
-
-   @Transactional
-   public void markNotificationAsRead(String email, Long notificationId) {
-       Customer customer = getCustomerByEmail(email);
-       Notification notification = notificationRepository.findById(notificationId)
-               .orElseThrow(() -> new RuntimeException("Notification not found"));
-       if (!notification.getCustomer().getId().equals(customer.getId())) {
-           throw new RuntimeException("Unauthorized");
-       }
-       notification.setStatus(Status.SENT);
-       notificationRepository.save(notification);
-   }
-
    private Customer getCustomerByEmail(String email) {
        User user = userRepository.findByEmail(email)
                .orElseThrow(() -> new RuntimeException("User not found"));
@@ -163,18 +143,4 @@ public class CustomerServiceImpl implements CustomerService {
        return dto;
    }
 
-   private NotificationDTO mapToNotificationDTO(Notification notification) {
-       NotificationDTO dto = new NotificationDTO();
-       dto.setNotificationId(notification.getId());
-       dto.setType(notification.getType());
-       dto.setSubject(notification.getSubject());
-       dto.setBody(notification.getBody());
-       dto.setChannel(notification.getChannel());
-       dto.setStatus(notification.getStatus());
-       dto.setScheduledAt(notification.getScheduledAt());
-       dto.setSentAt(notification.getSentAt());
-       dto.setCreatedAt(notification.getCreatedAt());
-       dto.setIsRead("READ".equals(notification.getStatus()));
-       return dto;
-   }
 }

@@ -54,10 +54,12 @@ public class User implements UserDetails {
    @Column(name = "password_hash")
    private String passwordHash;
 
+   @Builder.Default
    @Column(nullable = false)
    @Enumerated(EnumType.STRING)
    private UserRole role = UserRole.CUSTOMER;
 
+   @Builder.Default
    @Column(nullable = false)
    @Enumerated(EnumType.STRING)
    private Status status = Status.ACTIVE;

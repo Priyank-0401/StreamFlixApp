@@ -36,7 +36,7 @@ export const CustomersPage: React.FC = () => {
 
   return (
     <>
-      <PageHeader title="Customers" subtitle="View and manage customer accounts." />
+      <PageHeader subtitle="View and manage customer accounts." />
       <div className="data-panel">
         <DataTable columns={columns} data={customers} emptyMessage="No customers registered yet." />
       </div>

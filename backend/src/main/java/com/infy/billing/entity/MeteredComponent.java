@@ -31,9 +31,11 @@ public class MeteredComponent {
    @Column(name = "price_per_unit_minor", nullable = false)
    private Long pricePerUnitMinor;
 
+   @Builder.Default
    @Column(name = "free_tier_quantity", nullable = false)
    private Long freeTierQuantity = 0L;
 
+   @Builder.Default
    @Column(nullable = false)
    @Enumerated(EnumType.STRING)
    private Status status = Status.ACTIVE;

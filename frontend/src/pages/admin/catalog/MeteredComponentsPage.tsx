@@ -63,7 +63,7 @@ export const MeteredComponentsPage: React.FC = () => {
 
   return (
     <>
-      <PageHeader title="Metered Components" subtitle="Usage-based billing — free tier included, then per-unit charges." actionLabel="Add Component" onAction={openCreate} />
+      <PageHeader subtitle="Usage-based billing — free tier included, then per-unit charges." actionLabel="Add Component" onAction={openCreate} />
       <div className="data-panel">
         <DataTable columns={columns} data={components} emptyMessage="No metered components yet." onRowClick={openEdit} />
       </div>

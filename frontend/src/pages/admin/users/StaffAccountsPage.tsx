@@ -4,6 +4,7 @@ import { DataTable } from '../../../components/admin/shared/DataTable';
 import { StatusBadge } from '../../../components/admin/shared/StatusBadge';
 import { AdminModal } from '../../../components/admin/shared/AdminModal';
 import { FormField } from '../../../components/admin/shared/FormField';
+import { useAuthContext } from '../../../context/AuthContext';
 import { getStaff, createStaff, deleteStaff } from '../../../services/admin/adminService';
 import type { StaffResponse } from '../../../services/admin/adminTypes';
 
@@ -15,6 +16,7 @@ const roleStyles: Record<string, { border: string; color: string }> = {
 const emptyForm = { fullName: '', email: '', passwordHash: '', role: 'SUPPORT' };
 
 export const StaffAccountsPage: React.FC = () => {
+  const { user: currentUser } = useAuthContext();
   const [staff, setStaff] = useState<StaffResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -53,7 +55,19 @@ export const StaffAccountsPage: React.FC = () => {
     }},
     { key: 'status', header: 'Status', render: (r: StaffResponse) => <StatusBadge status={r.status} /> },
     { key: 'actions', header: 'Actions', render: (r: StaffResponse) => (
-      <button className="btn-admin-sm btn-delete-sm" onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }}>Remove</button>
+      <button 
+        className={`btn-admin-sm btn-delete-sm ${currentUser?.email === r.email ? 'disabled' : ''}`} 
+        onClick={(e) => { 
+          if (currentUser?.email === r.email) return;
+          e.stopPropagation(); 
+          handleDelete(r.id); 
+        }}
+        disabled={currentUser?.email === r.email}
+        title={currentUser?.email === r.email ? "You cannot remove your own account" : ""}
+        style={currentUser?.email === r.email ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+      >
+        Remove
+      </button>
     )},
   ];
 
@@ -61,7 +75,7 @@ export const StaffAccountsPage: React.FC = () => {
 
   return (
     <>
-      <PageHeader title="Staff Accounts" subtitle="Manage Admin, Finance, and Support staff." actionLabel="Add Staff" onAction={openCreate} />
+      <PageHeader subtitle="Manage Admin, Finance, and Support staff." actionLabel="Add Staff" onAction={openCreate} />
       <div className="data-panel">
         <DataTable columns={columns} data={staff} emptyMessage="No staff accounts." />
       </div>

@@ -55,7 +55,7 @@ export const AddOnsPage: React.FC = () => {
 
   return (
     <>
-      <PageHeader title="Add-ons" subtitle="Optional features customers can add to their subscription." actionLabel="Create Add-on" onAction={openCreate} />
+      <PageHeader subtitle="Optional features customers can add to their subscription." actionLabel="Create Add-on" onAction={openCreate} />
       <div className="data-panel">
         <DataTable columns={columns} data={addOns} emptyMessage="No add-ons created yet." onRowClick={openEdit} />
       </div>

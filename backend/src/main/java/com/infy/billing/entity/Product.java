@@ -25,6 +25,7 @@ public class Product {
    @Column(columnDefinition = "TEXT")
    private String description;
 
+   @Builder.Default
    @Column(nullable = false)
    @Enumerated(EnumType.STRING)
    private Status status = Status.ACTIVE;

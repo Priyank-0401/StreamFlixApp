@@ -18,7 +18,4 @@ public interface CustomerService {
 
    List<AddOnDTO> getAvailableAddOns(String email);
 
-   List<NotificationDTO> getNotifications(String email);
-
-   void markNotificationAsRead(String email, Long notificationId);
 }

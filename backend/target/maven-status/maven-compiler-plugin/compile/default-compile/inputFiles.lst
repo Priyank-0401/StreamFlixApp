@@ -11,6 +11,7 @@ D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\dto\admin\MeteredComponentResponse.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\dto\admin\PlanResponse.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\dto\admin\PriceBookResponse.java
+D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\dto\admin\ProductResponse.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\dto\admin\StaffResponse.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\dto\admin\SubscriptionResponse.java
 D:\Projects\Infosys Project\StreamFlixApp\backend\src\main\java\com\infy\billing\dto\auth\CustomerRegisterRequest.java

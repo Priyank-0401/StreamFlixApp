@@ -69,7 +69,7 @@ export const PriceBooksPage: React.FC = () => {
 
   return (
     <>
-      <PageHeader title="Price Books" subtitle="Region-specific pricing for plans." actionLabel="Add Entry" onAction={openCreate} />
+      <PageHeader subtitle="Manage regional pricing and currency rules." actionLabel="Create Price Book" onAction={openCreate} />
       <div className="data-panel">
         <DataTable columns={columns} data={entries} emptyMessage="No price book entries yet." onRowClick={openEdit} />
       </div>

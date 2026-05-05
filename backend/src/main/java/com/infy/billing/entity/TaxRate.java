@@ -26,6 +26,7 @@ public class TaxRate {
    @Column(name = "rate_percent", nullable = false, precision = 5, scale = 2)
    private BigDecimal ratePercent;
 
+   @Builder.Default
    @Column(nullable = false)
    private Boolean inclusive = false;
 

@@ -60,19 +60,6 @@ public class CustomerController {
        return ResponseEntity.ok(customerService.getAvailableAddOns(user.getEmail()));
    }
 
-   @GetMapping("/notifications")
-   public ResponseEntity<List<NotificationDTO>> getNotifications(@AuthenticationPrincipal User user) {
-       return ResponseEntity.ok(customerService.getNotifications(user.getEmail()));
-   }
-
-   @PutMapping("/notifications/{id}/read")
-   public ResponseEntity<Void> markNotificationAsRead(
-           @AuthenticationPrincipal User user,
-           @PathVariable Long id) {
-       customerService.markNotificationAsRead(user.getEmail(), id);
-       return ResponseEntity.ok().build();
-   }
-
    // ========== SUBSCRIPTION FLOW ENDPOINTS ==========
 
    @GetMapping("/status")

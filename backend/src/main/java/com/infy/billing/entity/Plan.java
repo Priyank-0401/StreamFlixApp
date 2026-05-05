@@ -39,12 +39,15 @@ public class Plan {
    @Column(name = "default_currency", nullable = false, length = 3)
    private String defaultCurrency;
 
+   @Builder.Default
    @Column(name = "trial_days", nullable = false)
    private Integer trialDays = 7;
 
+   @Builder.Default
    @Column(name = "setup_fee_minor", nullable = false)
    private Long setupFeeMinor = 0L;
 
+   @Builder.Default
    @Enumerated(EnumType.STRING)
    @Column(name = "tax_mode", nullable = false)
    private TaxMode taxMode = TaxMode.EXCLUSIVE;
@@ -55,6 +58,7 @@ public class Plan {
    @Column(name = "effective_to")
    private LocalDate effectiveTo;
 
+   @Builder.Default
    @Column(nullable = false)
    @Enumerated(EnumType.STRING)
    private Status status = Status.ACTIVE;

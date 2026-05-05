@@ -47,6 +47,7 @@ public class Coupon {
    @Column(name = "max_redemptions")
    private Integer maxRedemptions;
 
+   @Builder.Default
    @Column(name = "redeemed_count", nullable = false)
    private Integer redeemedCount = 0;
 
@@ -56,6 +57,7 @@ public class Coupon {
    @Column(name = "valid_to")
    private LocalDate validTo;
 
+   @Builder.Default
    @Column(nullable = false)
    @Enumerated(EnumType.STRING)
    private Status status = Status.ACTIVE;

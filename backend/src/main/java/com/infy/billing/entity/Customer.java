@@ -44,6 +44,7 @@ public class Customer {
    @Column(name = "postal_code", length = 20)
    private String postalCode;
 
+   @Builder.Default
    @Column(nullable = false)
    @Enumerated(EnumType.STRING)
    private Status status = Status.ACTIVE;

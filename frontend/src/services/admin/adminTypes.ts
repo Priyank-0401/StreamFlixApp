@@ -20,6 +20,7 @@ export interface Product {
   status: string;
   createdAt: string;
   updatedAt: string;
+  plansCount: number;
 }
 
 export interface PlanResponse {

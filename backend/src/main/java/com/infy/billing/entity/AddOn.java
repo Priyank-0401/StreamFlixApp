@@ -37,10 +37,12 @@ public class AddOn {
    @Column(name = "billing_period", nullable = false)
    private BillingPeriod billingPeriod;
 
+   @Builder.Default
    @Enumerated(EnumType.STRING)
    @Column(name = "tax_mode", nullable = false)
    private TaxMode taxMode = TaxMode.EXCLUSIVE;
 
+   @Builder.Default
    @Column(nullable = false)
    @Enumerated(EnumType.STRING)
    private Status status = Status.ACTIVE;

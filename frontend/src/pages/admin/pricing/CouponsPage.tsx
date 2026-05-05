@@ -58,7 +58,7 @@ export const CouponsPage: React.FC = () => {
 
   return (
     <>
-      <PageHeader title="Coupons" subtitle="Create and manage promotional discount codes." actionLabel="Create Coupon" onAction={openCreate} />
+      <PageHeader subtitle="Create and manage promotional discount codes." actionLabel="Create Coupon" onAction={openCreate} />
       <div className="data-panel">
         <DataTable columns={columns} data={coupons} emptyMessage="No coupons yet." onRowClick={openEdit} />
       </div>

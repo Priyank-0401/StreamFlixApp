@@ -9,6 +9,7 @@ import java.time.LocalDate;
 
 public interface PlanRepository extends JpaRepository<Plan, Long> {
    List<Plan> findByProduct_Id(Long productId);
+   long countByProductId(Long productId);
    List<Plan> findByStatus(Status status);
    List<Plan> findByStatusAndEffectiveToIsNull(Status status);
    List<Plan> findByStatusAndEffectiveToAfterOrEffectiveToIsNull(Status status, LocalDate date);

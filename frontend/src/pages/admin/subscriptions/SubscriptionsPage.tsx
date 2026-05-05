@@ -29,7 +29,7 @@ export const SubscriptionsPage: React.FC = () => {
 
   return (
     <>
-      <PageHeader title="All Subscriptions" subtitle="View customer subscriptions (read-only)." />
+      <PageHeader subtitle="View customer subscriptions (read-only)." />
       <div className="data-panel">
         <DataTable columns={columns} data={subscriptions} emptyMessage="No subscriptions yet." />
       </div>

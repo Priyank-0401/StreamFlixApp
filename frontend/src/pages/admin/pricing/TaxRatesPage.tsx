@@ -56,7 +56,7 @@ export const TaxRatesPage: React.FC = () => {
 
   return (
     <>
-      <PageHeader title="Tax Rates" subtitle="Configure tax rates by region." actionLabel="Add Tax Rate" onAction={openCreate} />
+      <PageHeader subtitle="Manage regional tax rules and percentages." actionLabel="Add Tax Rate" onAction={openCreate} />
       <div className="data-panel">
         <DataTable columns={columns} data={rates} emptyMessage="No tax rates configured." onRowClick={openEdit} />
       </div>

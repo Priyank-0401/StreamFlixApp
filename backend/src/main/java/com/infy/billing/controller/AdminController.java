@@ -27,22 +27,22 @@ public class AdminController {
 
    // ==================== PRODUCT ====================
    @GetMapping("/products")
-   public ResponseEntity<List<Product>> getAllProducts() {
+   public ResponseEntity<List<ProductResponse>> getAllProducts() {
        return ResponseEntity.ok(adminService.getAllProducts());
    }
 
    @GetMapping("/products/{id}")
-   public ResponseEntity<Product> getProduct(@PathVariable Long id) {
+   public ResponseEntity<ProductResponse> getProduct(@PathVariable Long id) {
        return ResponseEntity.ok(adminService.getProductById(id));
    }
 
    @PostMapping("/products")
-   public ResponseEntity<Product> createProduct(@RequestBody Product product) {
+   public ResponseEntity<ProductResponse> createProduct(@RequestBody Product product) {
        return ResponseEntity.ok(adminService.createProduct(product));
    }
 
    @PutMapping("/products/{id}")
-   public ResponseEntity<Product> updateProduct(@PathVariable Long id, @RequestBody Product product) {
+   public ResponseEntity<ProductResponse> updateProduct(@PathVariable Long id, @RequestBody Product product) {
        return ResponseEntity.ok(adminService.updateProduct(id, product));
    }
 

@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Package, Layers, TicketPercent, Puzzle, Percent, BookOpen, Users, UserCog, MoreHorizontal } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StatsCard } from '../../components/admin/dashboard/StatsCard';
+import { PageHeader } from '../../components/admin/shared/PageHeader';
+import { StatusBadge } from '../../components/admin/shared/StatusBadge';
 import { getDashboardStats, getAllProducts, getAllPlans } from '../../services/admin/adminService';
 import type { DashboardStats, Product, PlanResponse } from '../../services/admin/adminTypes';
 
@@ -45,59 +47,54 @@ export const AdminDashboardPage: React.FC = () => {
   return (
     <>
       {/* Header */}
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontFamily: 'Inter, sans-serif', fontSize: '28px', fontWeight: 600, color: '#1f2937', margin: 0, letterSpacing: '-0.02em' }}>
-          Admin Dashboard
-        </h1>
-        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#6b7280', margin: '8px 0 0' }}>
-          Overview of your platform catalog and users
-        </p>
-      </div>
+      <PageHeader 
+        subtitle="Overview of your platform catalog and users" 
+      />
 
       {/* Stats Grid - Row 1: Catalog Management */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '20px' }}>
-        <StatsCard 
-          label="Total Products" 
-          value={String(stats?.totalProducts ?? 0)} 
+        <StatsCard
+          label="Total Products"
+          value={String(stats?.totalProducts ?? 0)}
           icon={<Package size={20} />}
         />
-        <StatsCard 
-          label="Total Plans" 
-          value={String(stats?.totalPlans ?? 0)} 
+        <StatsCard
+          label="Total Plans"
+          value={String(stats?.totalPlans ?? 0)}
           icon={<Layers size={20} />}
         />
-        <StatsCard 
-          label="Active Coupons" 
-          value={String(stats?.activeCoupons ?? 0)} 
+        <StatsCard
+          label="Active Coupons"
+          value={String(stats?.activeCoupons ?? 0)}
           icon={<TicketPercent size={20} />}
         />
-        <StatsCard 
-          label="Total Add-ons" 
-          value={String(stats?.totalAddOns ?? 0)} 
+        <StatsCard
+          label="Total Add-ons"
+          value={String(stats?.totalAddOns ?? 0)}
           icon={<Puzzle size={20} />}
         />
       </div>
 
       {/* Stats Grid - Row 2: Tax, Price Books, Users */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '32px' }}>
-        <StatsCard 
-          label="Active Tax Rates" 
-          value={String(stats?.activeTaxRates ?? 0)} 
+        <StatsCard
+          label="Active Tax Rates"
+          value={String(stats?.activeTaxRates ?? 0)}
           icon={<Percent size={20} />}
         />
-        <StatsCard 
-          label="Total Price Books" 
-          value={String(stats?.totalPriceBooks ?? 0)} 
+        <StatsCard
+          label="Total Price Books"
+          value={String(stats?.totalPriceBooks ?? 0)}
           icon={<BookOpen size={20} />}
         />
-        <StatsCard 
-          label="Total Customers" 
-          value={String(stats?.totalCustomers ?? 0)} 
+        <StatsCard
+          label="Total Customers"
+          value={String(stats?.totalCustomers ?? 0)}
           icon={<Users size={20} />}
         />
-        <StatsCard 
-          label="Total Staff" 
-          value={String(stats?.totalStaff ?? 0)} 
+        <StatsCard
+          label="Total Staff"
+          value={String(stats?.totalStaff ?? 0)}
           icon={<UserCog size={20} />}
         />
       </div>
@@ -105,56 +102,46 @@ export const AdminDashboardPage: React.FC = () => {
       {/* Main Content Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
         {/* Current Products Section */}
-        <div className="data-panel">
-          <div className="data-panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #e5e7eb' }}>
-            <h2 style={{ fontFamily: 'Inter, sans-serif', fontSize: '18px', fontWeight: 600, color: '#1f2937', margin: 0 }}>Current Products</h2>
-            <Link to="/admin/products" style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#5b4fff', textDecoration: 'none' }}>
+        <div className="data-panel" style={{ border: 'none', boxShadow: 'none', background: 'transparent' }}>
+          <div className="data-panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', border: 'none', background: 'transparent' }}>
+            <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: 0 }}>Current Products</h2>
+            <Link to="/admin/product" style={{ fontSize: '14px', fontWeight: 600, color: '#5b4fff', textDecoration: 'none' }}>
               View all products
             </Link>
           </div>
-          <table className="admin-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f9fafb' }}>
-                <th style={{ padding: '12px 24px', textAlign: 'left', fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: 500, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Product Name</th>
-                <th style={{ padding: '12px 24px', textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: 500, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
-                <th style={{ padding: '12px 24px', textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: 500, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Plans Count</th>
-                <th style={{ padding: '12px 24px', textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '12px', fontWeight: 500, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((product) => (
-                <tr key={product.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                  <td style={{ padding: '16px 24px', fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#1f2937' }}>
-                    {product.name}
-                  </td>
-                  <td style={{ padding: '16px 24px', textAlign: 'center' }}>
-                    <span style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      padding: '4px 12px',
-                      borderRadius: '9999px',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      fontFamily: 'Inter, sans-serif',
-                      backgroundColor: product.status === 'ACTIVE' ? '#dcfce7' : '#fee2e2',
-                      color: product.status === 'ACTIVE' ? '#166534' : '#991b1b'
-                    }}>
-                      {product.status === 'ACTIVE' ? '● ' : '○ '}
-                      {product.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '16px 24px', textAlign: 'center', fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#6b7280' }}>
-                    -
-                  </td>
-                  <td style={{ padding: '16px 24px', textAlign: 'center' }}>
-                    <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
-                      <MoreHorizontal size={16} />
-                    </button>
-                  </td>
+
+          <div className="admin-table-container">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Product Name</th>
+                  <th style={{ textAlign: 'center' }}>Status</th>
+                  <th style={{ textAlign: 'center' }}>Plans Count</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {products.map((product) => (
+                  <tr key={product.id}>
+                    <td style={{ fontWeight: 600, color: '#1e293b' }}>
+                      {product.name}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <StatusBadge status={product.status} />
+                    </td>
+                    <td style={{ textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                      {product.plansCount}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button className="action-icon-btn" style={{ marginLeft: 'auto' }}>
+                        <MoreHorizontal size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         {/* Featured Plans Section */}
@@ -167,7 +154,7 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
           <div style={{ padding: '16px' }}>
             {plans.map((plan) => (
-              <div key={plan.id} style={{ 
+              <div key={plan.id} style={{
                 background: '#ffffff',
                 border: '1px solid #e5e7eb',
                 borderRadius: '12px',
@@ -192,20 +179,20 @@ export const AdminDashboardPage: React.FC = () => {
                     {plan.billingPeriod}
                   </span>
                 </div>
-                <p style={{ 
-                  fontFamily: 'Inter, sans-serif', 
-                  fontSize: '14px', 
-                  color: '#6b7280', 
-                  margin: '0 0 12px 0' 
+                <p style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '14px',
+                  color: '#6b7280',
+                  margin: '0 0 12px 0'
                 }}>
                   Billed {plan.billingPeriod.toLowerCase()}
                 </p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ 
-                    fontFamily: 'Inter, sans-serif', 
-                    fontSize: '24px', 
-                    fontWeight: 700, 
-                    color: '#5b4fff' 
+                  <span style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: '24px',
+                    fontWeight: 700,
+                    color: '#5b4fff'
                   }}>
                     {formatPrice(plan.defaultPriceMinor, plan.defaultCurrency)}
                   </span>
@@ -221,43 +208,43 @@ export const AdminDashboardPage: React.FC = () => {
                     ● {plan.status}
                   </span>
                 </div>
-                <div style={{ 
-                  display: 'grid', 
-                  gridTemplateColumns: '1fr 1fr', 
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
                   gap: '12px',
                   marginTop: '12px',
                   paddingTop: '12px',
                   borderTop: '1px solid #e5e7eb'
                 }}>
                   <div>
-                    <p style={{ 
-                      fontFamily: 'Inter, sans-serif', 
-                      fontSize: '11px', 
-                      color: '#9ca3af', 
+                    <p style={{
+                      fontFamily: 'Inter, sans-serif',
+                      fontSize: '11px',
+                      color: '#9ca3af',
                       margin: '0 0 4px 0',
                       textTransform: 'uppercase',
                       letterSpacing: '0.05em'
                     }}>Trial Days</p>
-                    <p style={{ 
-                      fontFamily: 'Inter, sans-serif', 
-                      fontSize: '14px', 
+                    <p style={{
+                      fontFamily: 'Inter, sans-serif',
+                      fontSize: '14px',
                       fontWeight: 600,
                       color: '#374151',
                       margin: 0
                     }}>{plan.trialDays} Days</p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <p style={{ 
-                      fontFamily: 'Inter, sans-serif', 
-                      fontSize: '11px', 
-                      color: '#9ca3af', 
+                    <p style={{
+                      fontFamily: 'Inter, sans-serif',
+                      fontSize: '11px',
+                      color: '#9ca3af',
                       margin: '0 0 4px 0',
                       textTransform: 'uppercase',
                       letterSpacing: '0.05em'
                     }}>Status</p>
-                    <p style={{ 
-                      fontFamily: 'Inter, sans-serif', 
-                      fontSize: '14px', 
+                    <p style={{
+                      fontFamily: 'Inter, sans-serif',
+                      fontSize: '14px',
                       fontWeight: 600,
                       color: plan.status === 'ACTIVE' ? '#16a34a' : '#dc2626',
                       margin: 0

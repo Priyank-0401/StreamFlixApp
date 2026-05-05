@@ -38,18 +38,46 @@ export const CustomerLayout: React.FC = () => {
   const { isCustomer, loading: customerLoading } = useCustomerContext();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<NavItem[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLFormElement>(null);
+
+  // Update search results
+  useEffect(() => {
+    if (searchQuery.trim().length > 0) {
+      const filtered = allNavItems.filter(item => 
+        item.label.toLowerCase().includes(searchQuery.toLowerCase()) &&
+        (!item.requiresCustomer || isCustomer === true)
+      );
+      setSearchResults(filtered);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery, isCustomer]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement search functionality
+    if (searchResults.length > 0) {
+      navigate(searchResults[0].path);
+      setSearchQuery('');
+      setSearchResults([]);
+    }
   };
 
-  // Close dropdown when clicking outside
+  const handleSelectResult = (path: string) => {
+    navigate(path);
+    setSearchQuery('');
+    setSearchResults([]);
+  };
+
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setDropdownOpen(false);
+      }
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setSearchResults([]);
       }
     };
 
@@ -249,6 +277,7 @@ export const CustomerLayout: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <form
               onSubmit={handleSearch}
+              ref={searchRef}
               style={{ width: '300px', position: 'relative' }}
             >
               <Search
@@ -271,6 +300,44 @@ export const CustomerLayout: React.FC = () => {
                   transition: 'all 0.2s'
                 }}
               />
+              {/* Search Results Dropdown */}
+              {searchResults.length > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  left: 0,
+                  right: 0,
+                  background: 'white',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                  border: '1px solid #e5e7eb',
+                  padding: '8px',
+                  zIndex: 100
+                }}>
+                  {searchResults.map((result) => (
+                    <div
+                      key={result.path}
+                      onClick={() => handleSelectResult(result.path)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        color: '#475569',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <span style={{ color: '#94a3b8' }}>{result.icon}</span>
+                      <span style={{ fontWeight: 500 }}>{result.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </form>
 
             <div style={{ position: 'relative' }} ref={dropdownRef}>

@@ -19,6 +19,4 @@ public enum Status {
 	// COUPON/PAYMENT METHOD
 	EXPIRED, REVOKED, DISABLED,
 	
-	// NOTIF
-	SENT, SKIPPED
 }

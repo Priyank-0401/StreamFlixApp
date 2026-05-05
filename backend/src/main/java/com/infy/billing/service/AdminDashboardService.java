@@ -10,12 +10,12 @@ public interface AdminDashboardService {
    // Dashboard
    Map<String, Object> getDashboardStats();
 
-   // Product (returns entity directly — no relationships)
-   List<Product> getAllProducts();
-   Product getProductById(Long id);
-   Product createProduct(Product product);
-   Product updateProduct(Long id, Product product);
-   void toggleProductStatus(Long id);
+    // Product
+    List<ProductResponse> getAllProducts();
+    ProductResponse getProductById(Long id);
+    ProductResponse createProduct(Product product);
+    ProductResponse updateProduct(Long id, Product product);
+    void toggleProductStatus(Long id);
 
    // Plan (returns DTO — has Product relationship)
    List<PlanResponse> getAllPlans();

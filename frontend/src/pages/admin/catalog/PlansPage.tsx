@@ -65,7 +65,7 @@ export const PlansPage: React.FC = () => {
 
   return (
     <>
-      <PageHeader title="Plans" subtitle="Create and manage subscription plans." actionLabel="Create Plan" onAction={openCreate} />
+      <PageHeader subtitle="Create and manage subscription plans." actionLabel="Create Plan" onAction={openCreate} />
       <div className="data-panel">
         <DataTable columns={columns} data={plans} emptyMessage="No plans created yet." onRowClick={openEdit} />
       </div>

@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import {
   CreditCard,
   Zap,
-  ShieldCheck,
   Globe,
-  Check
+  Check,
+  Tv
 } from 'lucide-react';
 import '../../styles/LandingPage.css';
 import { useAuthContext } from '../../context/AuthContext';
@@ -31,10 +31,10 @@ const REGIONS: RegionConfig[] = [
 
 // Features based on Streaming Platform
 const FEATURES = [
-  { icon: ShieldCheck, title: 'Download and go', desc: 'Save your data, watch offline on a train, plane, or submarine.' },
-  { icon: Globe, title: 'Watch everywhere', desc: 'Stream on smart TVs, PlayStation, Xbox, Chromecast, Apple TV, Blu-ray players, and more.' },
-  { icon: Zap, title: 'Create profiles for kids', desc: 'Send kids on adventures with their favorite characters in a space made just for them.' },
-  { icon: CreditCard, title: 'Cancel anytime', desc: 'Join today, cancel anytime. No commitments.' },
+  { icon: Tv, title: 'Ultra HD Experience', desc: 'Stream in stunning 4K resolution with HDR and Dolby Atmos for a truly immersive cinematic experience.' },
+  { icon: Globe, title: 'Watch Anywhere', desc: 'Compatible with Smart TVs, consoles, laptops, and mobile devices. Seamlessly sync your progress across all screens.' },
+  { icon: Zap, title: 'Ad-Free Entertainment', desc: 'Enjoy uninterrupted viewing. Upgrade your plan with ad-free add-ons to remove commercial breaks entirely.' },
+  { icon: CreditCard, title: 'Transparent Billing', desc: 'No hidden fees or long-term contracts. Manage your subscription with smart proration and instant plan changes.' },
 ];
 
 // FAQ data
@@ -143,7 +143,13 @@ export const LandingPage: React.FC = () => {
           </p>
           <div className="sf-hero-actions">
             {isAuthenticated ? (
-              <Link to={isCustomer ? "/dashboard" : "/plans"} className="sf-btn-primary">Explore Plans</Link>
+              isCustomer ? (
+                <Link to="/dashboard" className="sf-btn-primary">Go to Dashboard</Link>
+              ) : hasDraftSubscription ? (
+                <Link to="/plans" className="sf-btn-primary">Complete Setup</Link>
+              ) : (
+                <Link to="/plans" className="sf-btn-primary">Explore Plans</Link>
+              )
             ) : (
               <>
                 <Link to="/register" className="sf-btn-primary">Get started</Link>

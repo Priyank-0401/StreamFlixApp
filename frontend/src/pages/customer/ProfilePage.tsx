@@ -86,7 +86,6 @@ export const ProfilePage: React.FC = () => {
         <div className="card-header">
           <Shield size={20} className="header-icon" />
           <h2 className="card-title">Account Information</h2>
-          <span className="read-only-badge">Read Only</span>
         </div>
         <div className="info-grid">
           <div className="info-item">

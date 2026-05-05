@@ -1,24 +1,13 @@
 package com.infy.billing.service;
 
 import com.infy.billing.dto.customer.SupportMessageDTO;
-import com.infy.billing.entity.*;
-import com.infy.billing.enums.Channel;
-import com.infy.billing.enums.Status;
-import com.infy.billing.repository.*;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 public class CustomerSupportServiceImpl implements CustomerSupportService {
-
-   private final CustomerRepository customerRepository;
-   private final UserRepository userRepository;
-   private final NotificationRepository notificationRepository;
 
    public List<Map<String, String>> getFAQs() {
        return List.of(
@@ -50,23 +39,6 @@ public class CustomerSupportServiceImpl implements CustomerSupportService {
    }
 
    public void sendSupportMessage(String email, SupportMessageDTO message) {
-       Customer customer = getCustomerByEmail(email);
-       
-       Notification notification = new Notification();
-       notification.setCustomer(customer);
-       notification.setType("SUPPORT_REQUEST");
-       notification.setSubject(message.getSubject());
-       notification.setBody(message.getMessage());
-       notification.setChannel(Channel.EMAIL);
-       notification.setStatus(Status.PENDING);
-       notification.setCreatedAt(LocalDateTime.now());
-       notificationRepository.save(notification);
-   }
-
-   private Customer getCustomerByEmail(String email) {
-       User user = userRepository.findByEmail(email)
-               .orElseThrow(() -> new RuntimeException("User not found"));
-       return customerRepository.findByUser_Id(user.getId())
-               .orElseThrow(() -> new RuntimeException("Customer not found"));
+       // Support message logic removed
    }
 }
