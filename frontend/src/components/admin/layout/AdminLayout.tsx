@@ -15,7 +15,6 @@ import {
   Repeat,
   Search,
   LogOut,
-  ChevronDown,
 } from 'lucide-react';
 import '../../../styles/admin.css';
 import '../../../styles/admin-modal.css';
@@ -220,7 +219,20 @@ export const AdminLayout: React.FC = () => {
       {/* Main Content Area */}
       <div className="admin-content-area">
         {/* Top Header */}
-        <header className="admin-topbar">
+        <header
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 40px',
+            height: '72px',
+            backgroundColor: '#ffffff',
+            borderBottom: '1px solid #e5e7eb',
+            position: 'sticky',
+            top: 0,
+            zIndex: 50,
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#1f2937', margin: 0, fontFamily: "'Outfit', sans-serif" }}>
               {getTitle()}
@@ -242,11 +254,15 @@ export const AdminLayout: React.FC = () => {
                 placeholder="Quick Search Admin..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="topbar-search-input"
                 style={{
                   width: '100%',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '99px',
                   padding: '10px 16px 10px 42px',
                   fontSize: '13px',
+                  outline: 'none',
+                  transition: 'all 0.2s'
                 }}
               />
               {/* Search Results Dropdown */}
@@ -291,7 +307,15 @@ export const AdminLayout: React.FC = () => {
 
             <div style={{ position: 'relative' }} ref={dropdownRef}>
               <button
-                className="topbar-profile-btn"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '8px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
                 onClick={() => setDropdownOpen(!dropdownOpen)}
               >
                 <div style={{ textAlign: 'right' }}>
@@ -299,31 +323,69 @@ export const AdminLayout: React.FC = () => {
                   <p style={{ margin: 0, fontSize: '11px', color: '#64748B', fontWeight: 500 }}>{user?.role || 'ADMIN'}</p>
                 </div>
                 <div
-                  className="sidebar-user-avatar"
                   style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
                     backgroundColor: '#5B4FFF',
+                    color: 'white',
                     fontSize: '14px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 12px rgba(91, 79, 255, 0.2)'
                   }}
                 >
                   {user ? getInitials(user.fullName || user.email) : 'AD'}
                 </div>
-                <ChevronDown size={16} style={{ color: '#94a3b8' }} />
               </button>
 
               {dropdownOpen && (
-                <div className="topbar-dropdown" style={{ display: 'block' }}>
-                  <div className="topbar-dropdown-header">
-                    <div className="topbar-dropdown-name">{user?.fullName || 'Admin'}</div>
-                    <div className="topbar-dropdown-role">{user?.role || 'ADMIN'}</div>
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 12px)',
+                    right: 0,
+                    width: '240px',
+                    background: '#ffffff',
+                    border: '1px solid #f1f5f9',
+                    borderRadius: '16px',
+                    zIndex: 100,
+                    overflow: 'hidden',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  <div style={{ padding: '16px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B', margin: 0 }}>{user?.fullName || 'Admin'}</p>
+                    <p style={{ fontSize: '12px', color: '#64748B', margin: 0 }}>{user?.email}</p>
                   </div>
-                  <div className="topbar-dropdown-divider"></div>
-                  <button className="topbar-dropdown-item" onClick={handleLogout} style={{ color: '#ef4444' }}>
-                    <LogOut size={16} />
-                    Sign Out
-                  </button>
+                  <div style={{ padding: '8px' }}>
+                    <button
+                      onClick={handleLogout}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '8px 12px',
+                        background: 'transparent',
+                        border: 'none',
+                        borderRadius: '12px',
+                        textAlign: 'left',
+                        fontSize: '14px',
+                        color: '#EF4444',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#FEF2F2')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      <LogOut size={18} />
+                      Sign Out
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
