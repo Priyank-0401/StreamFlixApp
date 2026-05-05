@@ -61,6 +61,8 @@ export interface Subscription {
   customerId: number;
   planId: number;
   planName: string;
+  planPriceMinor?: number;
+  billingPeriod?: 'MONTHLY' | 'YEARLY';
   status: 'DRAFT' | 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'PAUSED' | 'CANCELED' | 'ON_HOLD';
   startDate: string;
   trialEndDate: string | null;
@@ -293,18 +295,20 @@ export const resumeSubscription = async (): Promise<Subscription> => {
 
 // ==================== ADD-ONS ====================
 
-export const addAddOn = async (addonId: number): Promise<void> => {
+export const addAddOn = async (addonId: number): Promise<Subscription> => {
   const response = await fetchWithSession(`${API_BASE}/addons/${addonId}`, {
     method: 'POST',
   });
   if (!response.ok) throw new Error('Failed to add add-on');
+  return response.json();
 };
 
-export const removeAddOn = async (addonId: number): Promise<void> => {
+export const removeAddOn = async (addonId: number): Promise<Subscription> => {
   const response = await fetchWithSession(`${API_BASE}/addons/${addonId}`, {
     method: 'DELETE',
   });
   if (!response.ok) throw new Error('Failed to remove add-on');
+  return response.json();
 };
 
 // ==================== METERED USAGE ====================

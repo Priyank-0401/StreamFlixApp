@@ -584,104 +584,107 @@ button:disabled {
   font-size: 1rem;
 }
 
-/* Modal Styles */
+/* Modal Styles - Overridden for maximum visibility and centering */
 .modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-  animation: fadeIn 0.2s ease;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.75) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 99999 !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .modal {
-  background-color: #ffffff;
-  border-radius: 16px;
-  padding: 1.5rem;
-  width: 100%;
-  max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
-  animation: slideUp 0.3s ease;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  background-color: #ffffff !important;
+  border-radius: 16px !important;
+  padding: 2rem !important;
+  width: 90% !important;
+  max-width: 500px !important;
+  max-height: 85vh !important;
+  overflow-y: auto !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4) !important;
+  position: relative !important;
+  z-index: 100000 !important;
+  display: block !important;
+  margin: auto !important;
 }
 
 .modal-small {
-  max-width: 400px;
+  max-width: 400px !important;
 }
 
 .modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.25rem;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  margin-bottom: 1.5rem !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  padding-bottom: 1rem !important;
 }
 
 .modal-title {
-  font-family: 'Inter', sans-serif;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0;
+  font-family: 'Outfit', sans-serif !important;
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
+  margin: 0 !important;
 }
 
 .modal-close {
-  background: none;
-  border: none;
-  color: #9ca3af;
-  cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 6px;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: #f1f5f9 !important;
+  border: none !important;
+  color: #64748b !important;
+  cursor: pointer !important;
+  padding: 0.5rem !important;
+  border-radius: 10px !important;
+  transition: all 0.2s !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .modal-close:hover {
-  color: #1f2937;
-  background-color: #f3f4f6;
-}
-
-.modal-description {
-  color: #4b5563;
-  margin: 0 0 1rem 0;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.95rem;
+  color: #1e293b !important;
+  background-color: #e2e8f0 !important;
+  transform: scale(1.1) !important;
 }
 
 /* Plan Options in Modal */
 .plan-options {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1rem !important;
+  margin-bottom: 1.5rem !important;
 }
 
 .plan-option {
-  padding: 1rem 1.25rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  background-color: #ffffff;
+  padding: 1.25rem !important;
+  border: 2px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  background-color: #ffffff !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
 }
 
 .plan-option:hover:not(.current) {
-  border-color: #5b4fff;
-  background-color: rgba(91, 79, 255, 0.05);
+  border-color: #5b4fff !important;
+  background-color: #f8fafc !important;
+  transform: translateX(4px) !important;
 }
 
 .plan-option.current {
-  border-color: #22c55e;
-  background-color: #F0FDF4;
-  cursor: default;
+  border-color: #22c55e !important;
+  background-color: #f0fdf4 !important;
+  cursor: default !important;
 }
 
 .plan-option-header {

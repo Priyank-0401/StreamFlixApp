@@ -19,9 +19,9 @@ public interface CustomerSubscriptionService {
 
    SubscriptionDTO resumeSubscription(String email);
 
-   void addAddOn(String email, Long addonId);
+   SubscriptionDTO addAddOn(String email, Long addonId);
 
-   void removeAddOn(String email, Long addonId);
+   SubscriptionDTO removeAddOn(String email, Long addonId);
 
    List<UsageRecordDTO> getMeteredUsage(String email, String startDate, String endDate);
 }

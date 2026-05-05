@@ -40,10 +40,10 @@ public class CustomerServiceImpl implements CustomerService {
    }
 
    public List<PlanDTO> getAvailablePlans() {
-	   // Fetch active plans that haven't expired (effectiveTo is null or in the future)
-	   List<Plan> plans = planRepository.findByStatusAndEffectiveToAfterOrEffectiveToIsNull(Status.ACTIVE, LocalDate.now());
-	   System.out.println("DEBUG: Found " + plans.size() + " available plans");
-	   return plans.stream()
+       // Fetch active plans
+       List<Plan> plans = planRepository.findByStatus(Status.ACTIVE);
+       System.out.println("DEBUG: Found " + plans.size() + " available plans");
+       return plans.stream()
                .map(this::mapToPlanDTO)
                .collect(Collectors.toList());
    }

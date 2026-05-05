@@ -246,7 +246,7 @@ export const OverviewPage: React.FC = () => {
                 color: getStatusColor(subscription.status)
               }}
             >
-              {subscription.status}
+              {subscription.status === 'TRIALING' ? 'FREE TRIAL' : subscription.status}
             </span>
           </div>
 
@@ -255,12 +255,33 @@ export const OverviewPage: React.FC = () => {
               <p className="detail-label">Plan</p>
               <p className="detail-value">{subscription.planName}</p>
             </div>
-            <div className="detail-item">
-              <p className="detail-label">Current Period</p>
-              <p className="detail-value">
-                {formatDate(subscription.currentPeriodStart)} - {formatDate(subscription.currentPeriodEnd)}
-              </p>
-            </div>
+            
+            {subscription.status === 'TRIALING' ? (
+              <>
+                <div className="detail-item">
+                  <p className="detail-label">Trial Ends On</p>
+                  <p className="detail-value">{formatDate(subscription.trialEndDate)}</p>
+                </div>
+                <div className="detail-item">
+                  <p className="detail-label">First Payment</p>
+                  <p className="detail-value">
+                    {formatAmount(
+                      (subscription.planPriceMinor || 0) + 
+                      (subscription.addOns?.reduce((sum, addon) => sum + (addon.unitPriceMinor * addon.quantity), 0) || 0), 
+                      subscription.currency
+                    )} due on {formatDate(subscription.trialEndDate)}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="detail-item">
+                <p className="detail-label">Current Period</p>
+                <p className="detail-value">
+                  {formatDate(subscription.currentPeriodStart)} - {formatDate(subscription.currentPeriodEnd)}
+                </p>
+              </div>
+            )}
+            
             <div className="detail-item">
               <p className="detail-label">Add-ons</p>
               <p className="detail-value">{subscription.addOns?.length || 0} Active</p>

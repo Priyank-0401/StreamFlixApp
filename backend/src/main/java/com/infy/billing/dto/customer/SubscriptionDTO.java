@@ -21,6 +21,8 @@ public class SubscriptionDTO {
    private String pausedFrom;
    private String pausedTo;
    private String currency;
+   private Long planPriceMinor;
+   private String billingPeriod;
    private List<SubscriptionItemDTO> addOns;
    private List<MeteredUsageDTO> meteredUsage;
 }

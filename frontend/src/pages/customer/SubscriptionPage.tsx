@@ -62,6 +62,7 @@ export const SubscriptionPage: React.FC = () => {
       await loadData();
       setShowUpgradeModal(false);
     } catch (error) {
+      console.error('handleUpgrade error:', error);
       alert('Failed to upgrade plan. Please try again.');
     } finally {
       setActionLoading(false);
@@ -171,7 +172,7 @@ export const SubscriptionPage: React.FC = () => {
           <h1 className="page-title">Choose Your Plan</h1>
           <p className="page-subtitle">Select a plan to start your subscription</p>
         </div>
-        
+
         <div className="plans-grid">
           {availablePlans.map((plan) => (
             <div key={plan.planId} className="plan-card">
@@ -179,25 +180,25 @@ export const SubscriptionPage: React.FC = () => {
                 <h3 className="plan-name">{plan.name}</h3>
                 <span className="plan-badge">{plan.billingPeriod}</span>
               </div>
-              
+
               <div className="plan-price">
                 <span className="price-amount">{formatAmount(plan.defaultPriceMinor, plan.defaultCurrency)}</span>
                 <span className="price-period">/{plan.billingPeriod.toLowerCase()}</span>
               </div>
-              
+
               {plan.trialDays > 0 && (
                 <div className="trial-badge">
                   <Zap size={16} />
                   <span>{plan.trialDays}-day free trial</span>
                 </div>
               )}
-              
+
               <ul className="plan-features">
                 <li><Check size={16} className="feature-icon" /> All features included</li>
                 <li><Check size={16} className="feature-icon" /> HD streaming</li>
                 <li><Check size={16} className="feature-icon" /> Cancel anytime</li>
               </ul>
-              
+
               <Link to={`/subscribe?planId=${plan.planId}`} className="btn-subscribe">
                 Subscribe <ArrowRight size={16} />
               </Link>
@@ -220,41 +221,56 @@ export const SubscriptionPage: React.FC = () => {
         <div className="subscription-info-header">
           <div className="plan-info">
             <h2 className="plan-title">{subscription.planName}</h2>
-            <span 
+            <span
               className="status-badge"
-              style={{ 
+              style={{
                 backgroundColor: `${getStatusColor(subscription.status)}20`,
                 color: getStatusColor(subscription.status)
               }}
             >
-              {subscription.status}
+              {subscription.status === 'TRIALING' ? 'FREE TRIAL' : subscription.status}
             </span>
           </div>
           <div className="billing-info">
             <Calendar size={18} />
-            <span>Next billing: {new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { 
-              month: 'short', 
-              day: 'numeric', 
-              year: 'numeric' 
-            })}</span>
+            <span>Next billing: {subscription.status === 'TRIALING' && subscription.trialEndDate
+              ? new Date(subscription.trialEndDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+              : new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            }</span>
           </div>
         </div>
 
         {/* Subscription Meta */}
         <div className="subscription-meta">
-          <div className="meta-item">
-            <p className="meta-label">Current Period</p>
-            <p className="meta-value">
-              {new Date(subscription.currentPeriodStart).toLocaleDateString()} - {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
-            </p>
-          </div>
+          {subscription.status === 'TRIALING' ? (
+            <>
+              <div className="meta-item" style={{ gridColumn: 'span 3', backgroundColor: '#f3f4f6', padding: '12px', borderRadius: '8px' }}>
+                <p className="meta-value" style={{ margin: 0, color: '#374151' }}>
+                  <Zap size={16} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: '6px', color: '#f59e0b' }} />
+                  You're on a free trial until <strong>{new Date(subscription.trialEndDate!).toLocaleDateString()}</strong>.
+                  Your first charge of <strong>{formatAmount(
+                    (subscription.planPriceMinor || 0) +
+                    (subscription.addOns?.reduce((sum, addon) => sum + (addon.unitPriceMinor * addon.quantity), 0) || 0),
+                    subscription.currency
+                  )}</strong> will occur on that date.
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="meta-item">
+              <p className="meta-label">Current Period</p>
+              <p className="meta-value">
+                {new Date(subscription.currentPeriodStart).toLocaleDateString()} - {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+              </p>
+            </div>
+          )}
           <div className="meta-item">
             <p className="meta-label">Currency</p>
             <p className="meta-value">{subscription.currency}</p>
           </div>
-          {subscription.trialEndDate && (
+          {subscription.status !== 'TRIALING' && subscription.trialEndDate && (
             <div className="meta-item">
-              <p className="meta-label">Trial Ends</p>
+              <p className="meta-label">Trial Ended</p>
               <p className="meta-value">{new Date(subscription.trialEndDate).toLocaleDateString()}</p>
             </div>
           )}
@@ -263,13 +279,17 @@ export const SubscriptionPage: React.FC = () => {
         {/* Action Buttons */}
         <div className="subscription-actions">
           <button
-            onClick={() => setShowUpgradeModal(true)}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowUpgradeModal(true);
+            }}
             className="btn-primary"
             disabled={actionLoading}
           >
             <TrendingUp size={18} /> Change Plan
           </button>
-          
+
           {subscription.status === 'ACTIVE' && (
             <button
               onClick={() => setShowPauseModal(true)}
@@ -279,7 +299,7 @@ export const SubscriptionPage: React.FC = () => {
               <Pause size={18} /> Pause
             </button>
           )}
-          
+
           {subscription.status === 'PAUSED' && (
             <button
               onClick={handleResume}
@@ -289,7 +309,7 @@ export const SubscriptionPage: React.FC = () => {
               <Play size={18} /> Resume
             </button>
           )}
-          
+
           <button
             onClick={() => handleCancel(true)}
             className="btn-danger-outline"
@@ -344,31 +364,33 @@ export const SubscriptionPage: React.FC = () => {
       </div>
 
       {/* Available Add-ons */}
-      {availableAddOns.filter(a => a.status === 'ACTIVE').length > 0 && (
+      {availableAddOns.filter(a => a.status === 'ACTIVE' && !subscription.addOns?.some(subAddOn => subAddOn.addonId === a.addOnId)).length > 0 && (
         <div className="addons-section">
           <div className="section-header">
             <h3 className="section-title">Available Add-ons</h3>
             <Plus size={20} className="section-icon" />
           </div>
           <div className="addons-grid">
-            {availableAddOns.filter(a => a.status === 'ACTIVE').map((addon) => (
-              <div key={addon.addOnId} className="addon-card">
-                <div className="addon-details">
-                  <p className="addon-name">{addon.name}</p>
-                  <p className="addon-price">
-                    {formatAmount(addon.priceMinor, addon.currency)}/{addon.billingPeriod.toLowerCase()}
-                  </p>
+            {availableAddOns
+              .filter(a => a.status === 'ACTIVE' && !subscription.addOns?.some(subAddOn => subAddOn.addonId === a.addOnId))
+              .map((addon) => (
+                <div key={addon.addOnId} className="addon-card">
+                  <div className="addon-details">
+                    <p className="addon-name">{addon.name}</p>
+                    <p className="addon-price">
+                      {formatAmount(addon.priceMinor, addon.currency)}/{addon.billingPeriod.toLowerCase()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleAddAddOn(addon.addOnId)}
+                    className="btn-icon-add"
+                    disabled={actionLoading}
+                    title="Add add-on"
+                  >
+                    <Plus size={20} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleAddAddOn(addon.addOnId)}
-                  className="btn-icon-add"
-                  disabled={actionLoading}
-                  title="Add add-on"
-                >
-                  <Plus size={20} />
-                </button>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       )}
@@ -411,7 +433,7 @@ export const SubscriptionPage: React.FC = () => {
                 onClick={() => setShowUpgradeModal(false)} 
                 className="modal-close"
               >
-                <X size={24} />
+                <X size={20} />
               </button>
             </div>
             <div className="plan-options">
@@ -419,18 +441,28 @@ export const SubscriptionPage: React.FC = () => {
                 <div
                   key={plan.planId}
                   className={`plan-option ${plan.planId === subscription.planId ? 'current' : ''}`}
-                  onClick={() => plan.planId !== subscription.planId && handleUpgrade(plan.planId)}
                 >
-                  <div className="plan-option-header">
-                    <h4 className="plan-option-name">{plan.name}</h4>
-                    {plan.planId === subscription.planId && (
-                      <span className="current-badge">Current</span>
-                    )}
+                  <div>
+                    <div className="plan-option-header">
+                      <h4 className="plan-option-name">{plan.name}</h4>
+                      {plan.planId === subscription.planId && (
+                        <span className="current-badge">Current</span>
+                      )}
+                    </div>
+                    <p className="plan-option-price">
+                      {formatAmount(plan.defaultPriceMinor, plan.defaultCurrency)}
+                      <span className="period">/{plan.billingPeriod.toLowerCase()}</span>
+                    </p>
                   </div>
-                  <p className="plan-option-price">
-                    {formatAmount(plan.defaultPriceMinor, plan.defaultCurrency)}
-                    <span className="period">/{plan.billingPeriod.toLowerCase()}</span>
-                  </p>
+                  {plan.planId !== subscription.planId && (
+                    <button 
+                      className="btn-primary" 
+                      onClick={() => handleUpgrade(plan.planId)}
+                      disabled={actionLoading}
+                    >
+                      {actionLoading ? 'Updating...' : 'Select Plan'}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -448,10 +480,12 @@ export const SubscriptionPage: React.FC = () => {
                 onClick={() => setShowPauseModal(false)} 
                 className="modal-close"
               >
-                <X size={24} />
+                <X size={20} />
               </button>
             </div>
-            <p className="modal-description">Select resume date (up to 30 days):</p>
+            <p className="modal-description" style={{ color: '#64748b', marginBottom: '1.25rem' }}>
+              Select resume date (up to 30 days):
+            </p>
             <input
               type="date"
               value={pauseDate}

@@ -61,19 +61,17 @@ public class CustomerSubscriptionController {
    }
 
    @PostMapping("/addons/{addonId}")
-   public ResponseEntity<Void> addAddOn(
+   public ResponseEntity<SubscriptionDTO> addAddOn(
            @AuthenticationPrincipal User user,
            @PathVariable Long addonId) {
-       subscriptionService.addAddOn(user.getEmail(), addonId);
-       return ResponseEntity.ok().build();
+       return ResponseEntity.ok(subscriptionService.addAddOn(user.getEmail(), addonId));
    }
 
    @DeleteMapping("/addons/{addonId}")
-   public ResponseEntity<Void> removeAddOn(
+   public ResponseEntity<SubscriptionDTO> removeAddOn(
            @AuthenticationPrincipal User user,
            @PathVariable Long addonId) {
-       subscriptionService.removeAddOn(user.getEmail(), addonId);
-       return ResponseEntity.ok().build();
+       return ResponseEntity.ok(subscriptionService.removeAddOn(user.getEmail(), addonId));
    }
 
    @GetMapping("/usage")

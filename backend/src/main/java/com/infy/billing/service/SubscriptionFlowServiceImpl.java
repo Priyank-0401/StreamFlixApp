@@ -29,6 +29,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
     private final PaymentRepository paymentRepository;
     private final PriceBookEntryRepository priceBookEntryRepository;
     private final TaxRateRepository taxRateRepository;
+    private final SubscriptionItemRepository subscriptionItemRepository;
 
     /**
      * Step 1: Register customer details
@@ -157,18 +158,30 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         subscriptionRepository.save(subscription);
         System.out.println("DEBUG: Subscription created: " + subscription.getId());
 
-        // Create invoice with initial amount (0 if trial)
-        Invoice invoice = createInvoice(customer, subscription, initialPrice, initialTax, initialTotal, today);
-        System.out.println("DEBUG: Invoice created: " + invoice.getId());
-
-        // Create payment record for the initial amount
-        createPayment(invoice, paymentMethod, initialTotal, customer.getCurrency());
-        System.out.println("DEBUG: Payment created for invoice: " + invoice.getId());
-
+        // Create SubscriptionItem for the plan
+        SubscriptionItem planItem = new SubscriptionItem();
+        planItem.setSubscription(subscription);
+        planItem.setItemType(ItemType.PLAN);
+        planItem.setPlan(plan);
+        planItem.setUnitPriceMinor(plan.getDefaultPriceMinor());
+        planItem.setQuantity(1);
+        planItem.setTaxMode(plan.getTaxMode());
+        subscriptionItemRepository.save(planItem);
         SubscriptionResponse response = new SubscriptionResponse();
+
+        if (!isTrial) {
+            Invoice invoice = createInvoice(customer, subscription, initialPrice, initialTax, initialTotal, today);
+            System.out.println("DEBUG: Invoice created: " + invoice.getId());
+
+            // Create payment record for the initial amount
+            createPayment(invoice, paymentMethod, initialTotal, customer.getCurrency());
+            System.out.println("DEBUG: Payment created for invoice: " + invoice.getId());
+
+            response.setInvoiceId(invoice.getId());
+            response.setInvoiceNumber(invoice.getInvoiceNumber());
+        }
+
         response.setSubscriptionId(subscription.getId());
-        response.setInvoiceId(invoice.getId());
-        response.setInvoiceNumber(invoice.getInvoiceNumber());
         response.setStatus(subscription.getStatus().name());
         response.setMessage("Subscription activated successfully");
         if (subscription.getTrialEndDate() != null) {
