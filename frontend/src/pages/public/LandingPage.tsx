@@ -62,7 +62,7 @@ const getPlanDescription = (planName: string) => {
 };
 
 export const LandingPage: React.FC = () => {
-  const { isAuthenticated, logout, isCustomer, hasDraftSubscription } = useAuthContext();
+  const { user, isAuthenticated, logout, isCustomer, hasDraftSubscription } = useAuthContext();
 
   const [isYearly, setIsYearly] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<Region>('IN');
@@ -114,6 +114,8 @@ export const LandingPage: React.FC = () => {
             <>
               {isCustomer === true ? (
                 <Link to="/dashboard" className="sf-nav-login">Customer Dashboard</Link>
+              ) : user?.role !== 'CUSTOMER' ? (
+                <Link to="/admin" className="sf-nav-login">Admin Dashboard</Link>
               ) : hasDraftSubscription ? (
                 <Link to="/plans" className="sf-nav-login">Complete Setup</Link>
               ) : (
@@ -145,6 +147,8 @@ export const LandingPage: React.FC = () => {
             {isAuthenticated ? (
               isCustomer ? (
                 <Link to="/dashboard" className="sf-btn-primary">Go to Dashboard</Link>
+              ) : user?.role !== 'CUSTOMER' ? (
+                <Link to="/admin" className="sf-btn-primary">Go to Dashboard</Link>
               ) : hasDraftSubscription ? (
                 <Link to="/plans" className="sf-btn-primary">Complete Setup</Link>
               ) : (
