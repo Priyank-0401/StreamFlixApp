@@ -13,6 +13,7 @@ import {
 import './BillingPage.css';
 
 export const BillingPage: React.FC = () => {
+  const [subscription, setSubscription] = useState<CustomerService.Subscription | null>(null);
   const [invoices, setInvoices] = useState<CustomerService.Invoice[]>([]);
   const [payments, setPayments] = useState<CustomerService.Payment[]>([]);
   const [creditNotes, setCreditNotes] = useState<CustomerService.CreditNote[]>([]);
@@ -25,11 +26,13 @@ export const BillingPage: React.FC = () => {
 
   const loadBillingData = async () => {
     try {
-      const [inv, pay, cn] = await Promise.all([
+      const [sub, inv, pay, cn] = await Promise.all([
+        CustomerService.getCurrentSubscription(),
         CustomerService.getInvoices(),
         CustomerService.getPayments(),
         CustomerService.getCreditNotes()
       ]);
+      setSubscription(sub);
       setInvoices(inv);
       setPayments(pay);
       setCreditNotes(cn);
@@ -128,6 +131,19 @@ export const BillingPage: React.FC = () => {
         <div className="summary-card">
           <div className="summary-icon" style={{ backgroundColor: '#FEF3C7', color: '#f59e0b' }}>
             <DollarSign size={24} />
+          </div>
+          <div className="summary-info">
+            <p className="summary-value">
+              {subscription 
+                ? formatAmount(subscription.totalDueMinor || 0, subscription.currency)
+                : formatAmount(0, 'INR')}
+            </p>
+            <p className="summary-label">Next Payment</p>
+          </div>
+        </div>
+        <div className="summary-card">
+          <div className="summary-icon" style={{ backgroundColor: '#FFEBEE', color: '#dc2626' }}>
+            <Receipt size={24} />
           </div>
           <div className="summary-info">
             <p className="summary-value">

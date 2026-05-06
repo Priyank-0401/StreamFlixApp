@@ -9,7 +9,7 @@ import {
   ArrowRight,
   Plus,
   Package,
-  Database
+  DollarSign
 } from 'lucide-react';
 import * as CustomerService from '../../services/customer/customerService';
 import './OverviewPage.css';
@@ -71,14 +71,23 @@ export const OverviewPage: React.FC = () => {
 
   const getNextBillingAmount = () => {
     if (!subscription) return 0;
-    if (subscription.totalDueMinor !== undefined) return subscription.totalDueMinor;
     
+    // Use backend calculated total if available and not null
+    if (subscription.totalDueMinor !== undefined && subscription.totalDueMinor !== null) {
+      return subscription.totalDueMinor;
+    }
+    
+    // Fallback to manual calculation
     const planAmount = subscription.planPriceMinor || 0;
-    const addonAmount = subscription.addOns.reduce((sum, addon) =>
+    const addonAmount = (subscription.addOns || []).reduce((sum, addon) =>
       sum + (addon.unitPriceMinor * addon.quantity), 0);
     const subtotal = planAmount + addonAmount;
+    
+    // Subtract discount if any
+    const finalSubtotal = Math.max(0, subtotal - (subscription.discountMinor || 0));
+    
     // Add 18% tax
-    return Math.round(subtotal * 1.18);
+    return Math.round(finalSubtotal * 1.18);
   };
 
   const getStatusColor = (status: string) => {
@@ -180,22 +189,22 @@ export const OverviewPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Usage Card - Metered Storage */}
+        {/* Next Payment Card */}
         <div className="stat-card">
           <div className="stat-card-content">
             <div className="stat-card-header">
               <div>
-                <p className="stat-label">Download Storage</p>
+                <p className="stat-label">Next Payment</p>
                 <p className="stat-value">
-                  2.2 GB
+                  {formatAmount(getNextBillingAmount(), subscription?.currency || 'INR')}
                 </p>
               </div>
-              <div className="stat-icon" style={{ color: '#5b4fff' }}>
-                <Database size={24} />
+              <div className="stat-icon" style={{ color: '#f59e0b' }}>
+                <DollarSign size={24} />
               </div>
             </div>
             <p className="stat-subtext">
-              2.2 GB of 5.0 GB free tier used
+              Recurring {subscription?.billingPeriod?.toLowerCase() || 'monthly'} charge
             </p>
           </div>
         </div>
