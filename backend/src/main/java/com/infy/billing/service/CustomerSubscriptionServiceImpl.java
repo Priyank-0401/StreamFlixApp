@@ -96,124 +96,336 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
    @Transactional
    public SubscriptionDTO upgradeSubscription(String email, UpgradeSubscriptionRequest request) {
-       Customer customer = getCustomerByEmail(email);
-       Subscription subscription = getActiveSubscription(customer.getId());
-       Plan oldPlan = subscription.getPlan();
-       
-       Plan newPlan = planRepository.findById(request.getPlanId())
-               .orElseThrow(() -> new RuntimeException("Plan not found"));
+      Customer customer = getCustomerByEmail(email);
+      Subscription subscription = getActiveSubscription(customer.getId());
+      Plan oldPlan = subscription.getPlan();
+      
+      Plan newPlan = planRepository.findById(request.getPlanId())
+            .orElseThrow(() -> new RuntimeException("Plan not found"));
 
-       if (oldPlan.getId().equals(newPlan.getId())) {
-           throw new RuntimeException("Already on this plan");
-       }
+      if (oldPlan.getId().equals(newPlan.getId())) {
+         throw new RuntimeException("Already on this plan");
+      }
 
-       boolean isTrialing = subscription.getStatus() == Status.TRIALING;
+      boolean isTrialing = subscription.getStatus() == Status.TRIALING;
+      Optional<SubscriptionCoupon> scOpt = subscriptionCouponRepository.findBySubscription_IdAndStatus(subscription.getId(), Status.ACTIVE);
+      List<SubscriptionItem> items = subscriptionItemRepository.findBySubscription_Id(subscription.getId());
 
-       // During trial: just switch the plan, no proration needed
-       if (isTrialing) {
-           subscription.setPlan(newPlan);
-           // Recalculate period after trial based on new plan's billing period
-           LocalDate trialEnd = subscription.getTrialEndDate();
-           if (newPlan.getBillingPeriod() == BillingPeriod.MONTHLY) {
-               subscription.setCurrentPeriodStart(trialEnd);
-               subscription.setCurrentPeriodEnd(trialEnd.plusMonths(1));
-           } else {
-               subscription.setCurrentPeriodStart(trialEnd);
-               subscription.setCurrentPeriodEnd(trialEnd.plusYears(1));
-           }
-           subscription.setUpdatedAt(LocalDateTime.now());
-           subscriptionRepository.save(subscription);
+      // During trial: adjust trial end date and update any open trial invoice
+      if (isTrialing) {
+         LocalDate today = LocalDate.now();
+         long daysUsed = ChronoUnit.DAYS.between(subscription.getStartDate(), today);
+         if (daysUsed < 0) daysUsed = 0;
 
-           // Update the plan subscription item
-           SubscriptionItem planItem = subscriptionItemRepository.findBySubscription_IdAndItemType(
-                   subscription.getId(), ItemType.PLAN);
-           
-           if (planItem == null) {
-               planItem = new SubscriptionItem();
-               planItem.setSubscription(subscription);
-               planItem.setItemType(ItemType.PLAN);
-               planItem.setQuantity(1);
-               planItem.setTaxMode(newPlan.getTaxMode());
-           }
-           
-           planItem.setPlan(newPlan);
-           planItem.setUnitPriceMinor(newPlan.getDefaultPriceMinor());
-           subscriptionItemRepository.save(planItem);
+         long newTrialDays = Math.max(0, newPlan.getTrialDays() - daysUsed);
+         LocalDate newTrialEndDate = today.plusDays(newTrialDays);
 
-           return mapToSubscriptionDTO(subscription);
-       }
+         subscription.setPlan(newPlan);
+         subscription.setTrialEndDate(newTrialEndDate);
+         if (newTrialDays == 0) {
+            subscription.setStatus(Status.ACTIVE);
+         }
 
-       // Active subscription: calculate proration
-       LocalDate today = LocalDate.now();
-       LocalDate periodStart = subscription.getCurrentPeriodStart();
-       LocalDate periodEnd = subscription.getCurrentPeriodEnd();
-       
-       long totalDaysInPeriod = ChronoUnit.DAYS.between(periodStart, periodEnd);
-       long remainingDays = ChronoUnit.DAYS.between(today, periodEnd);
-       
-       if (totalDaysInPeriod <= 0) totalDaysInPeriod = 1;
-       if (remainingDays <= 0) remainingDays = 0;
+         if (newPlan.getBillingPeriod() == BillingPeriod.MONTHLY) {
+            subscription.setCurrentPeriodStart(newTrialEndDate);
+            subscription.setCurrentPeriodEnd(newTrialEndDate.plusMonths(1));
+         } else {
+            subscription.setCurrentPeriodStart(newTrialEndDate);
+            subscription.setCurrentPeriodEnd(newTrialEndDate.plusYears(1));
+         }
+         subscription.setUpdatedAt(LocalDateTime.now());
+         subscriptionRepository.save(subscription);
 
-       long oldDailyRate = oldPlan.getDefaultPriceMinor() / totalDaysInPeriod;
-       long newDailyRate = newPlan.getDefaultPriceMinor() / totalDaysInPeriod;
-
-       boolean isUpgrade = newPlan.getDefaultPriceMinor() > oldPlan.getDefaultPriceMinor();
-
-       if (isUpgrade) {
-           // UPGRADE: charge the difference for remaining days
-           long credit = oldDailyRate * remainingDays;
-           long debit = newDailyRate * remainingDays;
-           long prorationAmount = debit - credit;
-
-           // Generate proration invoice
-           generateProrationInvoice(customer, subscription, oldPlan, newPlan, 
-                   prorationAmount, today, periodEnd, "UPGRADE");
-
-           // Update subscription to new plan, keep same period
-           subscription.setPlan(newPlan);
-           subscription.setUpdatedAt(LocalDateTime.now());
-           subscriptionRepository.save(subscription);
-
-       } else {
-           // DOWNGRADE: extend the period with remaining credit
-           long creditAmount = oldDailyRate * remainingDays;
-           
-           // Calculate new daily rate for the downgraded plan's own period
-           long newPlanTotalDays = newPlan.getBillingPeriod() == BillingPeriod.MONTHLY ? 30 : 365;
-           long newPlanDailyRate = newPlan.getDefaultPriceMinor() / newPlanTotalDays;
-           if (newPlanDailyRate <= 0) newPlanDailyRate = 1;
-           
-           long extendedDays = creditAmount / newPlanDailyRate;
-
-           // Generate a $0 proration invoice documenting the change
-           generateProrationInvoice(customer, subscription, oldPlan, newPlan, 
-                   0L, today, today.plusDays(extendedDays), "DOWNGRADE");
-
-           // Update subscription: new plan with extended period
-           subscription.setPlan(newPlan);
-           subscription.setCurrentPeriodStart(today);
-           subscription.setCurrentPeriodEnd(today.plusDays(extendedDays));
-           subscription.setUpdatedAt(LocalDateTime.now());
-           subscriptionRepository.save(subscription);
-       }
-
-       // Update the plan subscription item
-       SubscriptionItem planItem = subscriptionItemRepository.findBySubscription_IdAndItemType(
+         // Update the plan subscription item
+         SubscriptionItem planItem = subscriptionItemRepository.findBySubscription_IdAndItemType(
                subscription.getId(), ItemType.PLAN);
-       
-       if (planItem == null) {
-           planItem = new SubscriptionItem();
-           planItem.setSubscription(subscription);
-           planItem.setItemType(ItemType.PLAN);
-           planItem.setQuantity(1);
-           planItem.setTaxMode(newPlan.getTaxMode());
-       }
-       
-       planItem.setPlan(newPlan);
-       planItem.setUnitPriceMinor(newPlan.getDefaultPriceMinor());
-       subscriptionItemRepository.save(planItem);
+         
+         if (planItem == null) {
+            planItem = new SubscriptionItem();
+            planItem.setSubscription(subscription);
+            planItem.setItemType(ItemType.PLAN);
+            planItem.setQuantity(1);
+            planItem.setTaxMode(newPlan.getTaxMode());
+         }
+         
+         planItem.setPlan(newPlan);
+         planItem.setUnitPriceMinor(newPlan.getDefaultPriceMinor());
+         subscriptionItemRepository.save(planItem);
 
-       return mapToSubscriptionDTO(subscription);
+         // Update the OPEN trial invoice to show the new plan + tax + coupon + addons
+         Optional<Invoice> openInvoiceOpt = invoiceRepository.findBySubscription_IdAndStatus(subscription.getId(), Status.OPEN);
+         if (openInvoiceOpt.isPresent()) {
+            Invoice invoice = openInvoiceOpt.get();
+            
+            // Delete old line items
+            List<InvoiceLineItem> oldLines = invoiceLineItemRepository.findByInvoice_Id(invoice.getId());
+            invoiceLineItemRepository.deleteAll(oldLines);
+            invoiceLineItemRepository.flush();
+
+            // Compute fresh pricing
+            long priceMinor = newPlan.getDefaultPriceMinor();
+            long discountMinor = 0L;
+            Coupon coupon = null;
+            if (scOpt.isPresent()) {
+               coupon = scOpt.get().getCoupon();
+               if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
+                  discountMinor = priceMinor * coupon.getAmount() / 100;
+               } else {
+                  discountMinor = coupon.getAmount();
+               }
+            }
+
+            long addonTotal = items.stream()
+               .filter(i -> i.getItemType() == ItemType.ADDON)
+               .mapToLong(i -> i.getUnitPriceMinor() * i.getQuantity())
+               .sum();
+
+            long subtotal = priceMinor + addonTotal - discountMinor;
+            if (subtotal < 0) subtotal = 0;
+            long taxMinor = Math.round(subtotal * 0.18);
+            long totalMinor = subtotal + taxMinor;
+
+            // Update invoice headers
+            invoice.setSubtotalMinor(priceMinor + addonTotal);
+            invoice.setDiscountMinor(discountMinor);
+            invoice.setTaxMinor(taxMinor);
+            invoice.setTotalMinor(totalMinor);
+            invoice.setBalanceMinor(totalMinor);
+            invoice.setDueDate(newTrialEndDate);
+            invoiceRepository.save(invoice);
+
+            // Save fresh Plan Line item
+            InvoiceLineItem planLine = new InvoiceLineItem();
+            planLine.setInvoice(invoice);
+            planLine.setDescription(newPlan.getName() + " Subscription" + (newTrialDays > 0 ? " (Starts after trial)" : ""));
+            planLine.setLineType(InvoiceLineItem.LineType.PLAN);
+            planLine.setQuantity(1);
+            planLine.setUnitPriceMinor(priceMinor);
+            planLine.setAmountMinor(priceMinor);
+            invoiceLineItemRepository.save(planLine);
+
+            // Save Addon Lines
+            for (SubscriptionItem item : items) {
+               if (item.getItemType() == ItemType.ADDON) {
+                  InvoiceLineItem addonLine = new InvoiceLineItem();
+                  addonLine.setInvoice(invoice);
+                  addonLine.setDescription("Add-on: " + item.getAddOn().getName() + " (Starts after trial)");
+                  addonLine.setLineType(InvoiceLineItem.LineType.ADDON);
+                  addonLine.setQuantity(item.getQuantity());
+                  addonLine.setUnitPriceMinor(item.getUnitPriceMinor());
+                  addonLine.setAmountMinor(item.getUnitPriceMinor() * item.getQuantity());
+                  invoiceLineItemRepository.save(addonLine);
+               }
+            }
+
+            // Save Discount Line
+            if (discountMinor > 0 && coupon != null) {
+               InvoiceLineItem discountLine = new InvoiceLineItem();
+               discountLine.setInvoice(invoice);
+               discountLine.setDescription("Coupon: " + coupon.getCode() + " (" + coupon.getName() + ")");
+               discountLine.setLineType(InvoiceLineItem.LineType.DISCOUNT);
+               discountLine.setQuantity(1);
+               discountLine.setUnitPriceMinor(-discountMinor);
+               discountLine.setAmountMinor(-discountMinor);
+               invoiceLineItemRepository.save(discountLine);
+            }
+
+            // Save Tax Line
+            if (taxMinor > 0) {
+               InvoiceLineItem taxLine = new InvoiceLineItem();
+               taxLine.setInvoice(invoice);
+               taxLine.setDescription("GST (18%)");
+               taxLine.setLineType(InvoiceLineItem.LineType.TAX);
+               taxLine.setQuantity(1);
+               taxLine.setUnitPriceMinor(taxMinor);
+               taxLine.setAmountMinor(taxMinor);
+               invoiceLineItemRepository.save(taxLine);
+            }
+         }
+
+         return mapToSubscriptionDTO(subscription);
+      }
+
+      // Active subscription: calculate proration and reset billing period starting today
+      LocalDate today = LocalDate.now();
+      LocalDate periodStart = subscription.getCurrentPeriodStart();
+      LocalDate periodEnd = subscription.getCurrentPeriodEnd();
+      
+      long totalDaysInPeriod = ChronoUnit.DAYS.between(periodStart, periodEnd);
+      long remainingDays = ChronoUnit.DAYS.between(today, periodEnd);
+      
+      if (totalDaysInPeriod <= 0) totalDaysInPeriod = 1;
+      if (remainingDays <= 0) remainingDays = 0;
+
+      // Old Plan calculations
+      long oldPriceMinor = oldPlan.getDefaultPriceMinor();
+      long oldDiscountMinor = 0L;
+      if (scOpt.isPresent()) {
+         Coupon coupon = scOpt.get().getCoupon();
+         if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
+            oldDiscountMinor = oldPriceMinor * coupon.getAmount() / 100;
+         } else {
+            oldDiscountMinor = coupon.getAmount();
+         }
+      }
+      long oldAddonTotal = items.stream()
+         .filter(i -> i.getItemType() == ItemType.ADDON)
+         .mapToLong(i -> i.getUnitPriceMinor() * i.getQuantity())
+         .sum();
+
+      long oldSubtotal = oldPriceMinor + oldAddonTotal - oldDiscountMinor;
+      if (oldSubtotal < 0) oldSubtotal = 0;
+      long oldTaxMinor = Math.round(oldSubtotal * 0.18);
+      long oldTotalPaid = oldSubtotal + oldTaxMinor;
+
+      // Calculate unused refund credit we owe the user
+      long unusedCredit = oldTotalPaid * remainingDays / totalDaysInPeriod;
+
+      // New Plan calculations
+      long newPriceMinor = newPlan.getDefaultPriceMinor();
+      long newDiscountMinor = 0L;
+      Coupon activeCoupon = null;
+      if (scOpt.isPresent()) {
+         activeCoupon = scOpt.get().getCoupon();
+         if (activeCoupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
+            newDiscountMinor = newPriceMinor * activeCoupon.getAmount() / 100;
+         } else {
+            newDiscountMinor = activeCoupon.getAmount();
+         }
+      }
+      long newAddonTotal = items.stream()
+         .filter(i -> i.getItemType() == ItemType.ADDON)
+         .mapToLong(i -> i.getUnitPriceMinor() * i.getQuantity())
+         .sum();
+
+      long newSubtotal = newPriceMinor + newAddonTotal - newDiscountMinor;
+      if (newSubtotal < 0) newSubtotal = 0;
+      long newTaxMinor = Math.round(newSubtotal * 0.18);
+      long newTotalCost = newSubtotal + newTaxMinor;
+
+      // Immediate prorated charge amount
+      long prorationAmount = newTotalCost - unusedCredit;
+      if (prorationAmount < 0) prorationAmount = 0;
+
+      // Generate immediate proration invoice (marked as PAID since it gets captured immediately)
+      Invoice invoice = new Invoice();
+      invoice.setCustomer(customer);
+      invoice.setSubscription(subscription);
+      invoice.setInvoiceNumber("INV-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
+      invoice.setStatus(Status.PAID);
+      invoice.setBillingReason(BillingReason.SUBSCRIPTION_UPDATE);
+      invoice.setIssueDate(today);
+      invoice.setDueDate(today);
+      invoice.setSubtotalMinor(newSubtotal);
+      invoice.setDiscountMinor(newDiscountMinor);
+      invoice.setTaxMinor(newTaxMinor);
+      invoice.setTotalMinor(prorationAmount);
+      invoice.setBalanceMinor(0L);
+      invoice.setCurrency(customer.getCurrency());
+      invoice.setIdempotencyKey(UUID.randomUUID().toString());
+      invoiceRepository.save(invoice);
+
+      // Save New Plan Line
+      InvoiceLineItem planLine = new InvoiceLineItem();
+      planLine.setInvoice(invoice);
+      planLine.setDescription("Upgrade to " + newPlan.getName() + " (Cycle starting today)");
+      planLine.setLineType(InvoiceLineItem.LineType.PLAN);
+      planLine.setQuantity(1);
+      planLine.setUnitPriceMinor(newPriceMinor);
+      planLine.setAmountMinor(newPriceMinor);
+      planLine.setPeriodStart(today);
+      planLine.setPeriodEnd(newPlan.getBillingPeriod() == BillingPeriod.MONTHLY ? today.plusMonths(1) : today.plusYears(1));
+      invoiceLineItemRepository.save(planLine);
+
+      // Save Unused Credit line subtraction
+      InvoiceLineItem creditLine = new InvoiceLineItem();
+      creditLine.setInvoice(invoice);
+      creditLine.setDescription("Unused credit from " + oldPlan.getName() + " (" + remainingDays + " days remaining)");
+      creditLine.setLineType(InvoiceLineItem.LineType.PRORATION);
+      creditLine.setQuantity(1);
+      creditLine.setUnitPriceMinor(-unusedCredit);
+      creditLine.setAmountMinor(-unusedCredit);
+      creditLine.setPeriodStart(today);
+      creditLine.setPeriodEnd(periodEnd);
+      invoiceLineItemRepository.save(creditLine);
+
+      // Save Tax Line
+      if (newTaxMinor > 0) {
+         InvoiceLineItem taxLine = new InvoiceLineItem();
+         taxLine.setInvoice(invoice);
+         taxLine.setDescription("GST (18%)");
+         taxLine.setLineType(InvoiceLineItem.LineType.TAX);
+         taxLine.setQuantity(1);
+         taxLine.setUnitPriceMinor(newTaxMinor);
+         taxLine.setAmountMinor(newTaxMinor);
+         invoiceLineItemRepository.save(taxLine);
+      }
+
+      // Save Addon Lines
+      for (SubscriptionItem item : items) {
+         if (item.getItemType() == ItemType.ADDON) {
+            InvoiceLineItem addonLine = new InvoiceLineItem();
+            addonLine.setInvoice(invoice);
+            addonLine.setDescription("Add-on: " + item.getAddOn().getName());
+            addonLine.setLineType(InvoiceLineItem.LineType.ADDON);
+            addonLine.setQuantity(item.getQuantity());
+            addonLine.setUnitPriceMinor(item.getUnitPriceMinor());
+            addonLine.setAmountMinor(item.getUnitPriceMinor() * item.getQuantity());
+            invoiceLineItemRepository.save(addonLine);
+         }
+      }
+
+      // Save Discount Line
+      if (newDiscountMinor > 0 && activeCoupon != null) {
+         InvoiceLineItem discountLine = new InvoiceLineItem();
+         discountLine.setInvoice(invoice);
+         discountLine.setDescription("Coupon: " + activeCoupon.getCode());
+         discountLine.setLineType(InvoiceLineItem.LineType.DISCOUNT);
+         discountLine.setQuantity(1);
+         discountLine.setUnitPriceMinor(-newDiscountMinor);
+         discountLine.setAmountMinor(-newDiscountMinor);
+         invoiceLineItemRepository.save(discountLine);
+      }
+
+      // Create the immediate payment record if positive
+      if (prorationAmount > 0) {
+         Payment payment = new Payment();
+         payment.setInvoice(invoice);
+         PaymentMethod pm = paymentMethodRepository.findById(subscription.getPaymentMethodId()).orElse(null);
+         payment.setPaymentMethod(pm);
+         payment.setIdempotencyKey(UUID.randomUUID().toString());
+         payment.setGatewayRef("mock_proration_" + UUID.randomUUID().toString().substring(0, 8));
+         payment.setAmountMinor(prorationAmount);
+         payment.setCurrency(customer.getCurrency());
+         payment.setStatus(Status.SUCCESS);
+         payment.setAttemptNo(1);
+         paymentRepository.save(payment);
+      }
+
+      // Reset subscription period and save
+      subscription.setPlan(newPlan);
+      subscription.setCurrentPeriodStart(today);
+      subscription.setCurrentPeriodEnd(newPlan.getBillingPeriod() == BillingPeriod.MONTHLY ? today.plusMonths(1) : today.plusYears(1));
+      subscription.setUpdatedAt(LocalDateTime.now());
+      subscriptionRepository.save(subscription);
+
+      // Update the plan subscription item
+      SubscriptionItem planItem = subscriptionItemRepository.findBySubscription_IdAndItemType(
+            subscription.getId(), ItemType.PLAN);
+      
+      if (planItem == null) {
+         planItem = new SubscriptionItem();
+         planItem.setSubscription(subscription);
+         planItem.setItemType(ItemType.PLAN);
+         planItem.setQuantity(1);
+         planItem.setTaxMode(newPlan.getTaxMode());
+      }
+      
+      planItem.setPlan(newPlan);
+      planItem.setUnitPriceMinor(newPlan.getDefaultPriceMinor());
+      subscriptionItemRepository.save(planItem);
+
+      return mapToSubscriptionDTO(subscription);
    }
 
    @Transactional

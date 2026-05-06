@@ -303,7 +303,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     public void toggleCouponStatus(Long id) {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> CustomException.notFound("Coupon not found"));
-        coupon.setStatus(coupon.getStatus().equals(Status.ACTIVE) ? Status.INACTIVE : Status.ACTIVE);
+        coupon.setStatus(coupon.getStatus().equals(Status.ACTIVE) ? Status.DISABLED : Status.ACTIVE);
         couponRepository.save(coupon);
     }
 
