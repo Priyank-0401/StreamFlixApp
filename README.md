@@ -1,1017 +1,903 @@
-# Subscription Billing & Revenue Management System
+# 🎥 StreamFlix Subscription Billing & Revenue Management Engine
 
-A full-featured subscription billing engine that automates recurring billing for SaaS and streaming-style products. Built with a microservices architecture using Spring Boot, Spring Security, and MySQL.
-
-The system handles the complete subscription lifecycle — from plan selection and onboarding through automated billing, payment processing, dunning recovery, and revenue analytics.
+StreamFlix is an enterprise-grade subscription billing and revenue management system designed specifically for high-velocity SaaS and streaming platforms. Built with a robust modular monolith architecture using **Spring Boot 3.4.5 (Java 21)** and a secure, responsive **React 19 (TypeScript + Vite)** client viewport, the system automates and manages the entire subscription lifecycle—from registration and checkout to automated recurring billing, mid-period upgrades with proration, tax handling, coupon application, payment processing, dunning recovery, and revenue reporting.
 
 ---
 
-## Table of Contents
-
-- [Features](#features)
-- [System Architecture](#system-architecture)
-- [Tech Stack](#tech-stack)
-- [Modules Overview](#modules-overview)
-- [Database Schema](#database-schema)
-- [API Endpoints](#api-endpoints)
-- [Key Workflows](#key-workflows)
-- [Authentication & Authorization](#authentication--authorization)
-- [Environment Setup](#environment-setup)
-- [Project Structure](#project-structure)
-- [Non-Functional Requirements](#non-functional-requirements)
-- [License](#license)
+## 📋 Table of Contents
+1. [Core Features & Business Capabilities](#-core-features--business-capabilities)
+2. [High-Level System Architecture](#%EF%B8%8F-high-level-system-architecture)
+3. [Relational Data Persistence (Database Schema)](#-relational-data-persistence-database-schema)
+4. [Mathematical Billing & Calculations Framework](#%EF%B8%8F-mathematical-billing--calculations-framework)
+5. [End-to-End Core Execution Flows (Code-Paths)](#-end-to-end-core-execution-flows-code-paths)
+6. [Comprehensive REST API Reference Manual](#-comprehensive-rest-api-reference-manual)
+7. [Frontend Client Architecture](#%EF%B8%8F-frontend-client-architecture)
+8. [Quick Start & Developer Setup Guide](#%EF%B8%8F-quick-start--developer-setup-guide)
 
 ---
 
-## Features
+## 💎 Core Features & Business Capabilities
 
-### Core Billing Engine
-- **Automated Recurring Billing** — Daily cron job detects subscriptions due for renewal, generates invoices, and triggers payment attempts
-- **Idempotent Processing** — Duplicate billing attempts are prevented using idempotency keys, ensuring no customer is charged twice
-- **Multi-Currency Support** — Price books per currency (INR, USD, EUR) with ISO-4217 compliance
+StreamFlix is designed to handle complex monetary calculations and state-driven workflows with perfect reliability:
 
-### Subscription Lifecycle
-- **State Machine** — Full lifecycle management: `DRAFT → TRIALING → ACTIVE → PAST_DUE → PAUSED → CANCELED`
-- **Mid-Cycle Plan Changes** — Upgrade or downgrade plans with automatic proration based on remaining days
-- **Pause & Resume** — Temporarily pause subscriptions with configurable auto-resume dates
-- **Trial Management** — Configurable trial periods per plan with automatic activation on trial end
+### 🔄 End-to-End Subscription Lifecycle
+*   **State Machine Management:** Governs state transitions across the complete subscription lifecycle: `DRAFT → TRIALING → ACTIVE → PAST_DUE → PAUSED → CANCELED → ON_HOLD`.
+*   **Pause & Resume:** Allows customers to pause subscriptions with set resume boundaries, automatically holding billing schedules.
+*   **Prorated Mid-Cycle Changes:** Automatically calculates credit refunds and net immediate charges when customers switch plans.
+*   **Active Trial Transfers:** Preserves unused trial days when upgrading or modifying plan configurations during a trial.
 
-### Payment Processing
-- **Mock Payment Gateway** — Simulated payment processing with realistic success/failure scenarios
-- **Payment Tokenization** — Secure token-based storage; raw card numbers are never stored
-- **Idempotent Charges** — Same idempotency key always returns the same result, preventing duplicate charges
+### ⏰ Automated Billing Engine
+*   **Daily Recurring Billing (Cron):** A scheduled task runs automatically to identify subscriptions expiring in the next 24 hours, generates invoices, and attempts payment execution.
+*   **Idempotency Protection:** All payment actions and invoice generations use unique idempotency keys to completely eliminate duplicate charges.
+*   **Dunning & Revenue Recovery:** Implements an automatic retry schedule (e.g., 1-day, 3-day, 7-day retry intervals) for failed payments. If retries fail, it updates states from `PAST_DUE` to `CANCELED` or `ON_HOLD` and notifies customers.
 
-### Dunning & Revenue Recovery
-- **Configurable Retry Schedule** — Automatic retries on payment failure (e.g., after 1 day, 3 days, 7 days)
-- **Dunning State Machine** — Tracks retry attempts: `PENDING → IN_PROGRESS → RESOLVED / EXHAUSTED`
-- **Automated Customer Notifications** — "Update your card" reminders after each failed retry
-- **Configurable End Action** — Cancel subscription or put on hold after all retries are exhausted
+### 💳 Payments, Coupons, and Taxes
+*   **Secure Payment Tokenization:** Keeps payment methods as secure gateway tokens, card illustrations, and metadata in compliance with secure storage standards.
+*   **Promotional Coupon Engine:** Supports fixed or percentage discounts, with validation for expiration dates, max redemption counts, and specific plan/addon scopes.
+*   **18% GST & Multi-Region Taxes:** Calculates region-based tax rates dynamically, supporting both inclusive and exclusive pricing structures.
 
-### Tax & Discount Engine
-- **Region-Based Taxation** — GST, VAT, and custom tax rules per region
-- **Inclusive & Exclusive Tax Modes** — Supports both tax-inclusive and tax-exclusive pricing
-- **Coupon Engine** — Percentage and fixed-amount coupons with duration control (once, repeating, forever), expiry dates, and usage limits
-- **Real-Time Validation** — Coupon applicability checked at checkout with dynamic total updates
-
-### Invoicing
-- **Automated Invoice Generation** — Invoices with itemized line items, taxes, discounts, and totals
-- **PDF Export** — Downloadable PDF invoices with company header, customer details, and payment status
-- **Credit Notes** — Automatically generated on refund processing, linked to original invoice
-- **Invoice Statuses** — `DRAFT → FINALIZED → PAID → VOID`
-
-### Revenue Analytics
-- **KPI Dashboard** — Real-time metrics: MRR, ARR, ARPU, Gross Churn, Net Churn, LTV, DSO
-- **Daily Snapshots** — Automated daily metric capture for historical trend analysis
-- **Filterable Reports** — Filter by time range, plan, and region
-- **Export** — CSV and PDF export for financial reporting
-
-### Notifications
-- **Template-Based Alerts** — Renewal reminders, payment receipts, failure notifications, cancellation notices
-- **Multi-Channel** — Mock Email (SMTP) and SMS delivery
-- **Configurable Reminders** — Renewal reminders at T-7 and T-1 days before billing (configurable)
-- **Customer Preferences** — Opt-in/opt-out toggles; mandatory transactional alerts cannot be disabled
-
-### Audit & Compliance
-- **Immutable Audit Log** — Every monetary action (refunds, plan changes, cancellations) is logged with actor, action, old/new values, and timestamp
-- **Append-Only** — Audit records cannot be edited or deleted
-- **Traceable** — Correlation ID and request ID in every log entry for end-to-end tracing
+### 📊 Invoicing, Auditing, and Revenue Analytics
+*   **Automated PDF Invoicing:** Uses structured PDF layout libraries to generate itemized customer receipts, tax invoices, and credit notes.
+*   **Immutable Append-Only Audit Logging:** Logs every monetary action (refunds, adjustments, plan changes) with actor, role, IP address, and old/new JSON states.
+*   **Financial KPI Reporting:** Captures daily metrics to calculate platform-wide indicators, including MRR (Monthly Recurring Revenue), ARR (Annual Recurring Revenue), ARPU (Average Revenue Per User), Churn Rates (Gross/Net), LTV (Lifetime Value), and DSO (Days Sales Outstanding).
 
 ---
 
-## System Architecture
+## 🏗️ High-Level System Architecture
+
+StreamFlix uses a **Decoupled Client-Server Single Page Application (SPA)** model implemented as a **Modular Monolith**. This combines logical domain separation with simple deployment.
 
 ```mermaid
-graph TB
-    Frontend["🖥️ Frontend<br/>(React)"]
-    Gateway["🔀 API Gateway<br/>(Spring Cloud Gateway)"]
-
-    Frontend --> Gateway
-
-    subgraph Auth & Product Management
-        AuthService["🔐 Auth Service<br/>(OAuth2 / JWT)"]
-        CustomerService["👤 Customer Service"]
-        CatalogService["📦 Catalog Service<br/>(Products, Plans, Add-ons)"]
-    end
-
-    subgraph Subscription Management
-        SubscriptionService["🔄 Subscription Service<br/>(Lifecycle, Proration, Pause/Resume)"]
-    end
-
-    subgraph Billing & Invoicing
-        BillingService["⏰ Billing Service<br/>(Daily Cron, Dunning)"]
-        InvoiceService["🧾 Invoice Service<br/>(PDF Generation)"]
-    end
-
-    subgraph Payments & Pricing
-        PaymentService["💳 Payment Service<br/>(Mock Gateway, Tax, Coupons, Refunds)"]
-    end
-
-    subgraph Analytics & Notifications
-        ReportingService["📊 Reporting Service<br/>(MRR, ARR, Churn, LTV)"]
-        NotificationService["📧 Notification Service<br/>(Email/SMS Mock)"]
-    end
-
-    Gateway --> AuthService
-    Gateway --> CustomerService
-    Gateway --> CatalogService
-    Gateway --> SubscriptionService
-    Gateway --> BillingService
-    Gateway --> PaymentService
-    Gateway --> ReportingService
-
-    SubscriptionService -->|"validate customer/plan"| CustomerService
-    SubscriptionService -->|"validate coupon"| PaymentService
-    BillingService -->|"get due subscriptions"| SubscriptionService
-    BillingService -->|"execute payment"| PaymentService
-    BillingService -->|"generate invoice"| InvoiceService
-    BillingService -->|"send receipt/alert"| NotificationService
-    ReportingService -->|"aggregate metrics"| SubscriptionService
-    ReportingService -->|"aggregate metrics"| BillingService
+graph TD
+    A["🖥️ Client Viewport<br/>(React 19 SPA)"] <-->|Credentials / JSESSIONID Session Cookie| B["🔐 Spring Security Gateway<br/>(Tomcat Web Server)"]
+    B <-->|Secure MVC Deserialization| C["🎮 REST Controllers Layer"]
+    C <-->|Transactional Operations Proxy| D["⚙️ Business Service Layer<br/>(Spring @Service + @Transactional)"]
+    D <-->|Optimized Query Translation| E["💾 Spring Data JPA<br/>(Hibernate ORM)"]
+    E <-->|Data Persistence Socket| F[("🛢️ MySQL Database Server")]
+    D <-->|Automated Accounting Hooks| G["🧾 Invoicing & Proration Engine"]
 ```
 
-### Architecture Principles
+### 1. Architectural Decoupling Principles
+*   **Modular Monolith:** All domains (Auth, Catalog, Subscription, Billing, Payments, Analytics, Support) are separated inside the `backend` package structure. They interact through clean service interfaces and database joins while keeping transactional boundaries (`@Transactional`) intact.
+*   **Stateful Security Gateway:** Relies on secure, stateful sessions. Spring Security interceptor filters protect REST paths (`/api/**`) using HTTP Session Cookie tracking (`JSESSIONID`), while leaving public registration and plan catalog routes fully open.
+*   **Vite Network Proxy:** During local development, the Vite server running on port `3000` proxies API requests to the Spring Boot server running on port `8765`, preventing CORS issues.
 
-- **Domain-Driven Design** — Each module owns its database tables, business logic, and API endpoints
-- **No Cross-Domain DB Access** — Modules communicate exclusively via REST APIs; direct table queries across modules are prohibited
-- **API-First Development** — API contracts (Swagger/OpenAPI) are defined before implementation begins
-- **Modular Monolith** — Logically designed as microservices with clean module boundaries, implemented as a modular monolith to reduce deployment complexity
-
-### Data Flow
+### 2. High-Level Data Flow
 
 ```mermaid
 graph LR
-    A["👤 Customer"] --> B["Auth & Catalog"]
-    B --> C["Subscription"]
-    C --> D["Billing"]
-    D --> E["Payments"]
-    E --> F["Analytics"]
-    D --> G["Notifications"]
-    F --> G
+    A["👤 Guest/Customer"] -->|Register/Login| B["🔐 Security Configuration"]
+    B -->|Subscribe| C["🔄 Subscription System"]
+    C -->|Generate Invoice| D["⏰ Billing & Invoicing"]
+    D -->|Charge Tokenized Method| E["💳 Payment System"]
+    E -->|Log Action| F["📊 Immutable Auditing"]
+    E -->|Trigger Alert| G["📧 Notification Dispatcher"]
 ```
 
-### Failure Propagation
+### 3. Failure Propagation & Dunning
 
 ```mermaid
-graph LR
-    P["❌ Payment Failure<br/>(Payment Service)"] --> B["Billing marks PAYMENT_FAILED<br/>Schedules retry"]
-    B --> S["Subscription status<br/>updated to PAST_DUE"]
-    S --> N["📧 Customer notified<br/>via email/SMS"]
-
-    style P fill:#ff6b6b,color:#fff
-    style B fill:#ffa94d,color:#fff
-    style S fill:#ffa94d,color:#fff
-    style N fill:#51cf66,color:#fff
+graph TD
+    A["❌ Payment Attempt Fails"] --> B["Billing Engine sets Invoice Status to OPEN"]
+    B --> C["Subscription Status updated to PAST_DUE"]
+    C --> D["DunningSchedule Created & Scheduled for Retries (Day 1, 3, 7)"]
+    D --> E["Notification Service Dispatches 'Update Card' Email/SMS"]
+    E --> F{"Retry Attempts Exhausted?"}
+    F -->|No| G["Retry Payment on Schedule"]
+    F -->|Yes| H["Subscription status set to CANCELED / ON_HOLD"]
 ```
 
 ---
 
-## Tech Stack
+## 📊 Relational Data Persistence (Database Schema)
 
-| Layer | Technology |
-|---|---|
-| **Backend** | Java 17+, Spring Boot, Spring Data JPA, Spring REST |
-| **Security** | Spring Security, OAuth2, JWT (JSON Web Tokens) |
-| **Gateway** | Spring Cloud Gateway |
-| **Database** | MySQL |
-| **Scheduling** | Spring `@Scheduled` (Cron Jobs) |
-| **PDF Generation** | iText / Apache PDFBox |
-| **Frontend** | React, TypeScript, HTML5, CSS3, Bootstrap |
-| **Charts** | Chart.js / Recharts |
-| **API Documentation** | Swagger / OpenAPI 3.0 |
-| **Build Tool** | Maven |
-| **Testing** | JUnit 5, Mockito |
-| **Resilience** | Resilience4j (Circuit Breakers) |
+The database schema has **23 relational tables** managed through Spring Data JPA and Hibernate. Timestamps are stored in UTC, and financial amounts are stored in **minor units (paise/cents)** to prevent floating-point precision issues.
 
----
+### 1. Database Entity-Relationship (ER) Blueprint
 
-## Modules Overview
-
-### 1. Auth & Product Management
-
-Handles authentication, authorization, customer profiles, and the product catalog.
-
-| Component | Responsibility |
-|---|---|
-| **Auth Service** | OAuth2/JWT login, token refresh, role validation |
-| **Customer Service** | Customer CRUD, profile management, search |
-| **Catalog Service** | Product, Plan, Add-on, and Price Book management |
-| **API Gateway** | Request routing, authentication filter, rate limiting |
-
-**Roles Managed:** `ADMIN`, `FINANCE`, `SUPPORT`, `CUSTOMER`
-
----
-
-### 2. Subscription Management
-
-Manages the complete subscription lifecycle, including state transitions, proration, and pause/resume.
-
-| Feature | Description |
-|---|---|
-| **State Machine** | `DRAFT → TRIALING → ACTIVE → PAST_DUE → PAUSED → CANCELED` |
-| **Proration** | Credit/debit calculation based on remaining days when switching plans mid-cycle |
-| **Multi-Subscription** | A single customer can hold multiple active subscriptions |
-| **Subscription Items** | Base plan + add-ons tracked as individual line items |
-
----
-
-### 3. Billing & Invoicing
-
-Runs the automated billing engine, generates invoices, manages dunning, and produces PDF exports.
-
-| Feature | Description |
-|---|---|
-| **Daily Cron** | Detects subscriptions due for renewal within 24 hours |
-| **Invoice Engine** | Generates invoices with line items, taxes, discounts, and totals |
-| **Dunning** | Retry schedule (1d, 3d, 7d) with automatic escalation |
-| **PDF Export** | Formatted invoice download with complete billing details |
-| **Idempotency** | Prevents duplicate invoice generation for the same billing period |
-
----
-
-### 4. Payments & Pricing
-
-Handles payment processing, tax calculation, coupon validation, and refunds.
-
-| Feature | Description |
-|---|---|
-| **Mock Gateway** | Simulated payment processing (80% success / 20% failure for testing) |
-| **Tokenization** | Payment methods stored as tokens; PCI-compliant design |
-| **Tax Engine** | Region-based GST/VAT with inclusive/exclusive modes |
-| **Coupon Engine** | Percentage/fixed coupons with duration, expiry, and usage limits |
-| **Refunds** | Full and partial refunds with automatic credit note generation |
-
----
-
-### 5. Analytics & Notifications
-
-Provides revenue dashboards, notification delivery, and audit logging.
-
-| Feature | Description |
-|---|---|
-| **Revenue KPIs** | MRR, ARR, ARPU, Gross/Net Churn, LTV, DSO |
-| **Daily Snapshots** | Automated daily metric capture |
-| **Notifications** | Template-based Email/SMS (mocked) with preference management |
-| **Audit Log** | Immutable, append-only log of all monetary actions |
-| **Export** | CSV and PDF report generation |
-
----
-
-## Database Schema
-
-All monetary amounts are stored in **minor units** (paise for INR, cents for USD). Currency follows ISO-4217. All timestamps are stored in UTC.
-
-### Entity Relationship Overview
-
-**18 tables** organized across 5 modules:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    AUTH & CATALOG                        │
-│  User, Customer, Product, Plan, AddOn                   │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│                 SUBSCRIPTION                            │
-│  Subscription, SubscriptionItem, PaymentMethod          │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│                BILLING & INVOICING                      │
-│  Invoice, InvoiceLineItem, CreditNote, DunningSchedule  │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│               PAYMENTS & PRICING                        │
-│  Payment, TaxRate, Coupon                               │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│            ANALYTICS & NOTIFICATIONS                    │
-│  AuditLog, Notification, RevenueSnapshot                │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+erDiagram
+    user ||--o| customer : "owns (1:1)"
+    customer ||--o{ subscription : "maintains"
+    customer ||--o{ payment_method : "registers"
+    customer ||--o{ invoice : "receives"
+    customer ||--o{ notification : "receives"
+    product ||--o{ plan : "contains"
+    product ||--o{ add_on : "offers"
+    plan ||--o{ price_book_entry : "customizes"
+    plan ||--o{ subscription : "selected_in"
+    subscription ||--o{ subscription_item : "comprises"
+    subscription ||--o{ subscription_coupon : "applies"
+    subscription ||--o{ usage_record : "records"
+    subscription_item }|--o| plan : "links"
+    subscription_item }|--o| add_on : "links"
+    subscription_item }|--o| metered_component : "links"
+    invoice ||--o{ invoice_line_item : "contains"
+    invoice ||--o{ payment : "tracks"
+    invoice ||--o{ credit_note : "issues"
+    invoice ||--o| dunning_retry_log : "monitors"
+    payment }|--o| payment_method : "charged_via"
 ```
 
-### Table Definitions
+### 2. Relational Table Specifications
 
 <details>
-<summary><strong>User</strong> — Login credentials and role assignments</summary>
+<summary>🔑 1. user — Credentials & Roles</summary>
 
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| email | VARCHAR(255) | UNIQUE, NOT NULL |
-| password_hash | VARCHAR(255) | NOT NULL |
-| role | ENUM(ADMIN, FINANCE, SUPPORT, CUSTOMER) | NOT NULL |
-| is_active | BOOLEAN | DEFAULT TRUE |
-| created_at | TIMESTAMP | NOT NULL |
-| updated_at | TIMESTAMP | NOT NULL |
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `user_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique identifier for system logins |
+| `full_name` | VARCHAR(100) | `NOT NULL` | User's full name |
+| `email` | VARCHAR(120) | `UNIQUE, NOT NULL` | Login credential email |
+| `password_hash` | VARCHAR(255) | `NULLABLE` | BCrypt hash (NULL for OAuth2 users) |
+| `role` | ENUM | `NOT NULL` | `CUSTOMER`, `SUPPORT`, `FINANCE`, `ADMIN` |
+| `status` | ENUM | `NOT NULL` | `ACTIVE`, `INACTIVE`, `SUSPENDED` |
+| `created_at` | TIMESTAMP | `DEFAULT CURRENT_TIMESTAMP` | Profile creation time |
+| `updated_at` | TIMESTAMP | `ON UPDATE CURRENT_TIMESTAMP` | Last profile update time |
 
 </details>
 
 <details>
-<summary><strong>Customer</strong> — Customer profile information</summary>
+<summary>👤 2. customer — Profile & Billing Details</summary>
 
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| name | VARCHAR(255) | NOT NULL |
-| email | VARCHAR(255) | UNIQUE, NOT NULL |
-| phone | VARCHAR(20) | NULLABLE |
-| currency | VARCHAR(3) | NOT NULL |
-| address | TEXT | NULLABLE |
-| region | VARCHAR(50) | NULLABLE |
-| status | ENUM(ACTIVE, INACTIVE, SUSPENDED) | NOT NULL |
-| created_at | TIMESTAMP | NOT NULL |
-| updated_at | TIMESTAMP | NOT NULL |
-
-</details>
-
-<details>
-<summary><strong>Product</strong> — Top-level catalog item</summary>
-
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| name | VARCHAR(255) | NOT NULL |
-| description | TEXT | NULLABLE |
-| status | ENUM(ACTIVE, ARCHIVED) | NOT NULL |
-| created_at | TIMESTAMP | NOT NULL |
-| updated_at | TIMESTAMP | NOT NULL |
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `customer_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique customer index |
+| `user_id` | BIGINT | `UNIQUE, NOT NULL, FK → user` | 1:1 user account linkage |
+| `phone` | VARCHAR(20) | `NULLABLE` | Customer phone number |
+| `currency` | CHAR(3) | `NOT NULL` | ISO-4217 code (e.g., `INR`, `USD`) |
+| `country` | CHAR(2) | `NOT NULL` | ISO-3166 code (e.g., `IN`, `US`) |
+| `state` | VARCHAR(100) | `NULLABLE` | Customer state (used for GST lookup) |
+| `city` | VARCHAR(100) | `NULLABLE` | Customer billing city |
+| `address_line1`| VARCHAR(255) | `NULLABLE` | Core street details |
+| `postal_code` | VARCHAR(20) | `NULLABLE` | Billing ZIP/PIN code |
+| `status` | ENUM | `NOT NULL` | `ACTIVE`, `INACTIVE`, `SUSPENDED` |
 
 </details>
 
 <details>
-<summary><strong>Plan</strong> — Pricing tier under a product</summary>
+<summary>📦 3. product — Core Software Offerings</summary>
 
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| product_id | BIGINT | FK → Product(id) |
-| name | VARCHAR(255) | NOT NULL |
-| billing_period | ENUM(MONTHLY, YEARLY) | NOT NULL |
-| price_minor | BIGINT | NOT NULL |
-| currency | VARCHAR(3) | NOT NULL |
-| trial_days | INT | DEFAULT 0 |
-| setup_fee_minor | BIGINT | DEFAULT 0 |
-| tax_mode | ENUM(INCLUSIVE, EXCLUSIVE) | NOT NULL |
-| proration_mode | ENUM(PRORATED, FULL_CYCLE) | DEFAULT PRORATED |
-| effective_from | DATE | NOT NULL |
-| effective_to | DATE | NULLABLE |
-| status | ENUM(ACTIVE, INACTIVE) | NOT NULL |
-| created_at | TIMESTAMP | NOT NULL |
-| updated_at | TIMESTAMP | NOT NULL |
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `product_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique product identifier |
+| `name` | VARCHAR(100) | `NOT NULL` | Product name (e.g., "StreamFlix") |
+| `description` | TEXT | `NULLABLE` | Product details |
+| `status` | ENUM | `NOT NULL` | `ACTIVE`, `INACTIVE` |
 
 </details>
 
 <details>
-<summary><strong>AddOn</strong> — Optional extras for plans</summary>
+<summary>🏷️ 4. plan — Subscription Pricing Tiers</summary>
 
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| product_id | BIGINT | FK → Product(id) |
-| name | VARCHAR(255) | NOT NULL |
-| price_minor | BIGINT | NOT NULL |
-| currency | VARCHAR(3) | NOT NULL |
-| billing_period | ENUM(MONTHLY, YEARLY) | NOT NULL |
-| status | ENUM(ACTIVE, INACTIVE) | NOT NULL |
-| created_at | TIMESTAMP | NOT NULL |
-
-</details>
-
-<details>
-<summary><strong>Subscription</strong> — Active customer-plan relationship</summary>
-
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| customer_id | BIGINT | FK → Customer(id) |
-| plan_id | BIGINT | FK → Plan(id) |
-| status | ENUM(DRAFT, TRIALING, ACTIVE, PAST_DUE, PAUSED, CANCELED) | NOT NULL |
-| start_date | DATE | NOT NULL |
-| current_period_start | DATE | NOT NULL |
-| current_period_end | DATE | NOT NULL |
-| cancel_at_period_end | BOOLEAN | DEFAULT FALSE |
-| paused_from | DATE | NULLABLE |
-| paused_to | DATE | NULLABLE |
-| payment_method_id | BIGINT | FK → PaymentMethod(id) |
-| currency | VARCHAR(3) | NOT NULL |
-| created_at | TIMESTAMP | NOT NULL |
-| updated_at | TIMESTAMP | NOT NULL |
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `plan_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique plan identifier |
+| `product_id` | BIGINT | `NOT NULL, FK → product` | Parent product relation |
+| `name` | VARCHAR(100) | `NOT NULL` | Tier name (Basic, Premium, etc.) |
+| `billing_period`| ENUM | `NOT NULL` | `MONTHLY`, `YEARLY` |
+| `default_price_minor`| BIGINT | `NOT NULL` | Fallback price in minor units |
+| `default_currency`| CHAR(3) | `NOT NULL` | Default currency ISO code |
+| `trial_days` | INT | `DEFAULT 7` | Included trial days |
+| `setup_fee_minor`| BIGINT | `DEFAULT 0` | Setup fee in minor units |
+| `tax_mode` | ENUM | `NOT NULL` | `INCLUSIVE`, `EXCLUSIVE` |
+| `effective_from`| DATE | `NOT NULL` | Plan activation date |
+| `effective_to` | DATE | `NULLABLE` | Plan expiration date |
+| `status` | ENUM | `NOT NULL` | `ACTIVE`, `INACTIVE` |
 
 </details>
 
 <details>
-<summary><strong>SubscriptionItem</strong> — Line items within a subscription</summary>
+<summary>🌍 5. price_book_entry — Region-Specific Plan Pricing</summary>
 
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| subscription_id | BIGINT | FK → Subscription(id) |
-| item_type | ENUM(BASE_PLAN, ADD_ON) | NOT NULL |
-| reference_id | BIGINT | NOT NULL |
-| unit_price_minor | BIGINT | NOT NULL |
-| quantity | INT | DEFAULT 1 |
-| tax_mode | ENUM(INCLUSIVE, EXCLUSIVE) | NOT NULL |
-| discount_id | BIGINT | FK → Coupon(id), NULLABLE |
-| created_at | TIMESTAMP | NOT NULL |
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `price_book_id`| BIGINT | `PK, AUTO_INCREMENT` | Unique record ID |
+| `plan_id` | BIGINT | `NOT NULL, FK → plan` | Target plan linkage |
+| `region` | VARCHAR(50) | `NOT NULL` | ISO country region (e.g., `IN`, `US`) |
+| `currency` | CHAR(3) | `NOT NULL` | Region currency |
+| `price_minor` | BIGINT | `NOT NULL` | Price in regional currency minor units |
+| `effective_from`| DATE | `NOT NULL` | Price activation date |
+| `effective_to` | DATE | `NULLABLE` | Price expiration date |
 
 </details>
 
 <details>
-<summary><strong>PaymentMethod</strong> — Tokenized payment methods</summary>
+<summary>➕ 6. add_on — Optional Billing Extras</summary>
 
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| customer_id | BIGINT | FK → Customer(id) |
-| token | VARCHAR(255) | NOT NULL |
-| card_last_four | VARCHAR(4) | NOT NULL |
-| card_brand | VARCHAR(20) | NOT NULL |
-| expiry_month | INT | NOT NULL |
-| expiry_year | INT | NOT NULL |
-| is_default | BOOLEAN | DEFAULT FALSE |
-| created_at | TIMESTAMP | NOT NULL |
-
-</details>
-
-<details>
-<summary><strong>Invoice</strong> — Generated bill for a billing period</summary>
-
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| invoice_number | VARCHAR(50) | UNIQUE, NOT NULL |
-| customer_id | BIGINT | FK → Customer(id) |
-| subscription_id | BIGINT | FK → Subscription(id) |
-| status | ENUM(DRAFT, FINALIZED, PAID, VOID, PAYMENT_FAILED) | NOT NULL |
-| issue_date | DATE | NOT NULL |
-| due_date | DATE | NOT NULL |
-| subtotal_minor | BIGINT | NOT NULL |
-| tax_minor | BIGINT | NOT NULL |
-| discount_minor | BIGINT | DEFAULT 0 |
-| total_minor | BIGINT | NOT NULL |
-| balance_minor | BIGINT | NOT NULL |
-| currency | VARCHAR(3) | NOT NULL |
-| idempotency_key | VARCHAR(255) | UNIQUE, NULLABLE |
-| created_at | TIMESTAMP | NOT NULL |
-| updated_at | TIMESTAMP | NOT NULL |
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `add_on_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique add-on identifier |
+| `product_id` | BIGINT | `NOT NULL, FK → product` | Parent product relation |
+| `name` | VARCHAR(100) | `NOT NULL` | Add-on name (e.g., "UHD Streaming") |
+| `price_minor` | BIGINT | `NOT NULL` | Price in minor units |
+| `currency` | CHAR(3) | `NOT NULL` | Currency ISO code |
+| `billing_period`| ENUM | `NOT NULL` | `MONTHLY`, `YEARLY` |
+| `tax_mode` | ENUM | `NOT NULL` | `INCLUSIVE`, `EXCLUSIVE` |
+| `status` | ENUM | `NOT NULL` | `ACTIVE`, `INACTIVE` |
 
 </details>
 
 <details>
-<summary><strong>InvoiceLineItem</strong> — Individual charges on an invoice</summary>
+<summary>📈 7. metered_component — Usage-Based Billing Components</summary>
 
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| invoice_id | BIGINT | FK → Invoice(id) |
-| description | VARCHAR(500) | NOT NULL |
-| quantity | INT | DEFAULT 1 |
-| unit_price_minor | BIGINT | NOT NULL |
-| amount_minor | BIGINT | NOT NULL |
-| tax_rate_id | BIGINT | FK → TaxRate(id), NULLABLE |
-| discount_id | BIGINT | FK → Coupon(id), NULLABLE |
-| line_type | ENUM(CHARGE, CREDIT, PRORATION) | DEFAULT CHARGE |
-| metadata | TEXT | NULLABLE |
-| created_at | TIMESTAMP | NOT NULL |
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `component_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique component identifier |
+| `plan_id` | BIGINT | `NOT NULL, FK → plan` | Associated plan linkage |
+| `name` | VARCHAR(100) | `NOT NULL` | Resource name (e.g., "Downloads") |
+| `unit_name` | VARCHAR(50) | `NOT NULL` | Metric unit name (e.g., "GB") |
+| `price_per_unit_minor`| BIGINT | `NOT NULL` | Unit rate in minor units |
+| `free_tier_quantity`| BIGINT | `DEFAULT 0` | Included units before charging |
+| `status` | ENUM | `NOT NULL` | `ACTIVE`, `INACTIVE` |
 
 </details>
 
 <details>
-<summary><strong>Payment</strong> — Payment attempt record</summary>
+<summary>🔄 8. subscription — Active Customer Subscriptions</summary>
 
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| invoice_id | BIGINT | FK → Invoice(id) |
-| payment_method_id | BIGINT | FK → PaymentMethod(id) |
-| gateway_ref | VARCHAR(255) | NULLABLE |
-| amount_minor | BIGINT | NOT NULL |
-| currency | VARCHAR(3) | NOT NULL |
-| status | ENUM(PENDING, SUCCEEDED, FAILED, REFUNDED) | NOT NULL |
-| attempt_no | INT | NOT NULL |
-| response_code | VARCHAR(10) | NULLABLE |
-| idempotency_key | VARCHAR(255) | UNIQUE, NOT NULL |
-| created_at | TIMESTAMP | NOT NULL |
-
-</details>
-
-<details>
-<summary><strong>TaxRate</strong> — Region-based tax rules</summary>
-
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| region | VARCHAR(50) | NOT NULL |
-| name | VARCHAR(100) | NOT NULL |
-| rate_percent | INT | NOT NULL |
-| inclusive | BOOLEAN | NOT NULL |
-| effective_from | DATE | NOT NULL |
-| effective_to | DATE | NULLABLE |
-| created_at | TIMESTAMP | NOT NULL |
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `subscription_id`| BIGINT | `PK, AUTO_INCREMENT` | Unique subscription identifier |
+| `customer_id` | BIGINT | `NOT NULL, FK → customer` | Owning customer link |
+| `plan_id` | BIGINT | `NOT NULL, FK → plan` | Selected plan link |
+| `status` | ENUM | `NOT NULL` | Active state of the subscription |
+| `start_date` | DATE | `NOT NULL` | Overall activation date |
+| `trial_end_date`| DATE | `NULLABLE` | Trial end date (if trialing) |
+| `current_period_start`| DATE | `NOT NULL` | Current billing period start |
+| `current_period_end`| DATE | `NOT NULL` | Current billing period end |
+| `cancel_at_period_end`| BOOLEAN | `DEFAULT FALSE` | Cancel subscription at period end |
+| `canceled_at` | TIMESTAMP | `NULLABLE` | Cancellation timestamp |
+| `paused_from` | DATE | `NULLABLE` | Pause schedule start |
+| `paused_to` | DATE | `NULLABLE` | Pause schedule end |
+| `payment_method_id`| BIGINT | `NOT NULL, FK → payment_method` | Default payment method |
+| `currency` | CHAR(3) | `NOT NULL` | Subscription billing currency |
 
 </details>
 
 <details>
-<summary><strong>Coupon</strong> — Discount codes</summary>
+<summary>📋 9. subscription_item — Items Included in a Subscription</summary>
 
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| code | VARCHAR(50) | UNIQUE, NOT NULL |
-| type | ENUM(PERCENT, FIXED) | NOT NULL |
-| amount | BIGINT | NOT NULL |
-| duration | ENUM(ONCE, REPEATING, FOREVER) | NOT NULL |
-| duration_in_months | INT | NULLABLE |
-| max_redemptions | INT | NULLABLE |
-| redeemed_count | INT | DEFAULT 0 |
-| valid_from | DATE | NOT NULL |
-| valid_to | DATE | NULLABLE |
-| status | ENUM(ACTIVE, EXPIRED, DISABLED) | NOT NULL |
-| created_at | TIMESTAMP | NOT NULL |
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `item_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique line identifier |
+| `subscription_id`| BIGINT | `NOT NULL, FK → subscription` | Parent subscription link |
+| `item_type` | ENUM | `NOT NULL` | `PLAN`, `ADDON`, `METERED` |
+| `plan_id` | BIGINT | `NULLABLE, FK → plan` | Associated plan |
+| `addon_id` | BIGINT | `NULLABLE, FK → add_on` | Associated add-on |
+| `component_id`| BIGINT | `NULLABLE, FK → metered_component`| Associated metered component |
+| `unit_price_minor`| BIGINT | `NOT NULL` | Price in minor units |
+| `quantity` | INT | `DEFAULT 1` | Item quantity |
+| `tax_mode` | ENUM | `NOT NULL` | `INCLUSIVE`, `EXCLUSIVE` |
+| `discount_id` | BIGINT | `NULLABLE, FK → coupon` | Applied coupon relation |
 
 </details>
 
 <details>
-<summary><strong>CreditNote</strong> — Refund documentation</summary>
+<summary>🎟️ 10. subscription_coupon — Applied Coupons</summary>
 
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| credit_note_no | VARCHAR(50) | UNIQUE, NOT NULL |
-| invoice_id | BIGINT | FK → Invoice(id) |
-| reason | VARCHAR(500) | NOT NULL |
-| amount_minor | BIGINT | NOT NULL |
-| type | ENUM(REFUND, ADJUSTMENT, PRORATION_CREDIT) | DEFAULT REFUND |
-| created_by | VARCHAR(255) | NOT NULL |
-| created_at | TIMESTAMP | NOT NULL |
-
-</details>
-
-<details>
-<summary><strong>DunningSchedule</strong> — Retry tracking for failed payments</summary>
-
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| invoice_id | BIGINT | FK → Invoice(id) |
-| subscription_id | BIGINT | FK → Subscription(id) |
-| attempt_count | INT | DEFAULT 0 |
-| max_attempts | INT | DEFAULT 3 |
-| next_retry_date | DATE | NOT NULL |
-| status | ENUM(PENDING, IN_PROGRESS, RESOLVED, EXHAUSTED) | NOT NULL |
-| last_attempted | TIMESTAMP | NULLABLE |
-| created_at | TIMESTAMP | NOT NULL |
-| updated_at | TIMESTAMP | NOT NULL |
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | BIGINT | `PK, AUTO_INCREMENT` | Unique reference ID |
+| `subscription_id`| BIGINT | `NOT NULL, FK → subscription` | Associated subscription |
+| `coupon_id` | BIGINT | `NOT NULL, FK → coupon` | Target coupon linkage |
+| `applied_at` | TIMESTAMP | `DEFAULT CURRENT_TIMESTAMP` | Coupon application time |
+| `applied_by` | BIGINT | `NULLABLE, FK → user` | Supporting agent user |
+| `expires_at` | TIMESTAMP | `NULLABLE` | Coupon expiration time |
+| `status` | ENUM | `NOT NULL` | `ACTIVE`, `EXPIRED`, `REVOKED` |
 
 </details>
 
 <details>
-<summary><strong>AuditLog</strong> — Immutable action log</summary>
+<summary>📊 11. usage_record — Metered Resource Usage</summary>
 
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| actor | VARCHAR(255) | NOT NULL |
-| action | VARCHAR(100) | NOT NULL |
-| entity_type | VARCHAR(100) | NOT NULL |
-| entity_id | BIGINT | NOT NULL |
-| old_value | TEXT | NULLABLE |
-| new_value | TEXT | NULLABLE |
-| request_id | VARCHAR(255) | NULLABLE |
-| ip_address | VARCHAR(50) | NULLABLE |
-| created_at | TIMESTAMP | NOT NULL |
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `usage_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique record ID |
+| `subscription_id`| BIGINT | `NOT NULL, FK → subscription` | Target subscription link |
+| `component_id`| BIGINT | `NOT NULL, FK → metered_component`| Target component link |
+| `quantity` | BIGINT | `NOT NULL` | Logged usage quantity |
+| `recorded_at` | TIMESTAMP | `DEFAULT CURRENT_TIMESTAMP` | Recording timestamp |
+| `billing_period_start`| DATE | `NOT NULL` | Current billing period start |
+| `billing_period_end`| DATE | `NOT NULL` | Current billing period end |
+| `idempotency_key`| VARCHAR(100) | `UNIQUE, NOT NULL` | Prevents duplicate usage logging |
 
 </details>
 
 <details>
-<summary><strong>Notification</strong> — Notification delivery log</summary>
+<summary>🧾 12. invoice — Generated Invoices</summary>
 
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| customer_id | BIGINT | FK → Customer(id) |
-| type | VARCHAR(50) | NOT NULL |
-| subject | VARCHAR(255) | NOT NULL |
-| body | TEXT | NULLABLE |
-| channel | ENUM(EMAIL, SMS) | NOT NULL |
-| status | ENUM(SENT, FAILED, SKIPPED) | NOT NULL |
-| reference_id | BIGINT | NULLABLE |
-| sent_at | TIMESTAMP | NULLABLE |
-| created_at | TIMESTAMP | NOT NULL |
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `invoice_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique invoice index |
+| `invoice_number`| VARCHAR(50) | `UNIQUE, NOT NULL` | Invoice reference format |
+| `customer_id` | BIGINT | `NOT NULL, FK → customer` | Target customer relation |
+| `subscription_id`| BIGINT | `NOT NULL, FK → subscription` | Associated subscription |
+| `status` | ENUM | `NOT NULL` | `DRAFT`, `OPEN`, `PAID`, `VOID`, `UNCOLLECTIBLE` |
+| `billing_reason`| ENUM | `NOT NULL` | `SUBSCRIPTION_CREATE`, `SUBSCRIPTION_CYCLE`, `SUBSCRIPTION_UPDATE`, `MANUAL` |
+| `issue_date` | DATE | `NOT NULL` | Invoice date |
+| `due_date` | DATE | `NULLABLE` | Payment due date |
+| `subtotal_minor`| BIGINT | `NOT NULL` | Net subtotal in minor units |
+| `tax_minor` | BIGINT | `DEFAULT 0` | Total tax in minor units |
+| `discount_minor`| BIGINT | `DEFAULT 0` | Total coupon discount in minor units |
+| `total_minor` | BIGINT | `NOT NULL` | Total charge in minor units |
+| `balance_minor` | BIGINT | `DEFAULT 0` | Unpaid balance in minor units |
+| `currency` | CHAR(3) | `NOT NULL` | Currency ISO code |
+| `idempotency_key`| VARCHAR(255) | `UNIQUE, NULLABLE` | Prevents duplicate invoice generation |
 
 </details>
 
 <details>
-<summary><strong>RevenueSnapshot</strong> — Daily KPI snapshot</summary>
+<summary>📝 13. invoice_line_item — Itemized Charges on Invoices</summary>
 
-| Column | Type | Constraints |
-|---|---|---|
-| id | BIGINT | PK, AUTO_INCREMENT |
-| snapshot_date | DATE | UNIQUE, NOT NULL |
-| mrr_minor | BIGINT | NOT NULL |
-| arr_minor | BIGINT | NOT NULL |
-| arpu_minor | BIGINT | NOT NULL |
-| active_customers | INT | NOT NULL |
-| new_customers | INT | DEFAULT 0 |
-| churned_customers | INT | DEFAULT 0 |
-| gross_churn_percent | DECIMAL | NOT NULL |
-| net_churn_percent | DECIMAL | NOT NULL |
-| ltv_minor | BIGINT | DEFAULT 0 |
-| total_revenue_minor | BIGINT | NOT NULL |
-| total_refunds_minor | BIGINT | DEFAULT 0 |
-| created_at | TIMESTAMP | NOT NULL |
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `line_item_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique line index |
+| `invoice_id` | BIGINT | `NOT NULL, FK → invoice` | Parent invoice relation |
+| `description` | VARCHAR(255) | `NOT NULL` | Charge line description |
+| `line_type` | ENUM | `NOT NULL` | `PLAN`, `ADDON`, `METERED`, `PRORATION`, `DISCOUNT`, `TAX` |
+| `quantity` | INT | `DEFAULT 1` | Charged quantity |
+| `unit_price_minor`| BIGINT | `NOT NULL` | Price in minor units |
+| `amount_minor` | BIGINT | `NOT NULL` | Total line amount in minor units |
+| `tax_rate_id` | BIGINT | `NULLABLE, FK → tax_rate` | Tax rule reference |
+| `discount_id` | BIGINT | `NULLABLE, FK → coupon` | Discount coupon reference |
+| `period_start` | DATE | `NULLABLE` | Mapped charge start date |
+| `period_end` | DATE | `NULLABLE` | Mapped charge end date |
+| `metadata` | JSON | `NULLABLE` | Metadata for tracking additions |
 
 </details>
 
-### Key Relationships
+<details>
+<summary>💳 14. payment — Transaction Operations</summary>
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `payment_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique transaction ID |
+| `invoice_id` | BIGINT | `NOT NULL, FK → invoice` | Target invoice relation |
+| `payment_method_id`| BIGINT | `NULLABLE, FK → payment_method`| Payment method link |
+| `idempotency_key`| VARCHAR(100) | `UNIQUE, NOT NULL` | Prevents duplicate charges |
+| `gateway_ref` | VARCHAR(200) | `NULLABLE` | External reference ID |
+| `amount_minor` | BIGINT | `NOT NULL` | Charged amount in minor units |
+| `currency` | CHAR(3) | `NOT NULL` | Transaction currency |
+| `status` | ENUM | `NOT NULL` | `PENDING`, `SUCCESS`, `FAILED`, `REFUNDED`, `PARTIALLY_REFUNDED` |
+| `attempt_no` | INT | `DEFAULT 1` | Number of attempts |
+| `response_code` | VARCHAR(50) | `NULLABLE` | Gateway response code |
+| `failure_reason`| VARCHAR(255) | `NULLABLE` | Failed charge reason |
+
+</details>
+
+<details>
+<summary>💳 15. payment_method — Tokenized Payment Methods</summary>
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `payment_method_id`| BIGINT | `PK, AUTO_INCREMENT` | Unique payment method ID |
+| `customer_id` | BIGINT | `NOT NULL, FK → customer` | Target customer link |
+| `payment_type` | ENUM | `NOT NULL` | `CARD`, `UPI` |
+| `card_last4` | CHAR(4) | `NULLABLE` | Last 4 digits (for cards) |
+| `card_brand` | VARCHAR(20) | `NULLABLE` | Card network (e.g., Visa) |
+| `gateway_token` | VARCHAR(255) | `NOT NULL` | Secure token reference |
+| `upi_id` | VARCHAR(100) | `NULLABLE` | Mapped customer UPI address |
+| `is_default` | BOOLEAN | `DEFAULT FALSE` | Default payment method flag |
+| `expiry_month` | TINYINT | `NULLABLE` | Card expiration month |
+| `expiry_year` | SMALLINT | `NULLABLE` | Card expiration year |
+| `status` | ENUM | `NOT NULL` | `ACTIVE`, `EXPIRED`, `REVOKED` |
+
+</details>
+
+<details>
+<summary>🏷️ 16. tax_rate — Regional Tax Rules</summary>
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `tax_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique tax rate ID |
+| `name` | VARCHAR(100) | `NOT NULL` | Tax name (e.g., "CGST") |
+| `region` | VARCHAR(50) | `NOT NULL` | Mapped region (e.g., `IN`, `US`) |
+| `rate_percent` | DECIMAL(5,2) | `NOT NULL` | Tax rate percentage |
+| `inclusive` | BOOLEAN | `DEFAULT FALSE` | Inclusive vs exclusive tax mode |
+| `effective_from`| DATE | `NOT NULL` | Tax activation date |
+| `effective_to` | DATE | `NULLABLE` | Tax expiration date |
+
+</details>
+
+<details>
+<summary>🎟️ 17. coupon — Discount Configurations</summary>
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `coupon_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique coupon identifier |
+| `code` | VARCHAR(50) | `UNIQUE, NOT NULL` | Target coupon code (e.g., `SAVE10`) |
+| `name` | VARCHAR(100) | `NULLABLE` | Coupon description |
+| `type` | ENUM | `NOT NULL` | `PERCENT`, `FIXED` |
+| `amount` | BIGINT | `NOT NULL` | Discount amount (percent or minor units) |
+| `currency` | CHAR(3) | `NULLABLE` | Valid currency (for fixed coupons) |
+| `duration` | ENUM | `NOT NULL` | `ONCE`, `REPEATING`, `FOREVER` |
+| `duration_in_months`| INT | `NULLABLE` | Month duration limits |
+| `max_redemptions`| INT | `NULLABLE` | Max redemption limit |
+| `redeemed_count`| INT | `DEFAULT 0` | Current redemption count |
+| `valid_from` | DATE | `NOT NULL` | Coupon start date |
+| `valid_to` | DATE | `NULLABLE` | Coupon end date |
+| `status` | ENUM | `NOT NULL` | `ACTIVE`, `EXPIRED`, `DISABLED` |
+
+</details>
+
+<details>
+<summary>📝 18. credit_note — Issued Credits & Refunds</summary>
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `credit_note_id`| BIGINT | `PK, AUTO_INCREMENT` | Unique credit note ID |
+| `credit_note_number`| VARCHAR(50) | `UNIQUE, NOT NULL` | Credit note reference |
+| `invoice_id` | BIGINT | `NOT NULL, FK → invoice` | Mapped invoice linkage |
+| `reason` | VARCHAR(255) | `NOT NULL` | Adjustment reason description |
+| `amount_minor` | BIGINT | `NOT NULL` | Credit amount in minor units |
+| `status` | ENUM | `NOT NULL` | `DRAFT`, `ISSUED`, `APPLIED`, `VOIDED` |
+| `created_by` | BIGINT | `NOT NULL, FK → user` | Mapped staff ID |
+
+</details>
+
+<details>
+<summary>⚙️ 19. billing_job — Engine Background Logs</summary>
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `job_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique job ID |
+| `job_type` | ENUM | `NOT NULL` | `CYCLE_BILLING`, `DUNNING_RETRY`, `REMINDER` |
+| `status` | ENUM | `NOT NULL` | `PENDING`, `RUNNING`, `COMPLETED`, `FAILED` |
+| `triggered_by` | VARCHAR(100) | `DEFAULT 'SCHEDULER'` | Trigger details |
+| `started_at` | TIMESTAMP | `NULLABLE` | Job execution start |
+| `completed_at` | TIMESTAMP | `NULLABLE` | Job execution end |
+| `total_records` | INT | `DEFAULT 0` | Total records scanned |
+| `success_count` | INT | `DEFAULT 0` | Successful updates |
+| `failure_count` | INT | `DEFAULT 0` | Failed updates |
+| `error_summary` | TEXT | `NULLABLE` | Stacktrace error log summary |
+
+</details>
+
+<details>
+<summary>⏳ 20. dunning_retry_log — Failed Payment Retries</summary>
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `retry_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique retry record ID |
+| `invoice_id` | BIGINT | `NOT NULL, FK → invoice` | Target invoice |
+| `payment_id` | BIGINT | `NULLABLE, FK → payment` | Mapped payment attempt |
+| `attempt_no` | INT | `NOT NULL` | Current retry attempt index |
+| `scheduled_at` | TIMESTAMP | `NOT NULL` | Scheduled execution time |
+| `attempted_at` | TIMESTAMP | `NULLABLE` | Attempt execution time |
+| `status` | ENUM | `NOT NULL` | `SCHEDULED`, `ATTEMPTED`, `SUCCESS`, `FAILED` |
+| `failure_reason`| VARCHAR(255) | `NULLABLE` | Failed charge details |
+
+</details>
+
+<details>
+<summary>📧 21. notification — Sent Notifications</summary>
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `notification_id`| BIGINT | `PK, AUTO_INCREMENT` | Unique notification ID |
+| `customer_id` | BIGINT | `NOT NULL, FK → customer` | Target customer linkage |
+| `type` | VARCHAR(50) | `NOT NULL` | Notification type (e.g., `RECEIPT`) |
+| `subject` | VARCHAR(255) | `NULLABLE` | Mapped subject line |
+| `body` | TEXT | `NULLABLE` | Message body details |
+| `channel` | ENUM | `NOT NULL` | `EMAIL`, `SMS` |
+| `status` | ENUM | `NOT NULL` | `PENDING`, `SENT`, `FAILED`, `SKIPPED` |
+| `scheduled_at` | TIMESTAMP | `NULLABLE` | Mapped execution time |
+| `sent_at` | TIMESTAMP | `NULLABLE` | Dispatch timestamp |
+
+</details>
+
+<details>
+<summary>📜 22. audit_log — Immutable Platform Auditing</summary>
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `audit_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique record ID |
+| `actor` | VARCHAR(100) | `NOT NULL` | Acting user ID or process name |
+| `actor_role` | VARCHAR(50) | `NULLABLE` | Actor's role details |
+| `action` | VARCHAR(100) | `NOT NULL` | Action performed (e.g., `REFUND_ISSUED`) |
+| `entity_type` | VARCHAR(50) | `NOT NULL` | Target entity type (e.g., `PAYMENT`) |
+| `entity_id` | BIGINT | `NOT NULL` | Target entity ID |
+| `old_value` | JSON | `NULLABLE` | Entity state before modification |
+| `new_value` | JSON | `NULLABLE` | Entity state after modification |
+| `request_id` | VARCHAR(100) | `NULLABLE` | Request correlation ID |
+| `ip` | VARCHAR(45) | `NULLABLE` | Origin IP address |
+
+</details>
+
+<details>
+<summary>📊 23. revenue_snapshot — Daily Metric Snapshots</summary>
+
+| Column | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `snapshot_id` | BIGINT | `PK, AUTO_INCREMENT` | Unique snapshot identifier |
+| `snapshot_date` | DATE | `UNIQUE, NOT NULL` | Recording date |
+| `mrr_minor` | BIGINT | `NOT NULL` | MRR in minor units |
+| `arr_minor` | BIGINT | `NOT NULL` | ARR in minor units |
+| `arpu_minor` | BIGINT | `NOT NULL` | ARPU in minor units |
+| `active_customers`| INT | `NOT NULL` | Active subscriber count |
+| `new_customers` | INT | `DEFAULT 0` | Daily new subscriber count |
+| `churned_customers`| INT | `DEFAULT 0` | Daily churned count |
+| `gross_churn_percent`| DECIMAL(5,2)| `NOT NULL` | Gross churn percentage |
+| `net_churn_percent`| DECIMAL(5,2) | `NOT NULL` | Net churn percentage |
+| `ltv_minor` | BIGINT | `DEFAULT 0` | Average LTV in minor units |
+| `total_revenue_minor`| BIGINT | `NOT NULL` | Cumulative revenue in minor units |
+| `total_refunds_minor`| BIGINT | `DEFAULT 0` | Cumulative refunds in minor units |
+
+</details>
+
+---
+
+## ⚙️ Mathematical Billing & Calculations Framework
+
+StreamFlix handles billing calculations and plan upgrades with high precision to keep customer balances accurate:
+
+### 1. Mid-Cycle Active Proration Calculation
+When a customer upgrades or changes plans during an active billing cycle, the system calculates proration based on the unused portion of the current plan:
+
+$$\text{Days Remaining} = \text{Period End Date} - \text{Current Date}$$
+
+$$\text{Old Refund Credit} = \text{Old Invoice Paid Total} \times \frac{\text{Days Remaining}}{\text{Total Period Days}}$$
+
+$$\text{Net Immediate Charge} = \max\left(0, \text{New Plan Total Cost (with Tax)} - \text{Old Refund Credit}\right)$$
+
+On confirmation, the system generates an immediate `PAID` invoice for any positive charge and resets the customer's billing cycle starting from the current date.
+
+---
+
+### 2. Active Trial Period Transfers
+If a customer changes plans during a trial period, their trial is updated instead of charging them immediately:
+
+$$\text{Days Used} = \text{Current Date} - \text{Trial Start Date}$$
+
+$$\text{New Trial Days Remaining} = \max\left(0, \text{New Plan Trial Days} - \text{Days Used}\right)$$
+
+The system shifts the future `trialEndDate` based on the remaining trial days, updates the future `OPEN` trial invoice with the new plan details, applies any tax or coupon rules, and adjusts the invoice due date.
+
+---
+
+### 3. Region-Based Tax Rules (e.g., GST)
+Taxes are calculated based on the net subtotal after applying coupon discounts:
+
+$$\text{Subtotal} = \text{Plan Base Price} + \text{Add-On Prices} - \text{Coupon Discount}$$
+
+$$\text{Tax Rate (Region-Specific)} = \text{Subtotal} \times 0.18 \quad (\text{e.g., 18\% GST for IN})$$
+
+$$\text{Total Invoice Amount} = \text{Subtotal} + \text{Tax Rate}$$
+
+All operations use minor units (paise/cents) to ensure exact compliance with financial requirements.
+
+---
+
+### 4. Coupon Discounts
+The system validates applied coupons and applies the discount to the subtotal:
+
+*   **Percentage-Based Coupons:** Mapped as a percentage deduction.
+    $$\text{Discount} = \text{Base Subtotal} \times \left( \frac{\text{Coupon Amount}}{100} \right)$$
+*   **Fixed-Amount Coupons:** Deducts a flat rate (e.g., ₹100 or $10).
+    $$\text{Discount} = \text{Coupon Amount}$$
+
+> [!NOTE]
+> The net subtotal cannot be negative. If the discount exceeds the subtotal, the subtotal is set to `0`.
+
+---
+
+## 🔄 End-to-End Core Execution Flows (Code-Paths)
+
+This section maps step-by-step how data flows through the system during critical operations, starting from customer interactions to database mutations:
+
+### 1. Customer Registration Flow
+Tracks how a guest signs up for an account on the frontend and is registered securely in the backend database:
 
 ```
-Product ──(1:N)──▶ Plan
-Product ──(1:N)──▶ AddOn
-
-Customer ──(1:N)──▶ Subscription
-Customer ──(1:N)──▶ PaymentMethod
-Customer ──(1:N)──▶ Invoice
-Customer ──(1:N)──▶ Notification
-
-Subscription ──(N:1)──▶ Customer
-Subscription ──(N:1)──▶ Plan
-Subscription ──(1:1)──▶ PaymentMethod
-Subscription ──(1:N)──▶ SubscriptionItem
-Subscription ──(1:N)──▶ Invoice
-
-Invoice ──(1:N)──▶ InvoiceLineItem
-Invoice ──(1:N)──▶ Payment
-Invoice ──(1:N)──▶ CreditNote
-Invoice ──(0:1)──▶ DunningSchedule
+[React View: CustomerAuthPage.tsx]
+      │ (Fills in Name, Email, Password, clicks Sign Up)
+      ▼
+[API Client Wrapper: authService.ts]
+      │ (Dispatches POST HTTP Request to /api/customer/register)
+      ▼
+[Security Chain Filter: SecurityConfig.java]
+      │ (Matches permitAll() rules, bypasses session checks, forwards request)
+      ▼
+[MVC DispatcherServlet: AuthController.java]
+      │ (Parses payload, validates fields via @Valid on RegisterRequest)
+      ▼
+[Transactional Service Proxy: AuthServiceImpl.java]
+      │ (Checks if email already exists, hashes password using BCrypt with 10 rounds)
+      ▼
+[Database Persistence: MySQL DB]
+        - SQL: INSERT INTO user (email, password_hash, role='CUSTOMER', status='ACTIVE')
+        - SQL: INSERT INTO customer (user_id, full_name, currency='INR', status='ACTIVE')
 ```
 
 ---
 
-## API Endpoints
+### 2. Customer Session Login Flow
+Tracks how a user authenticates and establishes a secure session:
 
-Base URI: `/api/v1`
+```
+[React View: CustomerAuthPage.tsx]
+      │ (Inputs Email/Password, clicks Login)
+      ▼
+[API Client Wrapper: authService.ts]
+      │ (Dispatches POST Request to /api/customer/login)
+      ▼
+[MVC Controller: AuthController.java]
+      │ (Receives LoginRequest payload, delegates to AuthenticationManager)
+      ▼
+[Core Authentication Engine: DaoAuthenticationProvider]
+      │ (Retrieves details, calls passwordEncoder.matches(input, hashedRecord))
+      ▼
+[Security Context Binder: AuthController.java]
+      │ (Saves details to SecurityContextHolder on successful match)
+      ▼
+[Tomcat Servlet Session Builder]
+        - Generates secure session cookie: JSESSIONID=ABCD1234EFGH; HttpOnly; Secure=false
+        - Sends cookie in response headers, updating frontend state to authenticated
+```
 
-### Authentication
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/auth/login` | Authenticate user, returns JWT |
-| POST | `/auth/refresh` | Refresh access token |
+---
 
-### Customers
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/customers` | Create a new customer |
-| GET | `/customers/{id}` | Get customer by ID |
-| GET | `/customers?email=&status=` | Search/filter customers |
-| PUT | `/customers/{id}` | Update customer profile |
-| DELETE | `/customers/{id}` | Soft delete customer |
+### 3. Subscription Onboarding Flow (Multi-Step Checkout)
+Tracks how a customer sets up billing parameters and completes a subscription purchase:
 
-### Product Catalog
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/products` | Create a product |
-| GET | `/products` | List all products |
-| POST | `/plans` | Create a plan under a product |
-| GET | `/plans?productId=&currency=` | Filter plans |
-| POST | `/addons` | Create an add-on |
-| GET | `/addons` | List all add-ons |
+```
+[React Page Wizard: SubscriptionCheckoutPage.tsx]
+      │ (Validates billing, registers card, reviews total, clicks Purchase)
+      ▼
+[API Client Wrapper: customerService.ts]
+      │ (Dispatches CheckoutRequest to POST /api/customer/subscription/checkout)
+      ▼
+[Transactional Service Layer: SubscriptionFlowServiceImpl.java]
+      │ 1. Loads customer profile and validates selected plan
+      │ 2. Saves payment details (creates secure default PaymentMethod record)
+      │ 3. Sets subscription state to TRIALING (if plan includes trial days) or ACTIVE
+      │ 4. Calculates subtotal (Adds Plan and Addons, subtracts Coupons, adds 18% GST)
+      │ 5. Generates parent Invoice record and adds itemized InvoiceLineItem rows
+      │ 6. If ACTIVE, charges the card and logs transaction in PaymentRepository
+      ▼
+[Database Persistence: MySQL DB]
+        - SQL: INSERT INTO payment_method ...
+        - SQL: INSERT INTO subscription ...
+        - SQL: INSERT INTO subscription_item ...
+        - SQL: INSERT INTO invoice ...
+        - SQL: INSERT INTO payment ... (if ACTIVE)
+```
 
-### Subscriptions
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/subscriptions` | Create a new subscription |
-| GET | `/subscriptions/{id}` | Get subscription details |
-| PATCH | `/subscriptions/{id}` | Upgrade, downgrade, pause, or resume |
-| POST | `/subscriptions/{id}/cancel` | Cancel subscription |
-| GET | `/customers/{id}/subscriptions` | List customer's subscriptions |
+---
 
-### Billing & Invoices
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/billing/run` | Trigger billing cycle manually |
-| GET | `/billing/jobs?status=` | List billing job statuses |
-| GET | `/invoices?customerId=&status=` | List invoices with filters |
-| GET | `/invoices/{id}` | Get invoice details |
-| GET | `/invoices/{id}/pdf` | Download invoice as PDF |
-| POST | `/invoices/{id}/finalize` | Finalize a draft invoice |
-| POST | `/invoices/{id}/void` | Void an invoice |
-| POST | `/invoices/{id}/pay` | Mark invoice as paid |
-| POST | `/credit-notes` | Create a credit note |
+### 4. Mid-Cycle Prorated Upgrade Flow
+Tracks how an active plan is upgraded mid-cycle:
 
-### Payments
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/payments` | Process a payment |
-| GET | `/payments/{id}` | Get payment details |
-| POST | `/payments/{id}/refund` | Issue full or partial refund |
+```
+[React Plan Grid: SubscriptionPage.tsx]
+      │ (Customer selects a new plan tier, reviews proration, confirms upgrade)
+      ▼
+[API Client Wrapper: customerService.ts]
+      │ (Dispatches UpgradeSubscriptionRequest to PUT /api/customer/subscription/upgrade)
+      ▼
+[Transactional Service Layer: CustomerSubscriptionServiceImpl.java]
+      │ 1. Locks the active Customer and Subscription entities
+      │ 2. Calculates proration:
+      │    - Calculates unused credit on the old plan.
+      │    - Calculates total cost of the new plan.
+      │    - Net Amount Due = New Plan Cost - Unused Credit.
+      │ 3. Instantly updates the subscription's plan mapping
+      │ 4. Generates an immediate invoice marked as PAID for the proration fee
+      │ 5. Charges the tokenized payment method and logs the transaction
+      │ 6. Resets current_period_start to today and current_period_end to today + billing period
+      ▼
+[Database Persistence: MySQL DB]
+        - SQL: UPDATE subscription SET plan_id = newPlanId, current_period_start = ...
+        - SQL: INSERT INTO invoice (status = 'PAID', total_minor = prorationFee)
+        - SQL: INSERT INTO payment (status = 'SUCCESS')
+```
 
-### Taxes & Coupons
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/tax-rates` | Create a tax rate |
-| GET | `/tax-rates` | List tax rates |
-| POST | `/coupons` | Create a coupon |
-| GET | `/coupons` | List coupons |
-| POST | `/coupons/validate` | Validate a coupon code |
+---
 
-### Analytics & Reports
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/reports/revenue?from=&to=&granularity=` | Revenue report |
-| GET | `/reports/mrr?from=&to=` | MRR trend data |
-| GET | `/reports/churn?from=&to=` | Churn rate data |
-| GET | `/reports/export?format=csv&type=` | Export report |
+## 🔌 Comprehensive REST API Reference Manual
 
-### Audit & Notifications
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/audit-logs` | Create an audit log entry |
-| GET | `/audit-logs?customerId=&action=&from=&to=` | Query audit logs |
-| POST | `/notifications/send` | Send a notification |
+The StreamFlix REST API is mapped to `/api` and is structured logically by domain:
 
-### HTTP Status Codes
+### 👤 1. Authentication & Identity
+| Method | Endpoint | Allowed Roles | Description |
+| :---: | :--- | :---: | :--- |
+| **POST** | `/api/customer/register` | `PUBLIC` | Registers a new customer profile |
+| **POST** | `/api/customer/login` | `PUBLIC` | Authenticates customer credentials, returns session |
+| **POST** | `/api/manager/login` | `PUBLIC` | Authenticates management credentials |
+| **GET** | `/api/auth/me` | `AUTHENTICATED`| Retrieves the current user's profile context |
+| **POST**| `/logout` | `AUTHENTICATED`| Invalidates the session and clears cookies |
 
-| Code | Usage |
-|---|---|
-| 200 | Success |
-| 201 | Created |
-| 202 | Accepted (async processing) |
-| 400 | Bad Request (validation error) |
-| 401 | Unauthorized (missing/invalid token) |
-| 403 | Forbidden (insufficient role) |
-| 404 | Not Found |
-| 409 | Conflict (duplicate resource) |
-| 422 | Unprocessable Entity |
-| 429 | Too Many Requests |
-| 500 | Internal Server Error |
+---
 
-### Standard Error Response
+### 💳 2. Customer Profile & Subscriptions
+| Method | Endpoint | Allowed Roles | Description |
+| :---: | :--- | :---: | :--- |
+| **GET** | `/api/customer/profile` | `ROLE_CUSTOMER` | Retrieves the logged-in customer's profile |
+| **PUT** | `/api/customer/profile` | `ROLE_CUSTOMER` | Updates contact and address details |
+| **GET** | `/api/customer/plans` | `PUBLIC` | Lists all active subscription plans |
+| **GET** | `/api/customer/plans/featured` | `PUBLIC` | Lists recommended subscription plans |
+| **GET** | `/api/customer/subscription` | `ROLE_CUSTOMER` | Retrieves the active customer subscription details |
+| **POST**| `/api/customer/subscription/checkout` | `ROLE_CUSTOMER`| Completes purchase and starts a subscription |
+| **PUT** | `/api/customer/subscription/upgrade` | `ROLE_CUSTOMER` | Calculates proration and executes plan upgrade |
+| **POST**| `/api/customer/subscription/pause` | `ROLE_CUSTOMER` | Temporarily pauses subscription billing |
+| **POST**| `/api/customer/subscription/resume` | `ROLE_CUSTOMER` | Reactivates a paused subscription |
+| **POST**| `/api/customer/subscription/cancel` | `ROLE_CUSTOMER` | Cancels subscription billing at current period end |
+
+---
+
+### 🧾 3. Billing, Payments & Support
+| Method | Endpoint | Allowed Roles | Description |
+| :---: | :--- | :---: | :--- |
+| **GET** | `/api/customer/invoices` | `ROLE_CUSTOMER` | Retrieves invoice history for the current user |
+| **GET** | `/api/customer/invoices/{id}/pdf` | `ROLE_CUSTOMER` | Downloads the itemized invoice as a PDF |
+| **GET** | `/api/customer/payments` | `ROLE_CUSTOMER` | Retrieves payment transaction logs |
+| **GET** | `/api/customer/credit-notes` | `ROLE_CUSTOMER` | Lists credit notes issued to the customer |
+| **POST**| `/api/customer/coupons/apply` | `ROLE_CUSTOMER` | Applies a discount coupon to active billing |
+| **GET** | `/api/customer/coupons/validate`| `ROLE_CUSTOMER` | Validates coupon validity before checkout |
+| **GET** | `/api/customer/payment-methods` | `ROLE_CUSTOMER` | Lists registered credit card or UPI profiles |
+| **POST**| `/api/customer/payment-methods` | `ROLE_CUSTOMER` | Adds a credit card or UPI profile |
+| **PUT** | `/api/customer/payment-methods/{id}/default`| `ROLE_CUSTOMER`| Sets a payment method as the default choice |
+| **DELETE**| `/api/customer/payment-methods/{id}`| `ROLE_CUSTOMER` | Removes saved payment method details |
+| **GET** | `/api/customer/support/faqs` | `ROLE_CUSTOMER` | Lists platform FAQs |
+| **GET** | `/api/customer/support/tickets` | `ROLE_CUSTOMER` | Lists support tickets opened by the customer |
+| **POST**| `/api/customer/support/tickets` | `ROLE_CUSTOMER` | Submits a new support ticket request |
+
+---
+
+### 👑 4. Administrative Controls (Admin Panel)
+| Method | Endpoint | Allowed Roles | Description |
+| :---: | :--- | :---: | :--- |
+| **GET** | `/api/admin/metrics` | `ROLE_ADMIN` | Compiles platform-wide MRR, ARR, and active users |
+| **GET** | `/api/admin/customers` | `ROLE_ADMIN`, `SUPPORT`| Lists all customer accounts |
+| **PUT** | `/api/admin/customers/{id}/toggle-status`| `ROLE_ADMIN`| Suspends or reactivates customer access |
+| **POST**| `/api/admin/plans` | `ROLE_ADMIN` | Creates a new plan option |
+| **PUT** | `/api/admin/plans/{id}` | `ROLE_ADMIN` | Modifies plan configurations |
+| **PUT** | `/api/admin/plans/{id}/toggle-status`| `ROLE_ADMIN`| Toggles a plan between `ACTIVE` and `INACTIVE` |
+| **POST**| `/api/admin/addons` | `ROLE_ADMIN` | Creates an add-on option |
+| **PUT** | `/api/admin/addons/{id}` | `ROLE_ADMIN` | Modifies add-on configurations |
+| **PUT** | `/api/admin/addons/{id}/toggle-status`| `ROLE_ADMIN`| Toggles an add-on between `ACTIVE` and `INACTIVE` |
+| **POST**| `/api/admin/coupons` | `ROLE_ADMIN` | Generates a discount coupon code |
+| **PUT** | `/api/admin/coupons/{id}` | `ROLE_ADMIN` | Modifies coupon configurations |
+| **PUT** | `/api/admin/coupons/{id}/toggle-status`| `ROLE_ADMIN`| Toggles a coupon between `ACTIVE` and `DISABLED` |
+| **GET** | `/api/admin/staff` | `ROLE_ADMIN` | Lists all administrative staff accounts |
+| **POST**| `/api/admin/staff` | `ROLE_ADMIN` | Registers a new support or finance account |
+| **DELETE**| `/api/admin/staff/{id}` | `ROLE_ADMIN` | Deletes administrative staff accounts |
+
+---
+
+### ⚠️ Standard Error Payload
+All API failures return a structured JSON response:
 
 ```json
 {
-  "timestamp": "2026-04-15T10:30:00Z",
-  "requestId": "req_abc123",
-  "errorCode": "COUPON_EXPIRED",
-  "message": "The coupon code has expired",
-  "details": ["Coupon valid_to was 2026-03-31"],
-  "path": "/api/v1/coupons/validate"
+  "timestamp": "2026-05-07T14:30:00Z",
+  "requestId": "req_8765ab",
+  "errorCode": "PRORATION_UPGRADE_INVALID",
+  "message": "Calculated proration fee resulted in an invalid subtotal negative value.",
+  "details": ["Unused refund credit of 49900 paise exceeds the target price of 29900 paise."],
+  "path": "/api/customer/subscription/upgrade"
 }
 ```
 
 ---
 
-## Key Workflows
+## 🖥️ Frontend Client Architecture
 
-### 1. Subscription Creation
-
-```
-Customer selects Plan + Add-ons
-    │
-    ▼
-Validate coupon (if provided) ──▶ Coupon Service
-    │
-    ▼
-Create Subscription (status: TRIALING or ACTIVE)
-    │
-    ├── Trial? ──▶ No charge, schedule activation
-    │
-    └── No trial? ──▶ Generate Invoice
-                         │
-                         ▼
-                    Attempt Payment
-                         │
-                    ┌────┴────┐
-                    │         │
-                SUCCESS    FAILURE
-                    │         │
-                    ▼         ▼
-               Invoice    Invoice = PAYMENT_FAILED
-               = PAID     Schedule dunning retry
-               Send       Send failure notification
-               receipt
-```
-
-### 2. Daily Renewal Billing (Cron)
+The React frontend uses **Vite** and is structured logically to enforce access control:
 
 ```
-Cron Job (2:00 AM daily)
-    │
-    ▼
-Find all active subscriptions expiring tomorrow
-    │
-    ▼
-For each subscription:
-    ├── Skip if PAUSED
-    ├── Skip if already invoiced (idempotency)
-    │
-    ▼
-Generate Invoice (line items + tax + discount)
-    │
-    ▼
-Attempt Payment via Payment Service
-    │
-    ├── SUCCESS ──▶ Invoice = PAID, send receipt
-    │
-    └── FAILURE ──▶ Invoice = FAILED, enter dunning
-```
-
-### 3. Dunning & Retry
-
-```
-Payment Fails
-    │
-    ▼
-Create DunningSchedule (attempt_count = 0)
-    │
-    ▼
-Retry Schedule:
-    Day 1:  Retry ──▶ Success? ──▶ RESOLVED
-                  └──▶ Fail ──▶ Send "update card" email
-    Day 3:  Retry ──▶ Success? ──▶ RESOLVED
-                  └──▶ Fail ──▶ Send reminder
-    Day 7:  Retry ──▶ Success? ──▶ RESOLVED
-                  └──▶ Fail ──▶ EXHAUSTED
-                                    │
-                                    ▼
-                              Cancel subscription
-                              Send cancellation notice
-```
-
-### 4. Mid-Cycle Upgrade/Downgrade
-
-```
-Customer requests plan change
-    │
-    ▼
-Calculate proration:
-    Credit for unused days on old plan
-    Charge for remaining days on new plan
-    Net = Charge - Credit
-    │
-    ▼
-Update Subscription (new plan_id)
-    │
-    ├── Charge immediately ──▶ Generate invoice now
-    │
-    └── Defer to next renewal ──▶ Add proration line
-                                  to next invoice
+frontend/src/
+├── context/
+│   ├── AuthContext.tsx         # Restores sessions (fetchMe), manages login/logout global state
+│   └── CustomerContext.tsx     # Stores and refreshes customer profiles and billing defaults
+├── routes/
+│   └── RoleGuard.tsx           # Route protector (redirects users based on authentication roles)
+├── pages/
+│   ├── auth/
+│   │   └── CustomerAuthPage.tsx # Standard register and login gateway forms
+│   ├── customer/
+│   │   ├── OverviewPage.tsx    # Displays active subscriptions, trial days, and upcoming charges
+│   │   ├── BillingPage.tsx     # Invoice ledger, credit note listings, and PDF downloads
+│   │   ├── PaymentMethodsPage.tsx # Secure credit card and UPI management panel
+│   │   ├── SubscriptionPage.tsx # Plan selection cards, comparison grids, and upgrades
+│   │   ├── SubscriptionCheckoutPage.tsx # Multi-step checkout review wizard
+│   │   └── SupportPage.tsx     # FAQ accordions and helpdesk ticketing interface
+│   └── admin/
+│       └── AdminDashboardPage.tsx # Revenue charts, plan editors, and staff controls
+└── services/
+    ├── authService.ts          # Authentication requests wrapper (login, register, fetchMe, logout)
+    └── customerService.ts      # Billing requests wrapper (getInvoices, addPaymentMethod, upgradePlan)
 ```
 
 ---
 
-## Authentication & Authorization
+## 🛠️ Quick Start & Developer Setup Guide
 
-### JWT Flow
-
-1. User sends credentials to `POST /auth/login`
-2. Server validates and returns `accessToken` + `refreshToken`
-3. Client includes `Authorization: Bearer <token>` on all requests
-4. API Gateway validates token and extracts role
-5. Each endpoint checks role-based permissions
-
-### Role Permissions
-
-| Resource | ADMIN | FINANCE | SUPPORT | CUSTOMER |
-|---|:---:|:---:|:---:|:---:|
-| Product/Plan CRUD | ✅ | ❌ | ❌ | ❌ |
-| Customer Management | ✅ | ❌ | ✅ | Own only |
-| Subscription Actions | ✅ | ❌ | ✅ | Own only |
-| View Invoices | ✅ | ✅ | ✅ | Own only |
-| Issue Refunds | ✅ | ❌ | ✅ | ❌ |
-| Revenue Reports | ✅ | ✅ | ❌ | ❌ |
-| Audit Logs | ✅ | ✅ | ❌ | ❌ |
-| Coupon/Tax Management | ✅ | ❌ | ❌ | ❌ |
-
----
-
-## Environment Setup
+Follow these steps to set up the Spring Boot server and React frontend in your local development environment:
 
 ### Prerequisites
+*   **Java Development Kit (JDK):** Version 21
+*   **Node.js:** Version 18 or higher (with npm)
+*   **Build Tool:** Maven 3.8+
+*   **Database Server:** MySQL 8.0+
 
-- Java 17+
-- Maven 3.8+
-- MySQL 8.0+
-- Node.js 18+ (for frontend)
+---
 
-### Backend Setup
+### Step 1: Initialize the MySQL Database
+1.  Open your MySQL terminal or database client and run:
+    ```sql
+    CREATE DATABASE subscription_billing;
+    ```
+2.  Import the pre-configured schema and seed data from the resources directory:
+    ```bash
+    mysql -u root -p subscription_billing < backend/src/main/resources/schema.sql
+    ```
 
+---
+
+### Step 2: Configure System Properties
+Open [application.properties](file:///D:/Projects/Infosys%20Project/StreamFlixApp/backend/src/main/resources/application.properties) and update your database connection credentials if they differ from the defaults:
+
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/subscription_billing
+spring.datasource.username=root
+spring.datasource.password=your_mysql_password
+```
+
+---
+
+### Step 3: Run the Backend Application
+1.  Navigate to the backend directory:
+    ```bash
+    cd backend
+    ```
+2.  Clean, compile, and run the Spring Boot server using Maven:
+    ```bash
+    mvn clean install
+    mvn spring-boot:run
+    ```
+3.  The backend server will start on port **`8765`**.
+
+---
+
+### Step 4: Run the Frontend Application
+1.  Open a new terminal window and navigate to the frontend directory:
+    ```bash
+    cd frontend
+    ```
+2.  Install the required dependencies:
+    ```bash
+    npm install
+    ```
+3.  Start the Vite local development server:
+    ```bash
+    npm run dev
+    ```
+4.  The frontend client will open on **`http://localhost:3000`**.
+
+---
+
+### 🔐 Pre-Seeded Portals Staff Logins
+You can log in immediately to review the different portals using these seeded accounts:
+
+| Portal Role | Email Username | Default Password | Access Level |
+| :---: | :--- | :--- | :--- |
+| **System Admin** | `admin@streamflix.com` | `Password123!` | Management panels, metrics, catalog updates |
+| **Finance Lead** | `finance@streamflix.com` | `Password123!` | Revenue analytics, invoices, credit logs |
+| **Support Lead**| `support@streamflix.com` | `Password123!` | Ticketing review, FAQs, customer accounts |
+
+---
+
+### 🧪 Run Automated Tests
+To run backend unit and integration tests (JUnit 5 + Mockito) and verify system integrity, run:
 ```bash
-# Clone the repository
-git clone https://github.com/<your-org>/subscription-billing.git
-cd subscription-billing
-
-# Configure database
-mysql -u root -p -e "CREATE DATABASE subscription_billing;"
-
-# Update application.yml with your DB credentials
-
-# Build and run
-mvn clean install
-mvn spring-boot:run
-```
-
-### Frontend Setup
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### Environment Variables
-
-| Variable | Description | Default |
-|---|---|---|
-| `DB_HOST` | MySQL host | `localhost` |
-| `DB_PORT` | MySQL port | `3306` |
-| `DB_NAME` | Database name | `subscription_billing` |
-| `DB_USER` | Database username | `root` |
-| `DB_PASSWORD` | Database password | — |
-| `JWT_SECRET` | JWT signing key | — |
-| `JWT_EXPIRY_MS` | Token expiry in milliseconds | `3600000` |
-
----
-
-## Project Structure
-
-```
-subscription-billing/
-├── api-gateway/
-│   └── src/main/java/.../gateway/
-├── auth-service/
-│   └── src/main/java/.../auth/
-│       ├── controller/
-│       ├── dto/
-│       ├── entity/
-│       ├── repository/
-│       ├── service/
-│       ├── config/
-│       └── exception/
-├── customer-service/
-├── catalog-service/
-├── subscription-service/
-├── billing-service/
-├── invoice-service/
-├── payment-service/
-├── reporting-service/
-├── notification-service/
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   └── utils/
-│   └── package.json
-└── README.md
-```
-
-Each service follows the same internal structure:
-
-```
-{service-name}/
-└── src/main/java/com/billing/{module}/
-    ├── controller/    ← REST API endpoints
-    ├── dto/           ← Request/Response objects
-    ├── entity/        ← JPA entity classes
-    ├── repository/    ← Spring Data JPA interfaces
-    ├── service/       ← Business logic
-    ├── config/        ← Module configuration
-    └── exception/     ← Custom exceptions + handler
+cd backend
+mvn test
 ```
 
 ---
-
-## Non-Functional Requirements
-
-| Requirement | Target |
-|---|---|
-| **Test Coverage** | ≥ 80% (JUnit + Mockito) |
-| **API Documentation** | Swagger/OpenAPI for every endpoint |
-| **Input Validation** | Bean Validation (`@Valid`, `@NotNull`) on all inputs |
-| **Error Handling** | Centralized via `@ControllerAdvice` per service |
-| **Logging** | Structured JSON with `correlationId` and `requestId` |
-| **Monetary Precision** | All amounts in minor units (paise/cents) |
-| **Time Handling** | All internal timestamps in UTC |
-| **Security** | BCrypt passwords, JWT tokens, RBAC enforcement |
-| **Resilience** | Circuit breaker: 3s timeout, 50% error threshold, 60s open state |
-| **Idempotency** | Payment and invoice creation protected by idempotency keys |
-
----
-
-## License
-
-This project is developed as an academic project for educational purposes.
-
----
-
 <p align="center">
-  <strong>Subscription Billing & Revenue Management System</strong><br>
-  Built with Spring Boot · MySQL · React
+  <strong>StreamFlix Subscription Billing & Revenue Monolith</strong><br>
+  Designed for Perfect Computational Precision and Secure Subscription Lifecycles
 </p>
