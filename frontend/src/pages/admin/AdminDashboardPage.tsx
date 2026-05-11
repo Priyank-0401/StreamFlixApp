@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Layers, TicketPercent, Puzzle, Percent, BookOpen, Users, UserCog, MoreHorizontal } from 'lucide-react';
+import { Package, Layers, TicketPercent, Puzzle, Percent, BookOpen, Users, UserCog } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { StatsCard } from '../../components/admin/dashboard/StatsCard';
 import { PageHeader } from '../../components/admin/shared/PageHeader';
@@ -133,9 +133,9 @@ export const AdminDashboardPage: React.FC = () => {
                       {product.plansCount}
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <button className="action-icon-btn" style={{ marginLeft: 'auto' }}>
-                        <MoreHorizontal size={16} />
-                      </button>
+                      <Link to="/admin/product" className="btn-admin-sm btn-toggle-inactive" style={{ textDecoration: 'none' }}>
+                        View
+                      </Link>
                     </td>
                   </tr>
                 ))}

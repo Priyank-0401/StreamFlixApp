@@ -45,10 +45,10 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
            method.setCardBrand(detectCardBrand(request.getCardNumber()));
            method.setExpiryMonth(request.getExpiryMonth());
            method.setExpiryYear(request.getExpiryYear());
-           method.setGatewayToken("tok_" + System.currentTimeMillis());
+           method.setGatewayToken("mock_token_card_" + request.getCardNumber());
        } else if (PaymentType.UPI.equals(request.getPaymentType())) {
            method.setUpiId(request.getUpiId());
-           method.setGatewayToken("tok_upi_" + System.currentTimeMillis());
+           method.setGatewayToken("mock_token_upi_" + request.getUpiId());
        }
 
        List<PaymentMethod> existing = paymentMethodRepository.findByCustomer_Id(customer.getId());

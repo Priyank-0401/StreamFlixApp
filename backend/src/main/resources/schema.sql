@@ -920,8 +920,8 @@ VALUES (
         '2026-01-01'
     ),
     (
-        'Sales Tax (US-CA)',
-        'US-CA',
+        'Sales Tax (US)',
+        'US',
         7.25,
         FALSE,
         '2026-01-01'

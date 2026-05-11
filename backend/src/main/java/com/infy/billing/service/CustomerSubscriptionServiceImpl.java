@@ -40,6 +40,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
    private final MockPaymentGateway mockPaymentGateway;
    private final TaxRateRepository taxRateRepository;
    private final CreditNoteRepository creditNoteRepository;
+   private final SubscriptionFlowService subscriptionFlowService;
 
    public SubscriptionDTO getCurrentSubscription(String email) {
        Customer customer = getCustomerByEmail(email);
@@ -63,37 +64,17 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
        Plan plan = planRepository.findById(request.getPlanId())
                .orElseThrow(() -> new RuntimeException("Plan not found"));
-       
-       PaymentMethod paymentMethod = paymentMethodRepository.findById(request.getPaymentMethodId())
-               .orElseThrow(() -> new RuntimeException("Payment method not found"));
+               
+       SubscriptionCompletionRequest compReq = new SubscriptionCompletionRequest();
+       compReq.setPlanId(request.getPlanId());
+       compReq.setPaymentMethodId(request.getPaymentMethodId());
+       compReq.setBillingPeriod(plan.getBillingPeriod());
+       compReq.setCouponCode(request.getCouponCode());
 
-       LocalDate now = LocalDate.now();
-       LocalDate trialEnd = now.plusDays(plan.getTrialDays());
-       LocalDate periodEnd = plan.getBillingPeriod() == BillingPeriod.MONTHLY ? now.plusMonths(1) : now.plusYears(1);
+       SubscriptionResponse resp = subscriptionFlowService.completeSubscription(customer.getId(), compReq);
 
-       Subscription subscription = new Subscription();
-       subscription.setCustomer(customer);
-       subscription.setPlan(plan);
-       subscription.setStatus(plan.getTrialDays() > 0 ? Status.TRIALING : Status.ACTIVE);
-       subscription.setStartDate(now);
-       subscription.setTrialEndDate(trialEnd);
-       subscription.setCurrentPeriodStart(now);
-       subscription.setCurrentPeriodEnd(periodEnd);
-       subscription.setCancelAtPeriodEnd(false);
-       subscription.setPaymentMethodId(paymentMethod.getId());
-       subscription.setCurrency(customer.getCurrency());
-       subscription.setCreatedAt(LocalDateTime.now());
-
-       subscription = subscriptionRepository.save(subscription);
-
-       SubscriptionItem planItem = new SubscriptionItem();
-       planItem.setSubscription(subscription);
-       planItem.setItemType(ItemType.PLAN);
-       planItem.setPlan(plan);
-       planItem.setUnitPriceMinor(plan.getDefaultPriceMinor());
-       planItem.setQuantity(1);
-       planItem.setTaxMode(plan.getTaxMode());
-       subscriptionItemRepository.save(planItem);
+       Subscription subscription = subscriptionRepository.findById(resp.getSubscriptionId())
+               .orElseThrow(() -> new RuntimeException("Subscription not found after creation"));
 
        return mapToSubscriptionDTO(subscription);
    }

@@ -64,7 +64,6 @@ export const StaffAccountsPage: React.FC = () => {
         }}
         disabled={currentUser?.email === r.email}
         title={currentUser?.email === r.email ? "You cannot remove your own account" : ""}
-        style={currentUser?.email === r.email ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
       >
         Remove
       </button>

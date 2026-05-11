@@ -49,13 +49,13 @@ export const PriceBooksPage: React.FC = () => {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this price book entry?\n\nNote: If active subscriptions use this plan, you must archive the plan instead.')) return;
+  const handleArchive = async (id: number) => {
+    if (!window.confirm('Archive this price book entry?\n\nNote: If active subscriptions use this plan, you must archive the plan instead.')) return;
     try {
       await archivePriceBook(id);
       load();
     } catch (e: any) {
-      alert(e.message || 'Delete failed');
+      alert(e.message || 'Archive failed');
     }
   };
 
@@ -66,7 +66,7 @@ export const PriceBooksPage: React.FC = () => {
     { key: 'priceMinor', header: 'Price', render: (r: PriceBookResponse) => formatPrice(r.priceMinor, r.currency) },
     { key: 'effectiveFrom', header: 'Effective From' },
     { key: 'actions', header: 'Actions', render: (r: PriceBookResponse) => (
-      <button className="btn-admin-sm btn-delete-sm" onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }}>Delete</button>
+      <button className="btn-admin-sm btn-delete-sm" onClick={(e) => { e.stopPropagation(); handleArchive(r.id); }}>Archive</button>
     )},
   ];
 

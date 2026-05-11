@@ -9,17 +9,23 @@ import java.util.Set;
 /**
  * Implementation of {@link MockPaymentGateway}.
  *
- * <p>Simulates a payment gateway for testing and development.</p>
+ * <p>
+ * Simulates a payment gateway for testing and development.
+ * </p>
  *
- * <p>Deterministic failures:</p>
+ * <p>
+ * Deterministic failures:
+ * </p>
  * <ul>
- *   <li>Card numbers containing "decline" always fail</li>
- *   <li>Card number 4000000000000002 always fails (Stripe-style test card)</li>
- *   <li>UPI IDs "decline@upi", "fail@upi", "0000000000@upi" always fail</li>
+ * <li>Card numbers containing "decline" always fail</li>
+ * <li>Card number 4000000000000002 always fails (Stripe-style test card)</li>
+ * <li>UPI IDs "decline@upi", "fail@upi", "0000000000@upi" always fail</li>
  * </ul>
  *
- * <p>For non-test payment methods, a 20% random failure rate is applied
- * to simulate real-world payment unreliability.</p>
+ * <p>
+ * For non-test payment methods, a 20% random failure rate is applied
+ * to simulate real-world payment unreliability.
+ * </p>
  */
 @Component
 public class MockPaymentGatewayImpl implements MockPaymentGateway {
@@ -28,14 +34,12 @@ public class MockPaymentGatewayImpl implements MockPaymentGateway {
             "decline",
             "4000000000000002",
             "4000000000009995",
-            "4000000000000127"
-    );
+            "4000000000000127");
 
     private static final Set<String> DECLINE_UPI_IDS = Set.of(
             "decline@upi",
             "fail@upi",
-            "0000000000@upi"
-    );
+            "0000000000@upi");
 
     private static final double DEFAULT_RANDOM_FAILURE_RATE = 0.20; // 20% random failure for realism
 
@@ -45,8 +49,7 @@ public class MockPaymentGatewayImpl implements MockPaymentGateway {
     public String charge(String gatewayToken, long amountMinor, String currency) {
         if (shouldDecline(gatewayToken)) {
             throw CustomException.paymentFailed(
-                    "Payment declined. Use a different payment method or contact your bank."
-            );
+                    "Payment declined. Use a different payment method or contact your bank.");
         }
         return "mock_charge_" + System.currentTimeMillis();
     }
