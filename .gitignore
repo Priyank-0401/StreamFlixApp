@@ -2,3 +2,7 @@
 .planning
 
 backend/target/*
+
+/.windsurf
+/.windsurf/*
+.windsurf
