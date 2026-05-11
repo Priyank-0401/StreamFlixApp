@@ -109,7 +109,7 @@ CREATE TABLE plan (
     default_currency CHAR(3) NOT NULL,
     trial_days INT NOT NULL DEFAULT 7,
     setup_fee_minor BIGINT NOT NULL DEFAULT 0,
-    tax_mode ENUM('INCLUSIVE', 'EXCLUSIVE') NOT NULL DEFAULT 'EXCLUSIVE',
+    tax_mode ENUM('INCLUSIVE', 'EXCLUSIVE') NOT NULL DEFAULT 'INCLUSIVE',
     effective_from DATE NOT NULL,
     effective_to DATE NULL,
     status ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
@@ -146,7 +146,7 @@ CREATE TABLE add_on (
     price_minor BIGINT NOT NULL,
     currency CHAR(3) NOT NULL,
     billing_period ENUM('MONTHLY', 'YEARLY') NOT NULL,
-    tax_mode ENUM('INCLUSIVE', 'EXCLUSIVE') NOT NULL DEFAULT 'EXCLUSIVE',
+    tax_mode ENUM('INCLUSIVE', 'EXCLUSIVE') NOT NULL DEFAULT 'INCLUSIVE',
     status ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (product_id) REFERENCES product (product_id)
@@ -209,7 +209,7 @@ CREATE TABLE subscription_item (
     component_id BIGINT NULL,
     unit_price_minor BIGINT NOT NULL,
     quantity INT NOT NULL DEFAULT 1,
-    tax_mode ENUM('INCLUSIVE', 'EXCLUSIVE') NOT NULL DEFAULT 'EXCLUSIVE',
+    tax_mode ENUM('INCLUSIVE', 'EXCLUSIVE') NOT NULL DEFAULT 'INCLUSIVE',
     discount_id BIGINT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (subscription_id) REFERENCES subscription (subscription_id),
@@ -567,7 +567,7 @@ VALUES (
         'INR',
         7,
         0,
-        'EXCLUSIVE',
+        'INCLUSIVE',
         '2026-01-01',
         'ACTIVE'
     ),
@@ -579,7 +579,7 @@ VALUES (
         'INR',
         7,
         0,
-        'EXCLUSIVE',
+        'INCLUSIVE',
         '2026-01-01',
         'ACTIVE'
     ),
@@ -591,7 +591,7 @@ VALUES (
         'INR',
         14,
         0,
-        'EXCLUSIVE',
+        'INCLUSIVE',
         '2026-01-01',
         'ACTIVE'
     ),
@@ -603,7 +603,7 @@ VALUES (
         'INR',
         14,
         0,
-        'EXCLUSIVE',
+        'INCLUSIVE',
         '2026-01-01',
         'ACTIVE'
     ),
@@ -615,7 +615,7 @@ VALUES (
         'INR',
         14,
         0,
-        'EXCLUSIVE',
+        'INCLUSIVE',
         '2026-01-01',
         'ACTIVE'
     ),
@@ -627,7 +627,19 @@ VALUES (
         'INR',
         14,
         0,
-        'EXCLUSIVE',
+        'INCLUSIVE',
+        '2026-01-01',
+        'ACTIVE'
+    ),
+    (
+        1,
+        'Test Plan (No Trial)',
+        'MONTHLY',
+        9900,
+        'INR',
+        0,
+        0,
+        'INCLUSIVE',
         '2026-01-01',
         'ACTIVE'
     );
@@ -767,6 +779,27 @@ VALUES (
         'GBP',
         5999,
         '2026-01-01'
+    ),
+    (
+        7,
+        'IN',
+        'INR',
+        9900,
+        '2026-01-01'
+    ),
+    (
+        7,
+        'US',
+        'USD',
+        199,
+        '2026-01-01'
+    ),
+    (
+        7,
+        'GB',
+        'GBP',
+        149,
+        '2026-01-01'
     );
 
 -- Add-on: Ad-Free Experience (tied to StreamFlix, product_id = 1)
@@ -787,7 +820,7 @@ VALUES (
         9900,
         'INR',
         'MONTHLY',
-        'EXCLUSIVE',
+        'INCLUSIVE',
         'ACTIVE'
     ),
     (
@@ -796,7 +829,7 @@ VALUES (
         99900,
         'INR',
         'YEARLY',
-        'EXCLUSIVE',
+        'INCLUSIVE',
         'ACTIVE'
     );
 

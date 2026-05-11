@@ -92,7 +92,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
             paymentMethod.setCardBrand(brand);
             paymentMethod.setExpiryMonth(Integer.parseInt(request.getExpiryMonth()));
             paymentMethod.setExpiryYear(Integer.parseInt(request.getExpiryYear()));
-            paymentMethod.setGatewayToken("mock_token_card_" + UUID.randomUUID().toString().substring(0, 8));
+            paymentMethod.setGatewayToken("mock_token_card_" + cardNumber);
 
         } else if (request.getPaymentType() == PaymentType.UPI) {
             paymentMethod.setUpiId(request.getUpiId());
