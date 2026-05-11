@@ -27,4 +27,5 @@ public class SubscriptionDTO {
    private List<MeteredUsageDTO> meteredUsage;
    private Long discountMinor;
    private Long totalDueMinor;
+   private Long creditBalanceMinor;
 }

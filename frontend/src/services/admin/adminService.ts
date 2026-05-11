@@ -71,8 +71,8 @@ export const createPriceBook = (data: any) =>
   adminFetch<PriceBookResponse>('/pricebooks', { method: 'POST', body: JSON.stringify(data) });
 export const updatePriceBook = (id: number, data: any) =>
   adminFetch<PriceBookResponse>(`/pricebooks/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-export const deletePriceBook = (id: number) =>
-  adminFetch<void>(`/pricebooks/${id}`, { method: 'DELETE' });
+export const archivePriceBook = (id: number) =>
+  adminFetch<void>(`/pricebooks/${id}/archive`, { method: 'PUT' });
 
 // ==================== ADD-ONS ====================
 export const getAddOns = () => adminFetch<AddOnResponse[]>('/addons');
@@ -112,8 +112,6 @@ export const toggleCouponStatus = (id: number) =>
 
 // ==================== CUSTOMERS ====================
 export const getCustomers = () => adminFetch<CustomerResponse[]>('/customers');
-export const toggleCustomerStatus = (id: number) =>
-  adminFetch<void>(`/customers/${id}/toggle-status`, { method: 'PATCH' });
 
 // ==================== STAFF ====================
 export const getStaff = () => adminFetch<StaffResponse[]>('/staff');

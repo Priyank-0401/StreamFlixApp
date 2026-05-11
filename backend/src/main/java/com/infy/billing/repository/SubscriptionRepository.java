@@ -13,4 +13,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
 
    List<Subscription> findByCustomer_IdAndStatusIn(Long id, List<Status> statuses);
    Optional<Subscription> findByCustomer_IdAndStatus(Long customerId, Status status);
+
+   long countByPlan_IdAndStatusIn(Long planId, List<Status> statuses);
 }

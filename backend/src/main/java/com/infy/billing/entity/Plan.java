@@ -50,7 +50,7 @@ public class Plan {
    @Builder.Default
    @Enumerated(EnumType.STRING)
    @Column(name = "tax_mode", nullable = false)
-   private TaxMode taxMode = TaxMode.EXCLUSIVE;
+   private TaxMode taxMode = TaxMode.INCLUSIVE;
 
    @Column(name = "effective_from", nullable = false)
    private LocalDate effectiveFrom;

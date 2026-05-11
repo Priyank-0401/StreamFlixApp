@@ -54,7 +54,8 @@ export const OverviewPage: React.FC = () => {
   };
 
   const formatAmount = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('en-IN', {
+    const locale = currency === 'USD' ? 'en-US' : currency === 'GBP' ? 'en-GB' : 'en-IN';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency || 'INR',
     }).format(amount / 100);
@@ -71,23 +72,7 @@ export const OverviewPage: React.FC = () => {
 
   const getNextBillingAmount = () => {
     if (!subscription) return 0;
-    
-    // Use backend calculated total if available and not null
-    if (subscription.totalDueMinor !== undefined && subscription.totalDueMinor !== null) {
-      return subscription.totalDueMinor;
-    }
-    
-    // Fallback to manual calculation
-    const planAmount = subscription.planPriceMinor || 0;
-    const addonAmount = (subscription.addOns || []).reduce((sum, addon) =>
-      sum + (addon.unitPriceMinor * addon.quantity), 0);
-    const subtotal = planAmount + addonAmount;
-    
-    // Subtract discount if any
-    const finalSubtotal = Math.max(0, subtotal - (subscription.discountMinor || 0));
-    
-    // Add 18% tax
-    return Math.round(finalSubtotal * 1.18);
+    return subscription.totalDueMinor || 0;
   };
 
   const getStatusColor = (status: string) => {
@@ -185,6 +170,26 @@ export const OverviewPage: React.FC = () => {
               {subscription?.status === 'TRIALING' 
                 ? `Amount after trial: ${formatAmount(getNextBillingAmount(), subscription?.currency || 'INR')}`
                 : `Amount: ${formatAmount(getNextBillingAmount(), subscription?.currency || 'INR')}`}
+            </p>
+          </div>
+        </div>
+
+        {/* Account Credit Card */}
+        <div className="stat-card">
+          <div className="stat-card-content">
+            <div className="stat-card-header">
+              <div>
+                <p className="stat-label">Account Credit</p>
+                <p className="stat-value">
+                  {formatAmount(subscription?.creditBalanceMinor || 0, subscription?.currency || 'INR')}
+                </p>
+              </div>
+              <div className="stat-icon" style={{ color: '#22c55e' }}>
+                <DollarSign size={24} />
+              </div>
+            </div>
+            <p className="stat-subtext">
+              Auto-applied to your next invoice
             </p>
           </div>
         </div>

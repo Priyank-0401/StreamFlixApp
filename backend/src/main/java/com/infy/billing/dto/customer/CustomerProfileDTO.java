@@ -19,5 +19,6 @@ public class CustomerProfileDTO {
    private String addressLine1;
    private String postalCode;
    private Status status;
+   private Long creditBalanceMinor;
    private LocalDateTime createdAt;
 }

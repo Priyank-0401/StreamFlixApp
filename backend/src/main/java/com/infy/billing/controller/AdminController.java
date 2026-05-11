@@ -90,9 +90,9 @@ public class AdminController {
        return ResponseEntity.ok(adminService.updatePriceBookEntry(id, entry));
    }
 
-   @DeleteMapping("/pricebooks/{id}")
-   public ResponseEntity<Void> deletePriceBookEntry(@PathVariable Long id) {
-       adminService.deletePriceBookEntry(id);
+   @PutMapping("/pricebooks/{id}/archive")
+   public ResponseEntity<Void> archivePriceBookEntry(@PathVariable Long id) {
+       adminService.archivePriceBookEntry(id);
        return ResponseEntity.ok().build();
    }
 
@@ -188,12 +188,6 @@ public class AdminController {
    @GetMapping("/customers")
    public ResponseEntity<List<CustomerResponse>> getAllCustomers() {
        return ResponseEntity.ok(adminService.getAllCustomers());
-   }
-
-   @PatchMapping("/customers/{id}/toggle-status")
-   public ResponseEntity<Void> toggleCustomerStatus(@PathVariable Long id) {
-       adminService.toggleCustomerStatus(id);
-       return ResponseEntity.ok().build();
    }
 
    // ==================== STAFF ====================

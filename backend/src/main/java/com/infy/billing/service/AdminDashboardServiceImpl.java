@@ -19,7 +19,6 @@ import com.infy.billing.dto.admin.StaffResponse;
 import com.infy.billing.dto.admin.SubscriptionResponse;
 import com.infy.billing.entity.AddOn;
 import com.infy.billing.entity.Coupon;
-import com.infy.billing.entity.Customer;
 import com.infy.billing.entity.MeteredComponent;
 import com.infy.billing.entity.Plan;
 import com.infy.billing.entity.PriceBookEntry;
@@ -175,7 +174,19 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     @Override
-    public void deletePriceBookEntry(Long id) {
+    public void archivePriceBookEntry(Long id) {
+        PriceBookEntry entry = priceBookEntryRepository.findById(id)
+                .orElseThrow(() -> CustomException.notFound("Price book entry not found"));
+
+        long activeSubs = subscriptionRepository.countByPlan_IdAndStatusIn(
+                entry.getPlan().getId(),
+                List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED)
+        );
+        if (activeSubs > 0) {
+            throw CustomException.conflict(
+                    "Cannot delete: " + activeSubs + " active subscription(s) use this plan. Archive the plan instead."
+            );
+        }
         priceBookEntryRepository.deleteById(id);
     }
 
@@ -311,14 +322,6 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     @Override
     public List<CustomerResponse> getAllCustomers() {
         return customerRepository.findAll().stream().map(CustomerResponse::from).toList();
-    }
-
-    @Override
-    public void toggleCustomerStatus(Long id) {
-        Customer customer = customerRepository.findById(id)
-                .orElseThrow(() -> CustomException.notFound("Customer not found"));
-        customer.setStatus(customer.getStatus().equals(Status.ACTIVE) ? Status.INACTIVE : Status.ACTIVE);
-        customerRepository.save(customer);
     }
 
     // ==================== STAFF ====================

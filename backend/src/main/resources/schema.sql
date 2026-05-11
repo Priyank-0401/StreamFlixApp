@@ -76,6 +76,7 @@ CREATE TABLE customer (
     city VARCHAR(100) NULL,
     address_line1 VARCHAR(255) NULL,
     postal_code VARCHAR(20) NULL,
+    credit_balance_minor BIGINT NOT NULL DEFAULT 0, -- Account credit balance for downgrade proration
     status ENUM(
         'ACTIVE',
         'INACTIVE',

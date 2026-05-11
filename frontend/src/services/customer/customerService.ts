@@ -77,6 +77,7 @@ export interface Subscription {
   meteredUsage: MeteredUsage[];
   discountMinor?: number;
   totalDueMinor?: number;
+  creditBalanceMinor?: number;
 }
 
 export interface SubscriptionAddOn {

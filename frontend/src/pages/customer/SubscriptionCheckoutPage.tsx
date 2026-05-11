@@ -56,25 +56,23 @@ export const SubscriptionCheckoutPage: React.FC = () => {
 
   const formatPrice = (amount: number): string => {
     const currency = plan?.defaultCurrency || 'INR';
-    return new Intl.NumberFormat('en-IN', {
+    const locale = currency === 'USD' ? 'en-US' : currency === 'GBP' ? 'en-GB' : 'en-IN';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency,
     }).format(amount / 100);
   };
 
-  const TAX_RATE = 0.18; // 18% GST
-
   const calculateTotal = () => {
     if (!plan) return 0;
-    let subtotal = plan.defaultPriceMinor;
+    let total = plan.defaultPriceMinor;
     selectedAddons.forEach(addonId => {
       const addon = addons.find(a => a.addOnId === addonId);
-      if (addon) subtotal += addon.priceMinor;
+      if (addon) total += addon.priceMinor;
     });
-    subtotal -= discount;
-    // Add 18% GST
-    subtotal += Math.round(subtotal * TAX_RATE);
-    return subtotal;
+    total -= discount;
+    // Tax is included in the price (INCLUSIVE is the default tax mode)
+    return total;
   };
 
   const handleApplyCoupon = () => {
@@ -351,14 +349,6 @@ export const SubscriptionCheckoutPage: React.FC = () => {
                   <span className="item-value">-{formatPrice(discount)}</span>
                 </div>
               )}
-
-              <div className="summary-item">
-                <span className="item-label">GST (18%)</span>
-                <span className="item-value">+{formatPrice(Math.round((plan.defaultPriceMinor + selectedAddons.reduce((sum, id) => {
-                  const addon = addons.find(a => a.addOnId === id);
-                  return sum + (addon?.priceMinor || 0);
-                }, 0) - discount) * 0.18))}</span>
-              </div>
 
               <div className="summary-divider"></div>
 

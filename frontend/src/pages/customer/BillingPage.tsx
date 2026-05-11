@@ -44,7 +44,8 @@ export const BillingPage: React.FC = () => {
   };
 
   const formatAmount = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('en-IN', {
+    const locale = currency === 'USD' ? 'en-US' : currency === 'GBP' ? 'en-GB' : 'en-IN';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency || 'INR'
     }).format(amount / 100);
@@ -149,7 +150,7 @@ export const BillingPage: React.FC = () => {
             <p className="summary-value">
               {formatAmount(
                 invoices.filter(i => i.status === 'OPEN').reduce((sum, i) => sum + i.balanceMinor, 0),
-                'INR'
+                subscription?.currency || 'INR'
               )}
             </p>
             <p className="summary-label">Amount Due</p>
@@ -308,7 +309,7 @@ export const BillingPage: React.FC = () => {
                     <p className="credit-note-invoice">{cn.invoiceNumber}</p>
                     <p className="credit-note-date">{formatDate(cn.createdAt)}</p>
                   </div>
-                  <p className="credit-note-amount">{formatAmount(cn.amountMinor, 'INR')}</p>
+                  <p className="credit-note-amount">{formatAmount(cn.amountMinor, subscription?.currency || 'INR')}</p>
                 </div>
               ))}
             </div>

@@ -49,6 +49,10 @@ public class Customer {
    @Enumerated(EnumType.STRING)
    private Status status = Status.ACTIVE;
 
+   @Builder.Default
+   @Column(name = "credit_balance_minor", nullable = false)
+   private Long creditBalanceMinor = 0L;
+
    @CreationTimestamp
    @Column(name = "created_at", nullable = false, updatable = false)
    private LocalDateTime createdAt;

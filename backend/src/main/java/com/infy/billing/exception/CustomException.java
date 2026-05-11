@@ -40,4 +40,8 @@ public class CustomException extends RuntimeException {
     public static CustomException badRequest(String message) {
         return new CustomException(message, HttpStatus.BAD_REQUEST, "BAD_REQUEST");
     }
+
+    public static CustomException paymentFailed(String message) {
+        return new CustomException(message, HttpStatus.PAYMENT_REQUIRED, "PAYMENT_FAILED");
+    }
 }

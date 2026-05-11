@@ -33,6 +33,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
     private final CouponRepository couponRepository;
     private final SubscriptionCouponRepository subscriptionCouponRepository;
     private final InvoiceLineItemRepository invoiceLineItemRepository;
+    private final MockPaymentGateway mockPaymentGateway;
 
     /**
      * Step 1: Register customer details
@@ -117,6 +118,10 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         if (planId == null) throw CustomException.badRequest("Plan ID is required");
         Plan plan = planRepository.findById(planId)
                 .orElseThrow(() -> CustomException.notFound("Plan not found"));
+
+        if (plan.getStatus() == Status.INACTIVE) {
+            throw CustomException.badRequest("This plan is no longer available for new subscriptions.");
+        }
 
         Long paymentMethodId = request.getPaymentMethodId();
         if (paymentMethodId == null) throw CustomException.badRequest("Payment method ID is required");
@@ -259,7 +264,8 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         if (taxMinor > 0) {
             InvoiceLineItem taxLine = new InvoiceLineItem();
             taxLine.setInvoice(invoice);
-            taxLine.setDescription("GST (18%)");
+            BigDecimal rate = getTaxRateForRegion(customer.getCountry());
+            taxLine.setDescription("Tax (" + rate.stripTrailingZeros().toPlainString() + "%)");
             taxLine.setLineType(InvoiceLineItem.LineType.TAX);
             taxLine.setQuantity(1);
             taxLine.setUnitPriceMinor(taxMinor);
@@ -268,8 +274,37 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         }
 
         if (!isTrial) {
-            // Create payment record for the initial amount (Only if not a trial)
-            createPayment(invoice, paymentMethod, totalMinor, customer.getCurrency());
+            // Auto-apply customer account credit before charging
+            long amountToCharge = totalMinor;
+            long creditApplied = 0L;
+            if (customer.getCreditBalanceMinor() > 0 && totalMinor > 0) {
+                creditApplied = Math.min(customer.getCreditBalanceMinor(), totalMinor);
+                amountToCharge = totalMinor - creditApplied;
+
+                // Add credit line item to invoice
+                InvoiceLineItem creditLine = new InvoiceLineItem();
+                creditLine.setInvoice(invoice);
+                creditLine.setDescription("Account Credit Applied");
+                creditLine.setLineType(InvoiceLineItem.LineType.DISCOUNT);
+                creditLine.setQuantity(1);
+                creditLine.setUnitPriceMinor(-creditApplied);
+                creditLine.setAmountMinor(-creditApplied);
+                invoiceLineItemRepository.save(creditLine);
+
+                // Update invoice totals
+                invoice.setTotalMinor(amountToCharge);
+                invoice.setBalanceMinor(amountToCharge);
+                invoiceRepository.save(invoice);
+
+                // Deduct from customer credit balance
+                customer.setCreditBalanceMinor(customer.getCreditBalanceMinor() - creditApplied);
+                customerRepository.save(customer);
+            }
+
+            // Create payment record for the remaining amount (skip if fully covered by credit)
+            if (amountToCharge > 0) {
+                createPayment(invoice, paymentMethod, amountToCharge, customer.getCurrency());
+            }
             System.out.println("DEBUG: Payment created for invoice: " + invoice.getId());
         }
 
@@ -356,11 +391,23 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
 
     private Long calculateTax(Long amount, BigDecimal taxRate, TaxMode taxMode) {
         if (taxMode == TaxMode.INCLUSIVE) {
-            // Tax is already included in the price
-            return 0L;
+            // Price already includes tax — extract the tax portion
+            // e.g., ₹499 incl 18% GST → base = 499 / 1.18 = 423.73, tax = 75.27
+            if (taxRate == null || taxRate.compareTo(BigDecimal.ZERO) == 0) {
+                return 0L;
+            }
+            BigDecimal rateFactor = BigDecimal.ONE.add(taxRate.divide(BigDecimal.valueOf(100)));
+            long baseMinor = BigDecimal.valueOf(amount).divide(rateFactor, 0, java.math.RoundingMode.HALF_UP).longValue();
+            return amount - baseMinor;
         }
         // Exclusive: add tax on top
-        return amount * taxRate.longValue() / 100;
+        if (taxRate == null || taxRate.compareTo(BigDecimal.ZERO) == 0) {
+            return 0L;
+        }
+        return BigDecimal.valueOf(amount)
+                .multiply(taxRate)
+                .divide(BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP)
+                .longValue();
     }
 
     private LocalDate calculatePeriodEnd(LocalDate start, BillingPeriod period) {
@@ -394,11 +441,14 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
     }
 
     private void createPayment(Invoice invoice, PaymentMethod paymentMethod, Long amount, String currency) {
+        // Attempt charge via mock gateway — will throw CustomException on decline
+        String gatewayRef = mockPaymentGateway.charge(paymentMethod.getGatewayToken(), amount, currency);
+
         Payment payment = new Payment();
         payment.setInvoice(invoice);
         payment.setPaymentMethod(paymentMethod);
         payment.setIdempotencyKey(UUID.randomUUID().toString());
-        payment.setGatewayRef("mock_payment_" + UUID.randomUUID().toString().substring(0, 8));
+        payment.setGatewayRef(gatewayRef);
         payment.setAmountMinor(amount);
         payment.setCurrency(currency);
         payment.setStatus(Status.SUCCESS);

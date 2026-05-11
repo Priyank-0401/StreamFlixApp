@@ -27,7 +27,7 @@ public interface AdminDashboardService {
    List<PriceBookResponse> getAllPriceBookEntries();
    PriceBookResponse createPriceBookEntry(PriceBookEntry entry);
    PriceBookResponse updatePriceBookEntry(Long id, PriceBookEntry entry);
-   void deletePriceBookEntry(Long id);
+   void archivePriceBookEntry(Long id);
 
    // Add-on (returns DTO)
    List<AddOnResponse> getAllAddOns();
@@ -55,7 +55,6 @@ public interface AdminDashboardService {
 
    // Users
    List<CustomerResponse> getAllCustomers();
-   void toggleCustomerStatus(Long id);
    List<StaffResponse> getAllStaff();
    StaffResponse createStaff(User user);
    void deleteStaff(Long id);

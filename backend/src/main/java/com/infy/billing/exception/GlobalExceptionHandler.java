@@ -34,7 +34,20 @@ public class GlobalExceptionHandler {
        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorInfo);
    }
 
-   // 2. Catches Security / Bad Password Exceptions -> Returns HTTP 401
+   // 2. Catches our CustomException -> Preserves the exact HTTP status (e.g., 402 Payment Failed)
+   @ExceptionHandler(CustomException.class)
+   public ResponseEntity<ErrorInfo> handleCustomException(CustomException ex, WebRequest request) {
+       ErrorInfo errorInfo = ErrorInfo.builder()
+               .timestamp(LocalDateTime.now())
+               .status(ex.getStatus().value())
+               .error(ex.getStatus().getReasonPhrase())
+               .message(ex.getMessage())
+               .path(((ServletWebRequest) request).getRequest().getRequestURI())
+               .build();
+       return ResponseEntity.status(ex.getStatus()).body(errorInfo);
+   }
+
+   // 3. Catches Security / Bad Password Exceptions -> Returns HTTP 401
    @ExceptionHandler(AuthenticationException.class)
    public ResponseEntity<ErrorInfo> handleAuthenticationException(AuthenticationException ex, WebRequest request) {
        ErrorInfo errorInfo = ErrorInfo.builder()

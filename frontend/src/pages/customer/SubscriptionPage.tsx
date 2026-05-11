@@ -49,7 +49,8 @@ export const SubscriptionPage: React.FC = () => {
   };
 
   const formatAmount = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('en-IN', {
+    const locale = currency === 'USD' ? 'en-US' : currency === 'GBP' ? 'en-GB' : 'en-IN';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency || 'INR'
     }).format(amount / 100);
@@ -260,6 +261,10 @@ export const SubscriptionPage: React.FC = () => {
           <div className="meta-item">
             <p className="meta-label">Currency</p>
             <p className="meta-value">{subscription.currency}</p>
+          </div>
+          <div className="meta-item">
+            <p className="meta-label">Account Credit</p>
+            <p className="meta-value">{formatAmount(subscription.creditBalanceMinor || 0, subscription.currency)}</p>
           </div>
           {subscription.status !== 'TRIALING' && subscription.trialEndDate && (
             <div className="meta-item">

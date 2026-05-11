@@ -3,7 +3,7 @@ import { PageHeader } from '../../../components/admin/shared/PageHeader';
 import { DataTable } from '../../../components/admin/shared/DataTable';
 import { AdminModal } from '../../../components/admin/shared/AdminModal';
 import { FormField } from '../../../components/admin/shared/FormField';
-import { getPriceBooks, createPriceBook, updatePriceBook, deletePriceBook, getAllPlans } from '../../../services/admin/adminService';
+import { getPriceBooks, createPriceBook, updatePriceBook, archivePriceBook, getAllPlans } from '../../../services/admin/adminService';
 import type { PriceBookResponse, PlanResponse } from '../../../services/admin/adminTypes';
 
 const formatPrice = (minor: number, cur: string) => {
@@ -50,8 +50,13 @@ export const PriceBooksPage: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this price book entry?')) return;
-    await deletePriceBook(id); load();
+    if (!window.confirm('Delete this price book entry?\n\nNote: If active subscriptions use this plan, you must archive the plan instead.')) return;
+    try {
+      await archivePriceBook(id);
+      load();
+    } catch (e: any) {
+      alert(e.message || 'Delete failed');
+    }
   };
 
   const columns = [
