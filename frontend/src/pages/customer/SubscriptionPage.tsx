@@ -182,6 +182,9 @@ export const SubscriptionPage: React.FC = () => {
               <div className="plan-price">
                 <span className="price-amount">{formatAmount(plan.defaultPriceMinor, plan.defaultCurrency)}</span>
                 <span className="price-period">/{plan.billingPeriod.toLowerCase()}</span>
+                <div style={{ fontSize: '13px', color: '#6B7280', marginTop: '4px', fontWeight: 500 }}>
+                  {plan.taxMode === 'INCLUSIVE' ? '(incl. tax)' : '+ tax'}
+                </div>
               </div>
 
               {plan.trialDays > 0 && (
@@ -455,6 +458,9 @@ export const SubscriptionPage: React.FC = () => {
                     <p className="plan-option-price">
                       {formatAmount(plan.defaultPriceMinor, plan.defaultCurrency)}
                       <span className="period">/{plan.billingPeriod.toLowerCase()}</span>
+                      <span style={{ fontSize: '12px', color: '#6B7280', marginLeft: '6px' }}>
+                        {plan.taxMode === 'INCLUSIVE' ? '(incl. tax)' : '+ tax'}
+                      </span>
                     </p>
                   </div>
                   {plan.planId !== subscription.planId && (

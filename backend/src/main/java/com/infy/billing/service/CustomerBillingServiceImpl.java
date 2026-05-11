@@ -23,6 +23,7 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
    private final SubscriptionRepository subscriptionRepository;
    private final CustomerRepository customerRepository;
    private final UserRepository userRepository;
+   private final InvoicePdfService invoicePdfService;
 
    public List<InvoiceDTO> getInvoices(String email, String status, String from, String to) {
        Customer customer = getCustomerByEmail(email);
@@ -50,7 +51,15 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
    }
 
    public byte[] generateInvoicePdf(String email, Long invoiceId) {
-       return new byte[0];
+       Customer customer = getCustomerByEmail(email);
+       Invoice invoice = invoiceRepository.findById(invoiceId)
+               .orElseThrow(() -> new RuntimeException("Invoice not found"));
+       
+       if (!invoice.getCustomer().getId().equals(customer.getId())) {
+           throw new RuntimeException("Unauthorized");
+       }
+       
+       return invoicePdfService.generatePdf(invoice);
    }
 
    public List<PaymentDTO> getPayments(String email) {

@@ -71,7 +71,10 @@ export const SubscriptionCheckoutPage: React.FC = () => {
       if (addon) total += addon.priceMinor;
     });
     total -= discount;
-    // Tax is included in the price (INCLUSIVE is the default tax mode)
+    if (plan.taxMode === 'EXCLUSIVE') {
+      const taxRate = 0.18; // 18% tax
+      total += Math.round(total * taxRate);
+    }
     return total;
   };
 
@@ -362,7 +365,7 @@ export const SubscriptionCheckoutPage: React.FC = () => {
               </div>
               {plan.trialDays > 0 && (
                 <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '8px', marginBottom: 0 }}>
-                  After your {plan.trialDays}-day trial, you'll be charged <strong>{formatPrice(calculateTotal())}</strong> per {plan.billingPeriod === 'YEARLY' ? 'year' : 'month'} (incl. tax)
+                  After your {plan.trialDays}-day trial, you'll be charged <strong>{formatPrice(calculateTotal())}</strong> per {plan.billingPeriod === 'YEARLY' ? 'year' : 'month'} {plan.taxMode === 'INCLUSIVE' ? '(incl. tax)' : '+ tax'}
                 </p>
               )}
             </div>

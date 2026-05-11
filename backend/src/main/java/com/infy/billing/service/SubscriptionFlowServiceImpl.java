@@ -168,7 +168,16 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         // Calculate tax on price after discount
         BigDecimal taxRate = getTaxRateForRegion(customer.getCountry());
         Long taxMinor = calculateTax(priceAfterDiscount, taxRate, plan.getTaxMode());
-        Long totalMinor = priceAfterDiscount + taxMinor;
+        
+        Long subtotalMinor;
+        Long totalMinor;
+        if (plan.getTaxMode() == TaxMode.INCLUSIVE) {
+            subtotalMinor = priceAfterDiscount - taxMinor;
+            totalMinor = priceAfterDiscount;
+        } else {
+            subtotalMinor = priceAfterDiscount;
+            totalMinor = priceAfterDiscount + taxMinor;
+        }
 
         // Check if trial is applicable
         boolean isTrial = plan.getTrialDays() > 0;
@@ -233,7 +242,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         Status invoiceStatus = isTrial ? Status.OPEN : Status.PAID;
         LocalDate dueDate = isTrial ? subscription.getTrialEndDate() : today;
 
-        Invoice invoice = createInvoice(customer, subscription, priceAfterDiscount, taxMinor, totalMinor, today,
+        Invoice invoice = createInvoice(customer, subscription, subtotalMinor, taxMinor, totalMinor, today,
                 dueDate, invoiceStatus);
         invoice.setDiscountMinor(discountMinor);
         invoiceRepository.save(invoice);

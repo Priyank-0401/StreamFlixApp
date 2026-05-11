@@ -167,11 +167,12 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
             long subtotal = priceMinor + addonTotal - discountMinor;
             if (subtotal < 0) subtotal = 0;
-            long taxMinor = calculateTaxMinor(subtotal, customer.getCountry());
-            long totalMinor = subtotal + taxMinor;
+            long taxMinor = calculateTaxMinor(subtotal, customer.getCountry(), newPlan.getTaxMode());
+            long totalMinor = (newPlan.getTaxMode() == TaxMode.INCLUSIVE) ? subtotal : subtotal + taxMinor;
+            long subtotalMinor = (newPlan.getTaxMode() == TaxMode.INCLUSIVE) ? subtotal - taxMinor : subtotal;
 
             // Update invoice headers
-            invoice.setSubtotalMinor(priceMinor + addonTotal);
+            invoice.setSubtotalMinor(subtotalMinor);
             invoice.setDiscountMinor(discountMinor);
             invoice.setTaxMinor(taxMinor);
             invoice.setTotalMinor(totalMinor);
@@ -260,8 +261,8 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
       long oldSubtotal = oldPriceMinor + oldAddonTotal - oldDiscountMinor;
       if (oldSubtotal < 0) oldSubtotal = 0;
-      long oldTaxMinor = calculateTaxMinor(oldSubtotal, customer.getCountry());
-      long oldTotalPaid = oldSubtotal + oldTaxMinor;
+      long oldTaxMinor = calculateTaxMinor(oldSubtotal, customer.getCountry(), oldPlan.getTaxMode());
+      long oldTotalPaid = (oldPlan.getTaxMode() == TaxMode.INCLUSIVE) ? oldSubtotal : oldSubtotal + oldTaxMinor;
 
       // Calculate unused refund credit we owe the user
       long unusedCredit = oldTotalPaid * remainingDays / totalDaysInPeriod;
@@ -285,8 +286,9 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
       long newSubtotal = newPriceMinor + newAddonTotal - newDiscountMinor;
       if (newSubtotal < 0) newSubtotal = 0;
-      long newTaxMinor = calculateTaxMinor(newSubtotal, customer.getCountry());
-      long newTotalCost = newSubtotal + newTaxMinor;
+      long newTaxMinor = calculateTaxMinor(newSubtotal, customer.getCountry(), newPlan.getTaxMode());
+      long newTotalCost = (newPlan.getTaxMode() == TaxMode.INCLUSIVE) ? newSubtotal : newSubtotal + newTaxMinor;
+      long newSubtotalMinor = (newPlan.getTaxMode() == TaxMode.INCLUSIVE) ? newSubtotal - newTaxMinor : newSubtotal;
 
       // Immediate prorated charge amount
       long prorationAmount = newTotalCost - unusedCredit;
@@ -299,7 +301,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       invoice.setBillingReason(BillingReason.SUBSCRIPTION_UPDATE);
       invoice.setIssueDate(today);
       invoice.setDueDate(today);
-      invoice.setSubtotalMinor(newSubtotal);
+      invoice.setSubtotalMinor(newSubtotalMinor);
       invoice.setDiscountMinor(newDiscountMinor);
       invoice.setTaxMinor(newTaxMinor);
       invoice.setCurrency(customer.getCurrency());
@@ -532,7 +534,10 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
                invoiceLineItemRepository.save(addonLine);
 
                // Add Tax line for this addon
-               Long addonTax = calculateTaxMinor(addOn.getPriceMinor(), customer.getCountry());
+               Long addonTax = calculateTaxMinor(addOn.getPriceMinor(), customer.getCountry(), addOn.getTaxMode());
+               Long addonTotal = (addOn.getTaxMode() == TaxMode.INCLUSIVE) ? addOn.getPriceMinor() : addOn.getPriceMinor() + addonTax;
+               Long addonSubtotal = (addOn.getTaxMode() == TaxMode.INCLUSIVE) ? addOn.getPriceMinor() - addonTax : addOn.getPriceMinor();
+
                InvoiceLineItem taxLine = new InvoiceLineItem();
                taxLine.setInvoice(invoice);
                taxLine.setDescription(getTaxDescription(customer.getCountry()) + " - " + addOn.getName());
@@ -543,9 +548,9 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
                invoiceLineItemRepository.save(taxLine);
 
                // Update invoice totals
-               invoice.setSubtotalMinor(invoice.getSubtotalMinor() + addOn.getPriceMinor());
+               invoice.setSubtotalMinor(invoice.getSubtotalMinor() + addonSubtotal);
                invoice.setTaxMinor(invoice.getTaxMinor() + addonTax);
-               invoice.setTotalMinor(invoice.getTotalMinor() + addOn.getPriceMinor() + addonTax);
+               invoice.setTotalMinor(invoice.getTotalMinor() + addonTotal);
                invoice.setBalanceMinor(invoice.getTotalMinor());
                invoiceRepository.save(invoice);
            }
@@ -558,8 +563,9 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
             if (remainingDays <= 0) remainingDays = 1;
 
             long proratedAmount = (addOn.getPriceMinor() * remainingDays) / totalDays;
-            Long taxMinor = calculateTaxMinor(proratedAmount, customer.getCountry());
-            Long totalMinor = proratedAmount + taxMinor;
+            Long taxMinor = calculateTaxMinor(proratedAmount, customer.getCountry(), addOn.getTaxMode());
+            Long totalMinor = (addOn.getTaxMode() == TaxMode.INCLUSIVE) ? proratedAmount : proratedAmount + taxMinor;
+            Long subtotalMinor = (addOn.getTaxMode() == TaxMode.INCLUSIVE) ? proratedAmount - taxMinor : proratedAmount;
             
             Invoice invoice = new Invoice();
             invoice.setCustomer(customer);
@@ -569,7 +575,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
             invoice.setBillingReason(BillingReason.SUBSCRIPTION_UPDATE);
             invoice.setIssueDate(today);
             invoice.setDueDate(today);
-            invoice.setSubtotalMinor(proratedAmount);
+            invoice.setSubtotalMinor(subtotalMinor);
             invoice.setTaxMinor(taxMinor);
             invoice.setDiscountMinor(0L);
             invoice.setTotalMinor(totalMinor);
@@ -676,55 +682,6 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
    // ==================== HELPER METHODS ====================
 
-   private void generateProrationInvoice(Customer customer, Subscription subscription,
-           Plan oldPlan, Plan newPlan, long amount, LocalDate periodStart, LocalDate periodEnd, String direction) {
-       
-       Invoice invoice = new Invoice();
-       invoice.setCustomer(customer);
-       invoice.setSubscription(subscription);
-       invoice.setInvoiceNumber("INV-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
-       invoice.setStatus(amount > 0 ? Status.PAID : Status.PAID);
-       invoice.setBillingReason(BillingReason.SUBSCRIPTION_UPDATE);
-       invoice.setIssueDate(LocalDate.now());
-       invoice.setDueDate(LocalDate.now());
-       invoice.setSubtotalMinor(amount);
-       invoice.setTaxMinor(0L);
-       invoice.setDiscountMinor(0L);
-       invoice.setTotalMinor(amount);
-       invoice.setBalanceMinor(0L);
-       invoice.setCurrency(customer.getCurrency());
-       invoice.setIdempotencyKey(UUID.randomUUID().toString());
-       invoiceRepository.save(invoice);
-
-       // Credit line for old plan (remaining unused days)
-       InvoiceLineItem creditLine = new InvoiceLineItem();
-       creditLine.setInvoice(invoice);
-       creditLine.setDescription("Plan change: " + oldPlan.getName() + " → " + newPlan.getName() + " (" + direction.toLowerCase() + ")");
-       creditLine.setLineType(InvoiceLineItem.LineType.PRORATION);
-       creditLine.setQuantity(1);
-       creditLine.setUnitPriceMinor(amount);
-       creditLine.setAmountMinor(amount);
-       creditLine.setPeriodStart(periodStart);
-       creditLine.setPeriodEnd(periodEnd);
-       invoiceLineItemRepository.save(creditLine);
-
-       // Create payment record
-       if (amount > 0) {
-           Payment payment = new Payment();
-           payment.setInvoice(invoice);
-           // Use customer's default payment method
-           PaymentMethod pm = paymentMethodRepository.findById(subscription.getPaymentMethodId()).orElse(null);
-           payment.setPaymentMethod(pm);
-           payment.setIdempotencyKey(UUID.randomUUID().toString());
-           payment.setGatewayRef("mock_proration_" + UUID.randomUUID().toString().substring(0, 8));
-           payment.setAmountMinor(amount);
-           payment.setCurrency(customer.getCurrency());
-           payment.setStatus(Status.SUCCESS);
-           payment.setAttemptNo(1);
-           paymentRepository.save(payment);
-       }
-   }
-
    private Customer getCustomerByEmail(String email) {
        User user = userRepository.findByEmail(email)
                .orElseThrow(() -> new RuntimeException("User not found"));
@@ -796,8 +753,8 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
         if (subtotal < 0) subtotal = 0L;
 
         String country = subscription.getCustomer().getCountry();
-        Long taxMinor = calculateTaxMinor(subtotal, country);
-        dto.setTotalDueMinor(subtotal + taxMinor);
+        Long taxMinor = calculateTaxMinor(subtotal, country, subscription.getPlan().getTaxMode());
+        dto.setTotalDueMinor((subscription.getPlan().getTaxMode() == TaxMode.INCLUSIVE) ? subtotal : subtotal + taxMinor);
         dto.setCreditBalanceMinor(subscription.getCustomer().getCreditBalanceMinor());
 
         return dto;
@@ -844,12 +801,19 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
        return dto;
    }
 
-   private long calculateTaxMinor(long amount, String country) {
+   private long calculateTaxMinor(long amount, String country, TaxMode taxMode) {
        Optional<TaxRate> taxRateOpt = taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(country, LocalDate.now());
        if (taxRateOpt.isEmpty()) {
            return 0L;
        }
        BigDecimal rate = taxRateOpt.get().getRatePercent();
+       
+       if (taxMode == TaxMode.INCLUSIVE) {
+           BigDecimal rateFactor = BigDecimal.ONE.add(rate.divide(BigDecimal.valueOf(100)));
+           long baseMinor = BigDecimal.valueOf(amount).divide(rateFactor, 0, java.math.RoundingMode.HALF_UP).longValue();
+           return amount - baseMinor;
+       }
+       
        return BigDecimal.valueOf(amount)
                .multiply(rate)
                .divide(BigDecimal.valueOf(100), 0, java.math.RoundingMode.HALF_UP)

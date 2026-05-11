@@ -55,8 +55,17 @@ export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({
 
   const discountMinor = calculateDiscount();
   const priceAfterDiscount = plan.defaultPriceMinor - discountMinor;
-  const taxMinor = Math.round(priceAfterDiscount * TAX_RATE_PERCENT / 100);
-  const totalMinor = priceAfterDiscount + taxMinor;
+  let taxMinor = 0;
+  let totalMinor = priceAfterDiscount;
+  
+  if (plan.taxMode === 'INCLUSIVE') {
+    const baseMinor = Math.round(priceAfterDiscount / (1 + TAX_RATE_PERCENT / 100));
+    taxMinor = priceAfterDiscount - baseMinor;
+    totalMinor = priceAfterDiscount;
+  } else {
+    taxMinor = Math.round(priceAfterDiscount * TAX_RATE_PERCENT / 100);
+    totalMinor = priceAfterDiscount + taxMinor;
+  }
   const isTrial = plan.trialDays > 0;
 
   const handleApplyCoupon = async (code?: string) => {
@@ -204,9 +213,11 @@ export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({
 
           {/* Tax */}
           <div className="d-flex justify-content-between align-items-center mb-3">
-            <span style={{ fontSize: '14px', color: '#6B7280' }}>GST ({TAX_RATE_PERCENT}%)</span>
             <span style={{ fontSize: '14px', color: '#6B7280' }}>
-              +{formatPrice(taxMinor, plan.defaultCurrency)}
+              {plan.taxMode === 'INCLUSIVE' ? `Includes GST (${TAX_RATE_PERCENT}%)` : `GST (${TAX_RATE_PERCENT}%)`}
+            </span>
+            <span style={{ fontSize: '14px', color: '#6B7280' }}>
+              {plan.taxMode === 'INCLUSIVE' ? formatPrice(taxMinor, plan.defaultCurrency) : `+${formatPrice(taxMinor, plan.defaultCurrency)}`}
             </span>
           </div>
 
@@ -240,7 +251,7 @@ export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({
             </div>
             {isTrial && (
               <p style={{ fontSize: '13px', color: '#6B7280', marginTop: '8px', marginBottom: 0 }}>
-                After trial ends, you'll be charged <strong style={{ color: '#111827' }}>{formatPrice(totalMinor, plan.defaultCurrency)}</strong> per {plan.billingPeriod === 'YEARLY' ? 'year' : 'month'} (incl. tax)
+                After trial ends, you'll be charged <strong style={{ color: '#111827' }}>{formatPrice(totalMinor, plan.defaultCurrency)}</strong> per {plan.billingPeriod === 'YEARLY' ? 'year' : 'month'} {plan.taxMode === 'INCLUSIVE' ? '(incl. tax)' : '+ tax'}
               </p>
             )}
           </div>
