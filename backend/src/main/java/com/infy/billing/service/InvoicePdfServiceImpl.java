@@ -464,7 +464,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
 
         try {
             Locale locale;
-            if ("INR".equals(currencyCode)) locale = Locale.of("en", "IN");
+            if ("INR".equals(currencyCode)) locale = new Locale("en", "IN");
             else if ("GBP".equals(currencyCode)) locale = Locale.UK;
             else if ("USD".equals(currencyCode)) locale = Locale.US;
             else locale = Locale.US;
