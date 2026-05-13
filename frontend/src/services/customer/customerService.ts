@@ -150,6 +150,16 @@ export interface PaymentMethod {
   status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
 }
 
+export interface Notification {
+  id: number;
+  type: string;
+  subject: string;
+  body: string;
+  channel: 'EMAIL' | 'SMS' | 'IN_APP';
+  status: 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED' | 'READ';
+  createdAt: string;
+}
+
 export interface Coupon {
   couponId: number;
   code: string;
@@ -552,4 +562,22 @@ export const completeSubscription = async (customerId: number, data: Subscriptio
     throw new Error(error || 'Failed to complete subscription');
   }
   return response.json();
+};
+
+// ==================== NOTIFICATIONS ====================
+
+export const getUnreadNotifications = async (): Promise<Notification[]> => {
+  const response = await fetchWithSession(`${API_BASE}/notifications/unread`);
+  if (!response.ok) throw new Error('Failed to fetch notifications');
+  return response.json();
+};
+
+export const markNotificationAsRead = async (id: number): Promise<void> => {
+  const response = await fetchWithSession(`${API_BASE}/notifications/${id}/read`, { method: 'POST' });
+  if (!response.ok) throw new Error('Failed to mark notification as read');
+};
+
+export const markAllNotificationsAsRead = async (): Promise<void> => {
+  const response = await fetchWithSession(`${API_BASE}/notifications/read-all`, { method: 'POST' });
+  if (!response.ok) throw new Error('Failed to mark all notifications as read');
 };

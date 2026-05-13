@@ -11,8 +11,10 @@ import {
   User,
   LogOut,
   Search,
+  Bell,
   Loader2
 } from 'lucide-react';
+import * as CustomerService from '../../../services/customer/customerService';
 
 interface NavItem {
   path: string;
@@ -39,8 +41,29 @@ export const CustomerLayout: React.FC = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<NavItem[]>([]);
+  const [notifications, setNotifications] = useState<CustomerService.Notification[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLFormElement>(null);
+
+  // Fetch notifications
+  useEffect(() => {
+    if (isCustomer) {
+      CustomerService.getUnreadNotifications()
+        .then(setNotifications)
+        .catch(console.error);
+    }
+  }, [isCustomer, location.pathname]);
+
+  const handleDismissNotification = async (id: number) => {
+    try {
+      await CustomerService.markNotificationAsRead(id);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch (err) {
+      console.error('Failed to dismiss notification', err);
+    }
+  };
 
   // Update search results
   useEffect(() => {
@@ -78,6 +101,9 @@ export const CustomerLayout: React.FC = () => {
       }
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setSearchResults([]);
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setNotificationsOpen(false);
       }
     };
 
@@ -339,6 +365,100 @@ export const CustomerLayout: React.FC = () => {
                 </div>
               )}
             </form>
+
+            {/* Notifications Bell */}
+            <div style={{ position: 'relative' }} ref={notificationsRef}>
+              <button
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  padding: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#64748b'
+                }}
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+              >
+                <Bell size={22} />
+                {notifications.length > 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '4px',
+                    right: '6px',
+                    background: '#ef4444',
+                    color: 'white',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    width: '16px',
+                    height: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                    border: '2px solid white'
+                  }}>
+                    {notifications.length}
+                  </span>
+                )}
+              </button>
+
+              {notificationsOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 12px)',
+                    right: 0,
+                    width: '320px',
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '16px',
+                    zIndex: 100,
+                    overflow: 'hidden',
+                    boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+                  }}
+                >
+                  <div style={{ padding: '16px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B', margin: 0 }}>Notifications</p>
+                    {notifications.length > 0 && (
+                      <button 
+                        onClick={async () => {
+                          try {
+                            await CustomerService.markAllNotificationsAsRead();
+                            setNotifications([]);
+                          } catch (e) {}
+                        }}
+                        style={{ background: 'none', border: 'none', fontSize: '12px', color: '#5b4fff', cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                    {notifications.length === 0 ? (
+                      <div style={{ padding: '24px', textAlign: 'center', color: '#64748b', fontSize: '13px' }}>
+                        No new notifications
+                      </div>
+                    ) : (
+                      notifications.map(notif => (
+                        <div key={notif.id} style={{ padding: '16px', borderBottom: '1px solid #f1f5f9', position: 'relative' }}>
+                          <p style={{ margin: '0 0 4px', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>{notif.subject}</p>
+                          <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>{notif.body}</p>
+                          <button 
+                            onClick={() => handleDismissNotification(notif.id)}
+                            style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline' }}
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div style={{ position: 'relative' }} ref={dropdownRef}>
               <button

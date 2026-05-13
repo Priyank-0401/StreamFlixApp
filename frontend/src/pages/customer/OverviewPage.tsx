@@ -18,6 +18,7 @@ export const OverviewPage: React.FC = () => {
   const [subscription, setSubscription] = useState<CustomerService.Subscription | null>(null);
   const [invoices, setInvoices] = useState<CustomerService.Invoice[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<CustomerService.PaymentMethod[]>([]);
+  const [notifications, setNotifications] = useState<CustomerService.Notification[]>([]);
   const [isCustomer, setIsCustomer] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -29,14 +30,16 @@ export const OverviewPage: React.FC = () => {
     try {
       // Try to get subscription first - if 400/404, user is not a customer yet
       try {
-        const [sub, inv, pm] = await Promise.all([
+        const [sub, inv, pm, notifs] = await Promise.all([
           CustomerService.getCurrentSubscription(),
           CustomerService.getInvoices(),
-          CustomerService.getPaymentMethods()
+          CustomerService.getPaymentMethods(),
+          CustomerService.getUnreadNotifications()
         ]);
         setSubscription(sub);
         setInvoices(inv); // Use all invoices to ensure OPEN ones are found
         setPaymentMethods(pm);
+        setNotifications(notifs);
         setIsCustomer(true);
       } catch (err: any) {
         // If we get 400 Bad Request or 404, user doesn't have customer record yet
@@ -126,9 +129,38 @@ export const OverviewPage: React.FC = () => {
     );
   }
 
+  const handleDismissNotification = async (id: number) => {
+    try {
+      await CustomerService.markNotificationAsRead(id);
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    } catch (err) {
+      console.error('Failed to dismiss notification', err);
+    }
+  };
+
   return (
     <div className="overview-page">
-      {/* Page Content */}
+      {/* Notifications Section */}
+      {notifications.length > 0 && (
+        <div className="notifications-container" style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {notifications.map(notif => (
+            <div key={notif.id} className="alert-warning" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <AlertCircle size={20} />
+                <div>
+                  <strong>{notif.subject}</strong>: {notif.body}
+                </div>
+              </div>
+              <button 
+                onClick={() => handleDismissNotification(notif.id)}
+                style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                Dismiss
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="stats-grid">

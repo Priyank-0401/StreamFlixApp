@@ -480,12 +480,13 @@ CREATE TABLE notification (
     type VARCHAR(50) NOT NULL,
     subject VARCHAR(255) NULL,
     body TEXT NULL,
-    channel ENUM('EMAIL', 'SMS') NOT NULL,
+    channel ENUM('EMAIL', 'SMS', 'IN_APP') NOT NULL,
     status ENUM(
         'PENDING',
         'SENT',
         'FAILED',
-        'SKIPPED'
+        'SKIPPED',
+        'READ'
     ) NOT NULL,
     scheduled_at TIMESTAMP NULL,
     sent_at TIMESTAMP NULL,
@@ -983,5 +984,4 @@ VALUES (
         'ACTIVE'
     );
 
-SET FOREIGN_KEY_CHECKS = 1;
-
+-- END

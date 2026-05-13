@@ -255,6 +255,8 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         planLine.setQuantity(1);
         planLine.setUnitPriceMinor(priceMinor);
         planLine.setAmountMinor(priceMinor);
+        planLine.setPeriodStart(subscription.getCurrentPeriodStart());
+        planLine.setPeriodEnd(subscription.getCurrentPeriodEnd());
         invoiceLineItemRepository.save(planLine);
 
         // Add discount line item if coupon was applied
@@ -266,6 +268,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
             discountLine.setQuantity(1);
             discountLine.setUnitPriceMinor(-discountMinor);
             discountLine.setAmountMinor(-discountMinor);
+            discountLine.setDiscount(appliedCoupon);
             invoiceLineItemRepository.save(discountLine);
         }
 
@@ -279,6 +282,10 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
             taxLine.setQuantity(1);
             taxLine.setUnitPriceMinor(taxMinor);
             taxLine.setAmountMinor(taxMinor);
+            
+            taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(customer.getCountry(), today)
+                    .ifPresent(taxLine::setTaxRate);
+                    
             invoiceLineItemRepository.save(taxLine);
         }
 

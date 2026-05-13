@@ -15,4 +15,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
    Optional<Subscription> findByCustomer_IdAndStatus(Long customerId, Status status);
 
    long countByPlan_IdAndStatusIn(Long planId, List<Status> statuses);
+
+   List<Subscription> findByStatusInAndCurrentPeriodEndLessThan(List<Status> statuses, java.time.LocalDate date);
+   List<Subscription> findByStatusIn(List<Status> statuses);
 }
