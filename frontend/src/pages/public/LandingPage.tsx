@@ -72,8 +72,6 @@ export const LandingPage: React.FC = () => {
   const currentRegion = REGIONS.find(r => r.code === selectedRegion) || REGIONS[0];
 
   useEffect(() => {
-    // Prevent scroll jump on refresh
-    window.scrollTo(0, 0);
     publicService.getPublicPlans().then(setPlans);
   }, []);
 
@@ -217,7 +215,7 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="sf-pricing-grid">
+        <div className="sf-pricing-grid" style={{ minHeight: '494px', overflowAnchor: 'none' }}>
           {displayedPlans.length === 0 ? (
             <p>Loading plans...</p>
           ) : (

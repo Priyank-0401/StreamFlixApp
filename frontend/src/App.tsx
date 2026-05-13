@@ -33,6 +33,16 @@ import { SubscriptionFlow } from './pages/customer/SubscriptionFlow';
 import { SubscriptionCheckoutPage } from './pages/customer/SubscriptionCheckoutPage';
 import { CustomerProvider } from './context/CustomerContext';
 
+// Finance Layout & Pages
+import { FinanceLayout } from './components/finance/layout/FinanceLayout';
+import { FinanceDashboardPage } from './pages/finance/FinanceDashboardPage';
+import { FinanceSnapshotsPage } from './pages/finance/FinanceSnapshotsPage';
+import { FinanceMrrPage } from './pages/finance/FinanceMrrPage';
+import { FinanceArrPage } from './pages/finance/FinanceArrPage';
+import { FinanceArpuPage } from './pages/finance/FinanceArpuPage';
+import { FinanceChurnPage } from './pages/finance/FinanceChurnPage';
+import { FinanceInvoicesPage } from './pages/finance/FinanceInvoicesPage';
+
 function App() {
   return (
     <BrowserRouter>
@@ -111,6 +121,24 @@ function App() {
             <Route path="customers" element={<CustomersPage />} />
             <Route path="staff" element={<StaffAccountsPage />} />
             <Route path="subscriptions" element={<SubscriptionsPage />} />
+          </Route>
+
+          {/* Finance Protected Routes — Nested under FinanceLayout */}
+          <Route
+            path="/finance"
+            element={
+              <RoleGuard allowedRoles={[ROLES.FINANCE]} redirectTo="/management/login">
+                <FinanceLayout />
+              </RoleGuard>
+            }
+          >
+            <Route index element={<FinanceDashboardPage />} />
+            <Route path="snapshots" element={<FinanceSnapshotsPage />} />
+            <Route path="mrr" element={<FinanceMrrPage />} />
+            <Route path="arr" element={<FinanceArrPage />} />
+            <Route path="arpu" element={<FinanceArpuPage />} />
+            <Route path="churn" element={<FinanceChurnPage />} />
+            <Route path="invoices" element={<FinanceInvoicesPage />} />
           </Route>
         </Routes>
       </AuthProvider>

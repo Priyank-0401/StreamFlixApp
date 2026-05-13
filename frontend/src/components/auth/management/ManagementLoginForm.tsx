@@ -20,7 +20,11 @@ export const ManagementLoginForm: React.FC = () => {
     try {
       const user = await authService.managerLogin({ email, password });
       await login(user);
-      navigate('/admin'); // RoleGuard will naturally handle exact redirection later
+      if (user.role === 'FINANCE') {
+        navigate('/finance');
+      } else if (user.role === 'ADMIN') {
+        navigate('/admin');
+      }
     } catch (err: any) {
       if (err.validationErrors) {
         setFieldErrors(err.validationErrors);
@@ -38,28 +42,28 @@ export const ManagementLoginForm: React.FC = () => {
           {error}
         </div>
       )}
-      
-      <FlushedInput 
+
+      <FlushedInput
         label="Corporate Email"
         type="email"
         value={email}
-        onChange={(e) => { setEmail(e.target.value); setFieldErrors({...fieldErrors, email: ''}) }}
+        onChange={(e) => { setEmail(e.target.value); setFieldErrors({ ...fieldErrors, email: '' }) }}
         disabled={loading}
         error={fieldErrors['email']}
         placeholder="Enter corporate email"
         required
       />
-      
-      <FlushedPasswordField 
+
+      <FlushedPasswordField
         label="Password"
         value={password}
-        onChange={(e) => { setPassword(e.target.value); setFieldErrors({...fieldErrors, password: ''}) }}
+        onChange={(e) => { setPassword(e.target.value); setFieldErrors({ ...fieldErrors, password: '' }) }}
         disabled={loading}
         error={fieldErrors['password']}
         placeholder="Enter password"
         required
       />
-      
+
       <LoginButton loading={loading}>
         {loading ? 'Authenticating...' : 'Access Portal'}
       </LoginButton>
