@@ -11,6 +11,7 @@ import java.util.List;
 
 @Repository
 public interface UsageRecordRepository extends JpaRepository<UsageRecord, Long> {
+	List<UsageRecord> findBySubscription_Customer_Id(Long customerId);
 	List<UsageRecord> findBySubscription_IdAndBillingPeriodStartGreaterThanEqualAndBillingPeriodEndLessThanEqual(
 			Long subscriptionId, LocalDate start, LocalDate end);
 

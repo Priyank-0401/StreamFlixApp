@@ -11,6 +11,7 @@ import com.infy.billing.enums.Status;
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
    long countByStatus(Status status);
 
+   List<Subscription> findByCustomer_Id(Long customerId);
    List<Subscription> findByCustomer_IdAndStatusIn(Long id, List<Status> statuses);
    Optional<Subscription> findByCustomer_IdAndStatus(Long customerId, Status status);
 

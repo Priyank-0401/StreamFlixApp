@@ -45,6 +45,14 @@ import { PaymentsPage } from './pages/finance/payments';
 import { CreditsPage } from './pages/finance/creditnotes';
 import { SnapshotsPage } from './pages/finance/revenueSnapshots';
 
+// Support Layout & Pages
+import { SupportLayout } from './components/support/layout/SupportLayout';
+import { SupportDashboardPage } from './pages/support/SupportDashboardPage';
+import { AuditLogsPage } from './pages/support/AuditLogsPage';
+import { SystemStatusPage } from './pages/support/SystemStatusPage';
+import { PastDueSubscriptionsPage } from './pages/support/PastDueSubscriptionsPage';
+
+
 function App() {
   return (
     <BrowserRouter>
@@ -143,6 +151,21 @@ function App() {
             <Route path="payments" element={<PaymentsPage />} />
             <Route path="credits" element={<CreditsPage />} />
             <Route path="snapshots" element={<SnapshotsPage />} />
+          </Route>
+
+          {/* Support Protected Routes — Nested under SupportLayout */}
+          <Route
+            path="/support"
+            element={
+              <RoleGuard allowedRoles={[ROLES.SUPPORT]} redirectTo="/management/login">
+                <SupportLayout />
+              </RoleGuard>
+            }
+          >
+            <Route index element={<SupportDashboardPage />} />
+            <Route path="audit-logs" element={<AuditLogsPage />} />
+            <Route path="status" element={<SystemStatusPage />} />
+            <Route path="past-due" element={<PastDueSubscriptionsPage />} />
           </Route>
         </Routes>
       </AuthProvider>

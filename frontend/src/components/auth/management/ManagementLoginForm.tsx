@@ -24,6 +24,8 @@ export const ManagementLoginForm: React.FC = () => {
         navigate('/finance');
       } else if (user.role === 'ADMIN') {
         navigate('/admin');
+      } else if (user.role === 'SUPPORT') {
+        navigate('/support');
       }
     } catch (err: any) {
       if (err.validationErrors) {
