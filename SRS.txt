@@ -1,0 +1,295 @@
+Subscription Billing & Revenue Management System  Requirements Specification Document  TABLE OF CONTENTS  1. Project Description  2. Scope  3. Actors & Roles  4. Assumptions & Dependencies  5. User Stories  6. Functional Requirements  7. Non-Functional Requirements  8. Data Model (ER Overview)  9. API Design (High-Level)  10. Workflows & Sequence Flows  11. Frontend Components  10:50  12. Security & Compliance  13. Environment Requirements  14. Validation & Error Handling  15. Testing Strategy  16. Logging, Monitoring & Observability  17. DevOps & Deployment  18. KPIs & Analytics  19. Final Deliverables  1. PROJECT DESCRIPTION  A Subscription Billing & Revenue Management System that automates recurring billing for SaaS/streaming-style products. It supports subscription creation, automatic billing cycles, taxes & discounts, proration, invoices, credit notes, refunds, dunning with retries, renewal reminders, and revenue analytics (MRR, ARR, churn)  2. SCOPE  In Scope:  - Product & Plan catalog (tiers, add-ons, metered components)  Subscription lifecycle (trial, active, paused, canceled)  - Billing engine (cycle runs, proration, mid-cycle changes)  - Invoices, credit notes, and receipts  - Payment processing (Mock Payment Service - simulated payments)  - Taxes (GST/VAT), discounts, coupons  - Dunning (retry strategies), reminders & notifications  - Revenue analytics dashboard (MRR/ARR, churn, retention)  - Role-based portals: Admin, Finance, Support, Customer  3. ACTORS & ROLES  - Customer: subscribes, manages payment methods  - Admin: manages products, plans, price books, coupons, taxes  -Finance Manager: invoices, collections, revenue reports  Finance Manager: invoices, collections, revenue reports  - Support Agent: assists customers, refunds/adjustments  - System (Billing Engine): scheduled billing, retries, notifications  - Payment Gateway (External): processes payments (sandbox)  4. ASSUMPTIONS & DEPENDENCIES  - Payment gateway adapter (mock)  - Internal time in UTC; user display timezone aware  Email/SMS providers configured (mock)  - Microservices over REST + async events  Currency ISO-4217; amounts stored in minor units (rupees)  - Tax calculation supports inclusive/exclusive modes  5. USER STORIES  US 01- Must Have  As a customer, I want to subscribe to a plan (with optional add-ons) so that I can start using the service.  Acceptance Criteria:  - Choose plan, billing cycle, add-ons  - Enter payment method  - Trial start/end dates shown when applicable  -Subscription becomes active on success; past_due on failure  US 02-Must Have  As a system, I want to run automated billing cycles so that subscriptions are renewed on time.  Acceptance Criteria:  - Cron detects subscriptions due in next 24h  - Generate invoice → attempt charge update status  - Generate invoice attempt charge →  update status  - On success: send receipt; on failure: mark past_due and enqueue retry  - Idempotency key prevents duplicate charges  US 03-Must Have  As an admin, I want to configure products, plans, and pricing to offer flexible subscriptions.  Acceptance Criteria:  - CRUD for product, plan, add-on, metered component  - Define price, billing period, trial, setup fee  - Price books per currency; effective start/end dates  US 04-Must Have  As a finance manager, I want taxes and discounts applied correctly for compliance and transparency.  Acceptance Criteria:  - Tax rules by region (GST/VAT), inclusive/exclusive  - Coupons: amount/percentage, one-time/recurring, expiry, usage limits  Invoices show line-item taxes and discounts  US 05-Must Have  4  of 12  As a customer, I want renewal reminders so that I'm informed before charges.  Acceptance Criteria:  - Reminder at T-7 and T-1 (configurable)  - Email/SMS with amount, date, manage link(Mock)  - Notification logs maintained  US 06-Must Have  As a customer, I want upgrades/downgrades mid-cycle with proration, so charges are fair.  Acceptance Criteria:  - Proration based on remaining days/usage  Charge immediately or at next renewal  - Proration lines appear on invoice  US 07-Must Have  As a finance manager, I want revenue analytics so that I can track MRR/ARR and churn.  Q Search  US 07-Must Have  As a finance manager, I want revenue analytics so that I can track MRR/ARR and churn.  Acceptance Criteria:  - KPIs: MRR, ARR, ARPU, Net & Gross churn, LTV  - Filters by time range, plan, region  - Export CSV/PDF  US 08 Must Have  As a support agent, I want to issue refunds/credit notes so that customer disputes are handled.  Acceptance Criteria:  - Full/partial refund with reason  - Auto-create credit note; update reports  - Audit log captured  US 09-Must Have  な  As an admin, I want dunning & retry strategies so failed payments recover automatically. Acceptance Criteria:  - Retry schedule (e.g., after 1d, 3d, 7d)  - Card update reminder to customer  - After max retries: cancel or hold (configurable)  6. FUNCTIONAL REQUIREMENTS  6.1 Catalog  - Manage products, plans, add-ons, metered units  - Price books per currency; effective date ranges  - Plan attributes: billing interval, trial days, setup fee, tax behavior, proration behavior  6.2 Subscription Management  -Lifecycle: draft → trialing active past_due paused → canceled  - Mid-cycle changes with proration; pause/resume rules  - Multiple subscriptions per customer  6.3 Billing & Invoicing  - Cycle detection via scheduler and on-demand trigger  Invoice generation: header, line items, taxes, discounts, totals  - Payment attempt & status update; credit notes for refunds  6.4 Taxes & Discounts  - Region-based tax rules; inclusive/exclusive support  - Coupons: percent/fixed; duration once/repeating/forever  - Rounding policy and minor-unit storage  6.5 Payments  - Payment tokenization; idempotent charge endpoint  - No raw PAN storage; webhook simulation for results  6.6 Dunning & Retries  - Configurable retry schedule and max attempts  - Customer notifications; status transitions on completion  6.7 Notifications  - Templates for reminders, receipts, failures, upcoming invoice - Email (SMTP) and SMS provider support; unsubscribe preferences (Mock)  6.8 Reporting & Analytics  - KPIs: MRR, ARR, ARPU, Churn, LTV, DSO  - Daily snapshots; CSV/PDF exports  6.9 Administration & Compliance  - RBAC roles; audit logs; PII retention and masking rules  7. NON-FUNCTIONAL REQUIREMENTS  - Performance:  - Scalability:  - Security: OAuth2, Spring Security  - Reliability: 99.5% uptime; idempotency; retries with backoff  - Maintainability: clean architecture; DTO mapping; coverage ≥ 80%  - Observability: structured logs, metrics, traces, dashboards  8. DATA MODEL (ER OVERVIEW)  Core Entities (simplified):  8. DATA MODEL (ER OVERVIEW)  Core Entities (simplified):  - Customer(id, name, email, phone, currency, address, status, created_at, updated_at)  - Product(id, name, description, status, created_at, updated_at)  - Plan(id, product_id, name, billing_period, price_minor, currency, trial_days, setup_fee_minor, tax_mode, effective_from, effective_to, status)  - Subscription(id, customer_id, plan_id, status, start_date, current_period_start, current_period_end, cancel_at_period_end, paused_from, paused_to, payment_method_id, currency)  - Subscriptionltem(id, subscription_id, item_type, unit_price_minor, quantity, tax_mode, discount_id)  - Invoice(id, customer_id, subscription_id, status, issue_date, due_date, subtotal_minor, tax minor, discount_minor, total_minor, balance_minor, currency)  - InvoiceLineltem (id, invoice_id, description, quantity, unit price_minor, amount_minor, tax_rate_id, discount_id, metadata)  -Payment(id, invoice_id, gateway_ref, amount_minor, currency, status, attempt_no, response_code, created_at)
+
+- TaxRate(id, region, rate_percent, inclusive, effective_from, effective_to)
+
+- Coupon(id, code, type, amount, duration, duration_in_months, max_redemptions, redeemed_count, valid_from, valid_to, status)
+
+- CreditNote(id, invoice_id, reason, amount_minor, created_by, created_at)
+
+- AuditLog(id, actor, action, entity_type, entity_id, old_value, new_value, request_id, ip, created_at)
+
+-Notification(id, customer_id, type, subject, channel, status, sent_at)
+
+9. API DESIGN (HIGH-LEVEL)
+
+Base URI: /api/v1
+
+Auth
+
+-POST/auth/login
+
+- POST/auth/refresh
+
+Customers
+
+-POST/customers
+
+- GET/customers/{id}
+
+-GET/customers?email=&status=
+
+GET/customers?email=&status=
+
+-PUT/customers/{id}
+
+- DELETE/customers/{id}
+
+Catalog
+
+- POST/products
+
+- GET/products
+
+- POST/plans
+
+- GET/plans?productId=&currency=
+
+- POST/addons
+
+- GET/addons
+
+Subscriptions
+
+- POST/subscriptions/{id}/cancel?at_period_end=true/false
+
+- GET/customers/{id}/subscriptions
+
+Invoices
+
+- GET/invoices?customerld=&status=
+
+- GET/invoices/{id}
+
+- POST/invoices/{id}/finalize
+
+- POST/invoices/{id}/void
+
+-POST/invoices/{id}/pay
+
+Payments
+
+- POST/payments
+
+-GET/payments/{id}
+
+-POST/payments/{id}/refund
+
+Taxes & Coupons
+
+- POST /tax-rates
+
+-POST/subscriptions
+
+- GET/subscriptions/{id}
+
+- PATCH/subscriptions/{id}
+
+Taxes & Coupons
+
+- POST/tax-rates
+
+- GET/tax-rates
+
+- POST/coupons
+
+- GET/coupons
+
+-POST/coupons/validate
+
+Billing Engine
+
+- POST/billing/run
+
+-GET/billing/jobs?status=
+
+Reports
+
+- GET/reports/revenue?from=&to=&granularity=
+
+-GET/reports/mrr?from=&to=
+
+-GET/reports/churn?from=&to=
+
+HTTP Status Codes: 200/201/202, 400, 401/403, 404, 409, 422, 429,500
+
+10. WORKFLOWS & SEQUENCE FLOWS
+
+10.1 Subscription Creation
+
+- Select plan and payment method
+
+- Validate coupon/tax
+
+- Create subscription (trial/active)
+
+- If setup fee/immediate charge invoice payment attempt
+
+- On success: receipt; on failure: past_due and retry
+
+10.2 Renewal Billing (Cron)
+
+- Find subscriptions expiring next day
+
+- Generate invoice with proration/discounts/taxes
+
+- Attempt payment (idempotent) and update status
+
+
+
+- Send receipt or failure notice
+
+10.3 Upgrade/Downgrade Mid-cycle
+
+- Compute proration credit/debit
+
+- Charge now or defer to next renewal
+
+- Update subscription items; audit log
+
+10.4 Dunning & Retry
+
+- On failure: past_due and schedule retries
+
+- Notify to update payment method
+
+- After max attempts: cancel/on_hold per policy
+
+11. FRONTEND COMPONENTS
+
+Customer Portal
+
+- Subscription onboarding wizard
+
+- Manage plan (upgrade/downgrade/pause/cancel)
+
+- Invoices & payments with PDF downloads
+
+- Payment methods management
+
+- Notifications & preferences
+
+Admin Console
+
+-Product/Plan management
+
+- Price books, tax rules, coupons
+
+- Billing jobs dashboard
+
+Finance Dashboard
+
+- Invoices aging, collections, refunds
+
+- Revenue analytics (MRR/ARR, churn, ARPU)
+
+- Export center (CSV/PDF)
+
+Support Console
+
+- Customer lookup
+
+- Subscription history & actions
+
+- Refund/credit note workflows
+
+- Notes & communication log
+
+12. SECURITY & COMPLIANCE
+
+- OAuth2/Spring Security (RBAC: Admin, Finance, Support, Customer)
+
+Tokenization for sensitive payment data; no raw PAN storage
+
+- PII encryption at rest; TLS in transit; CSRF and CORS config
+
+- Audit Logs for monetary actions; immutable store
+
+13. ENVIRONMENT REQUIREMENTS
+
+Technology Stack:
+
+- Backend: Spring Boot, Spring Data JPA, Spring REST, Spring Cloud Consul
+
+- Scheduler: Spring @Scheduled
+
+- Frontend: Angular/React, TypeScript/JavaScript, HTML5, CSS3, Bootstrap
+
+Database: MySQL
+
+- Security: OAuth2 / Spring Security
+
+- API Docs: Swagger / OpenAPI
+
+- Config: Spring Cloud Config
+
+Microservices (recommended): api-gateway, auth-service, catalog-service, customer-service, subscription-service, billing-service, payment-service, invoice-service, notification-service, reporting-service
+
+Resilience: Circuit Breaker timeout 3s, error threshold 50%, open after 10 consecutive failures, open state 60s, with fallbacks. Two instances per microservice with load balancing.
+
+14. VALIDATION & ERROR HANDLING
+
+- Bean Validation for all inputs; Custom Validators for complex rules
+
+- Standard error format with timestamp, requestld, error code, message, details, path
+
+- Centralized Exception Handling (@ControllerAdvice)
+
+- Custom exceptions (e.g., PaymentRetry ExceededException, ProrationCalculationException)
+
+15. TESTING STRATEGY
+
+- Unit: JUnit + Mockito (≥ 80% coverage)
+
+- Integration: repository/controller tests
+
+- Scheduler: simulated clock tests for billing runs
+
+-Security: RBAC tests
+
+- Postman/Swagger verification
+
+16. LOGGING, MONITORING & OBSERVABILITY
+
+- Structured JSON logs with correlationld and requestId
+
+- LoggingAspect for service exceptions
+
+- Metrics: latency, error rates, retries, success ratios
+
+- Health checks via /actuator endpoints; job status dashboards
+
+- Alerts on billing failures and dunning success thresholds
+
+17. DEVOPS & DEPLOYMENT
+
+- Build: Maven Cl with unit tests + SonarQube
+
+- Config: externalized;
+
+- Environments: Dev
+
+18. KPIs & ANALYTICS
+
+- Financial: MRR, ARR, ARPU, LTV (basic), Gross/Net Churn, DSO
+
+- Operational: Invoice success rate, retry recovery, payment latency, refund ratio
+
+- Customer: Churn reasons, plan distribution, activation rate
+
+- Engineering: Error budget burn, SLOs for key APIs
+
+19. FINAL DELIVERABLES
+
+- Application archives (.jar) with complete source code
+
+- Database DDL Scripts (MySQL)
+
+- OpenAPI/Swagger documentation
+
+Sample screenshots (Customer Portal, Finance Dashboard, Admin Console)
+
+- Postman collection for REST endpoints
+
+- Test coverage report (≥ 80%)
+
+- SonarQube report meeting Quality Gate (Security A, Reliability A, Issues ≤ 5, Coverage ≥ 80%, Duplication ≤ 3%, Security Hotspots A)
