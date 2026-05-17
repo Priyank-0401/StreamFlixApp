@@ -1,12 +1,14 @@
 # Support Agent Module Specification
 
-This document outlines the requirements, functionalities, and database mappings for the **Support Agent** module in the StreamFlix Subscription Billing & Revenue Management System.
+This document outlines the requirements, functionalities, and database mappings for the **Support Agent** module in the StreamFlix Subscription Billing & Revenue Management System, aligned with the current business rules (no refunds, cancellation at period end only).
 
 ## 1. Role & Overview
 
-The **Support Agent** plays a critical role in customer retention and dispute resolution. They are responsible for assisting customers with billing issues, processing refunds, and managing account adjustments.
+The **Support Agent** is responsible for assisting customers with account inquiries, billing questions, and subscription management.
 
-In the database schema, the `user` table supports the `'SUPPORT'` role in the `role` enum. This role will have access to a dedicated **Support Console** (to be built) in the frontend.
+**Key Constraint**: In accordance with the current business logic, **refunds (full or partial) are not supported**, and subscription **cancellation is only allowed at the end of the billing period**. Therefore, the Support Agent's role is focused on information retrieval and customer support rather than financial adjustments.
+
+In the database schema, the `user` table supports the `'SUPPORT'` role in the `role` enum. This role will have access to a dedicated **Support Console** in the frontend.
 
 ## 2. Key Functionalities
 
@@ -15,28 +17,25 @@ The Support Agent module will provide the following capabilities:
 ### A. Customer Lookup & View
 - **Search**: Search for customers by Name, Email, or Customer ID.
 - **Profile View**: View customer details including contact info, currency, and country.
-- **Subscription History**: View active and past subscriptions.
-- **Billing History**: View invoices, payments, and credit notes associated with the customer.
+- **Subscription History**: View active and past subscriptions, including their current period end dates.
+- **Billing History**: View invoices and payment history to explain charges to customers.
 
-### B. Refund Processing (US-08)
-- **Full Refund**: Process a full refund for a successful payment.
-- **Partial Refund**: Process a partial refund with a specified amount (cannot exceed the original payment amount).
-- **Reason Tracking**: Capture the reason for the refund (e.g., "Accidental purchase", "Service issue").
-- **Status Update**: Update the payment status to `REFUNDED` or `PARTIALLY_REFUNDED`.
+### B. Subscription Status Inquiry
+- Verify when a customer's subscription is set to renew or expire.
+- Confirm if a cancellation request has been set for the period end.
 
-### C. Credit Note Management
-- **Generation**: Automatically generate a credit note when a refund is processed.
-- **Linkage**: The credit note must be linked to the original invoice.
-- **Status**: Credit notes are created with status `ISSUED`.
+### C. Billing & Usage Transparency
+- **View Metered Usage**: Access the `usage_record` table to explain exactly why a customer was charged a certain amount if they use metered components.
+- **View Notification History**: Access the `notification` table to check if the customer was actually sent renewal reminders or payment failure alerts. This helps resolve disputes like "I didn't know I was going to be charged."
 
 ### D. Audit Logging
-- Every action performed by a Support Agent (especially refunds and adjustments) must be logged in the `audit_log` table for compliance and security.
+- Read-only access to specific logs or simply logging the fact that an agent viewed a customer's sensitive data (if required for compliance).
 
 ---
 
 ## 3. Database Tables & Mapping
 
-The Support Agent module interacts with several tables. Below is the mapping and access level required:
+The Support Agent module interacts with several tables. Since the agent has **read-only** access for support purposes, the mapping is as follows:
 
 ### Relevant Tables
 
@@ -44,13 +43,14 @@ The Support Agent module interacts with several tables. Below is the mapping and
 | :--- | :--- | :--- | :--- |
 | **`user`** | Read | To identify the support agent and authenticate. | `user.role` = 'SUPPORT' |
 | **`customer`** | Read | To lookup customer details and history. | `customer.user_id` -> `user.user_id` |
-| **`subscription`** | Read | To view subscription status and plans. | `subscription.customer_id` -> `customer.customer_id` |
-| **`invoice`** | Read | To view billing details and link credit notes. | `invoice.subscription_id` -> `subscription.subscription_id` |
-| **`payment`** | Read / Update | To view payment history and process refunds. | `payment.invoice_id` -> `invoice.invoice_id` <br> Update `status` to 'REFUNDED' or 'PARTIALLY_REFUNDED' |
-| **`credit_note`** | Create / Read | To issue credit notes for refunds. | `credit_note.invoice_id` -> `invoice.invoice_id` <br> `credit_note.created_by` -> `user.user_id` (Support Agent) |
-| **`audit_log`** | Create | To log support actions. | `audit_log.actor` = Support Agent Name <br> `audit_log.actor_role` = 'SUPPORT' |
+| **`subscription`** | Read | To view subscription status, plans, and period end dates. | `subscription.customer_id` -> `customer.customer_id` |
+| **`invoice`** | Read | To view billing details and explain charges. | `invoice.subscription_id` -> `subscription.subscription_id` |
+| **`payment`** | Read | To view payment history and verify successful charges. | `payment.invoice_id` -> `invoice.invoice_id` |
+| **`usage_record`** | Read | To explain metered charges to customers. | `usage_record.subscription_id` -> `subscription.subscription_id` |
+| **`notification`** | Read | To check communication history (reminders, alerts). | `notification.customer_id` -> `customer.customer_id` |
+| **`audit_log`** | Read / Create | To view history or log that a support agent accessed records. | `audit_log.actor` = Support Agent Name |
 
-### Entity Relationship & Flow Mapping
+### Entity Relationship Mapping (Read-Only Context)
 
 ```mermaid
 erDiagram
@@ -58,9 +58,8 @@ erDiagram
     CUSTOMER ||--o| SUBSCRIPTION : "has"
     SUBSCRIPTION ||--o| INVOICE : "generates"
     INVOICE ||--o| PAYMENT : "has"
-    INVOICE ||--o| CREDIT_NOTE : "can have"
-    USER ||--o| CREDIT_NOTE : "creates"
-    USER ||--o| AUDIT_LOG : "triggers"
+    SUBSCRIPTION ||--o| USAGE_RECORD : "has"
+    CUSTOMER ||--o| NOTIFICATION : "receives"
 
     CUSTOMER {
         bigint customer_id PK
@@ -71,6 +70,7 @@ erDiagram
         bigint subscription_id PK
         bigint customer_id FK
         enum status
+        date current_period_end
     }
     INVOICE {
         bigint invoice_id PK
@@ -82,19 +82,25 @@ erDiagram
         bigint invoice_id FK
         enum status
     }
-    CREDIT_NOTE {
-        bigint credit_note_id PK
-        bigint invoice_id FK
-        bigint created_by FK
+    USAGE_RECORD {
+        bigint usage_id PK
+        bigint subscription_id FK
+        bigint component_id FK
+        bigint quantity
+    }
+    NOTIFICATION {
+        bigint notification_id PK
+        bigint customer_id FK
+        string type
         enum status
     }
 ```
 
 ---
 
-## 4. Proposed Refund Workflow
+## 4. Proposed Support Workflow (Customer Inquiry)
 
-Here is the sequence of events when a Support Agent processes a refund:
+Here is the sequence of events when a Support Agent assists a customer:
 
 ```mermaid
 sequenceDiagram
@@ -103,40 +109,19 @@ sequenceDiagram
     participant API as Support Controller (Backend)
     participant DB as Database
 
-    Agent->>Portal: Search for Customer
+    Agent->>Portal: Search for Customer (Email/ID)
     Portal->>API: GET /api/support/customers?query=...
-    API->>DB: Query Customer & History
+    API->>DB: Query Customer, Subscriptions, Invoices, Usage & Notifications
     DB-->>API: Return Data
-    API-->>Portal: Show Customer Details
-
-    Agent->>Portal: Select Payment & Click Refund
-    Portal->>Portal: Prompt for Amount & Reason
-    Agent->>Portal: Submit Refund (Amount, Reason)
-    Portal->>API: POST /api/support/payments/{id}/refund
-    
-    rect rgb(240, 248, 255)
-        note over API, DB: Transaction Starts
-        API->>DB: Validate Payment Status (must be SUCCESS)
-        API->>DB: Validate Refund Amount <= Payment Amount
-        API->>DB: Update Payment Status (REFUNDED or PARTIALLY_REFUNDED)
-        API->>DB: Create Credit Note (Status: ISSUED)
-        API->>DB: Insert Audit Log Entry
-        note over API, DB: Transaction Commits
-    end
-
-    DB-->>API: Success
-    API-->>Portal: Refund Processed Successfully
-    Portal-->>Agent: Display Success Message & Updated Status
+    API-->>Portal: Show Customer Details & History
+    Portal-->>Agent: Display Info (Agent can now explain billing and communication status)
 ```
 
 ## 5. Next Steps for Implementation
 
 To build this module, we need to:
 1.  **Backend**:
-    - Create `SupportController.java` with endpoints for customer lookup and refund processing.
-    - Implement the refund logic in a service (e.g., `SupportService` or `FinanceService`).
-    - Ensure audit logging is triggered.
+    - Create `SupportController.java` with endpoints for customer lookup (read-only, including usage and notifications).
 2.  **Frontend**:
     - Create a new route `/support` with a layout consistent with the Admin and Customer dashboards.
-    - Build the Customer Lookup view.
-    - Build the Refund modal/form.
+    - Build the Customer Lookup view and detail display (including tabs for Usage and Notifications).
