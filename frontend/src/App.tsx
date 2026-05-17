@@ -35,13 +35,15 @@ import { CustomerProvider } from './context/CustomerContext';
 
 // Finance Layout & Pages
 import { FinanceLayout } from './components/finance/layout/FinanceLayout';
-import { FinanceDashboardPage } from './pages/finance/FinanceDashboardPage';
-import { FinanceSnapshotsPage } from './pages/finance/FinanceSnapshotsPage';
-import { FinanceMrrPage } from './pages/finance/FinanceMrrPage';
-import { FinanceArrPage } from './pages/finance/FinanceArrPage';
-import { FinanceArpuPage } from './pages/finance/FinanceArpuPage';
-import { FinanceChurnPage } from './pages/finance/FinanceChurnPage';
-import { FinanceInvoicesPage } from './pages/finance/FinanceInvoicesPage';
+import { FinanceDashboard } from './pages/finance/FinanceDashboard';
+import { MRRAnalyticsPage } from './pages/finance/mrr';
+import { ARRAnalyticsPage } from './pages/finance/arr';
+import { ChurnAnalyticsPage } from './pages/finance/churn';
+import { ARPUAnalyticsPage } from './pages/finance/arpuLtv';
+import { InvoicesPage } from './pages/finance/invoices';
+import { PaymentsPage } from './pages/finance/payments';
+import { CreditsPage } from './pages/finance/creditnotes';
+import { SnapshotsPage } from './pages/finance/revenueSnapshots';
 
 function App() {
   return (
@@ -132,13 +134,15 @@ function App() {
               </RoleGuard>
             }
           >
-            <Route index element={<FinanceDashboardPage />} />
-            <Route path="snapshots" element={<FinanceSnapshotsPage />} />
-            <Route path="mrr" element={<FinanceMrrPage />} />
-            <Route path="arr" element={<FinanceArrPage />} />
-            <Route path="arpu" element={<FinanceArpuPage />} />
-            <Route path="churn" element={<FinanceChurnPage />} />
-            <Route path="invoices" element={<FinanceInvoicesPage />} />
+            <Route index element={<FinanceDashboard />} />
+            <Route path="mrr" element={<MRRAnalyticsPage />} />
+            <Route path="arr" element={<ARRAnalyticsPage />} />
+            <Route path="churn" element={<ChurnAnalyticsPage />} />
+            <Route path="arpu" element={<ARPUAnalyticsPage />} />
+            <Route path="invoices" element={<InvoicesPage />} />
+            <Route path="payments" element={<PaymentsPage />} />
+            <Route path="credits" element={<CreditsPage />} />
+            <Route path="snapshots" element={<SnapshotsPage />} />
           </Route>
         </Routes>
       </AuthProvider>

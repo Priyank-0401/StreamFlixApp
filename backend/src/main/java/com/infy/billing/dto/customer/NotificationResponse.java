@@ -1,19 +1,16 @@
 package com.infy.billing.dto.customer;
-
 import java.time.LocalDateTime;
-
 import com.infy.billing.enums.Channel;
 import com.infy.billing.enums.NotificationStatus;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+
 public class NotificationResponse {
 
 	private Long notificationId;
@@ -33,5 +30,4 @@ public class NotificationResponse {
 	private LocalDateTime sentAt;
 
 	private LocalDateTime createdAt;
-
 }

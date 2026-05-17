@@ -68,7 +68,7 @@ export const CustomerLayout: React.FC = () => {
   // Update search results
   useEffect(() => {
     if (searchQuery.trim().length > 0) {
-      const filtered = allNavItems.filter(item => 
+      const filtered = allNavItems.filter(item =>
         item.label.toLowerCase().includes(searchQuery.toLowerCase()) &&
         (!item.requiresCustomer || isCustomer === true)
       );
@@ -411,7 +411,7 @@ export const CustomerLayout: React.FC = () => {
                     position: 'absolute',
                     top: 'calc(100% + 12px)',
                     right: 0,
-                    width: '320px',
+                    width: '400px',
                     background: '#ffffff',
                     border: '1px solid #e2e8f0',
                     borderRadius: '16px',
@@ -423,12 +423,12 @@ export const CustomerLayout: React.FC = () => {
                   <div style={{ padding: '16px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <p style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B', margin: 0 }}>Notifications</p>
                     {notifications.length > 0 && (
-                      <button 
+                      <button
                         onClick={async () => {
                           try {
                             await CustomerService.markAllNotificationsAsRead();
                             setNotifications([]);
-                          } catch (e) {}
+                          } catch (e) { }
                         }}
                         style={{ background: 'none', border: 'none', fontSize: '12px', color: '#5b4fff', cursor: 'pointer', fontWeight: 600 }}
                       >
@@ -446,7 +446,7 @@ export const CustomerLayout: React.FC = () => {
                         <div key={notif.id} style={{ padding: '16px', borderBottom: '1px solid #f1f5f9', position: 'relative' }}>
                           <p style={{ margin: '0 0 4px', fontSize: '13px', fontWeight: 600, color: '#1e293b' }}>{notif.subject}</p>
                           <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>{notif.body}</p>
-                          <button 
+                          <button
                             onClick={() => handleDismissNotification(notif.id)}
                             style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline' }}
                           >

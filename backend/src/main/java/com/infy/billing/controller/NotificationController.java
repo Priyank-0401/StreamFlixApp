@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -41,5 +43,20 @@ public class NotificationController {
 				notificationService.getCustomerNotifications(customer.getId())
 
 		);
+	}
+
+	@PutMapping("/{id}/read")
+	public ResponseEntity<Void> markAsRead(@PathVariable Long id) {
+		notificationService.markAsRead(id);
+		return ResponseEntity.ok().build();
+	}
+
+	@PutMapping("/read-all")
+	public ResponseEntity<Void> markAllAsRead(Authentication authentication) {
+		User user = (User) authentication.getPrincipal();
+		Customer customer = customerRepository.findByUser_Id(user.getId())
+				.orElseThrow(() -> com.infy.billing.exception.CustomException.notFound("Customer not found"));
+		notificationService.markAllAsRead(customer.getId());
+		return ResponseEntity.ok().build();
 	}
 }

@@ -171,11 +171,16 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         
         Long subtotalMinor;
         Long totalMinor;
+        Long headerDiscountMinor;
         if (plan.getTaxMode() == TaxMode.INCLUSIVE) {
-            subtotalMinor = priceAfterDiscount - taxMinor;
+            Long taxOnPre = calculateTax(priceMinor, taxRate, plan.getTaxMode());
+            Long taxOnDiscount = calculateTax(discountMinor, taxRate, plan.getTaxMode());
+            subtotalMinor = priceMinor - taxOnPre;
+            headerDiscountMinor = discountMinor - taxOnDiscount;
             totalMinor = priceAfterDiscount;
         } else {
-            subtotalMinor = priceAfterDiscount;
+            subtotalMinor = priceMinor;
+            headerDiscountMinor = discountMinor;
             totalMinor = priceAfterDiscount + taxMinor;
         }
 
@@ -244,7 +249,8 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
 
         Invoice invoice = createInvoice(customer, subscription, subtotalMinor, taxMinor, totalMinor, today,
                 dueDate, invoiceStatus);
-        invoice.setDiscountMinor(discountMinor);
+        invoice.setDiscountMinor(headerDiscountMinor);
+
         invoiceRepository.save(invoice);
 
         // Add line items to the invoice

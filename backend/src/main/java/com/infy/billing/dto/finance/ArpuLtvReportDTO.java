@@ -12,7 +12,8 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ArpuLtvReportDTO {
-    private long arpuMinor;                     // current ARPU in INR paise
-    private long ltvMinor;                      // current LTV in INR paise
+    private long arpuMinor;                      // current ARPU in INR paise
+    private long ltvMinor;                       // current LTV in INR paise
+    private String cacLtvRatio;                  // e.g. "1:3.2"
     private List<MonthlyTrendDTO> arpuTrend;    // all months from snapshots, valueMinor = ARPU of that month
 }

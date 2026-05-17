@@ -28,7 +28,6 @@ async function adminFetch<T>(endpoint: string, options?: RequestInit): Promise<T
     },
   });
 
-
   if (!res.ok) {
     const errorText = await res.text();
     console.error(`Admin API error (${res.status}):`, errorText);

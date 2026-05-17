@@ -34,4 +34,3 @@ public class PriceBookEntry {
    private LocalDate effectiveTo;
 }
 
-

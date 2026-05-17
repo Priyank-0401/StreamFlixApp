@@ -486,7 +486,8 @@ CREATE TABLE notification (
         'PENDING',
         'SENT',
         'FAILED',
-        'SKIPPED'
+        'SKIPPED',
+        'READ'
     ) NOT NULL,
     scheduled_at TIMESTAMP NULL,
     sent_at TIMESTAMP NULL,

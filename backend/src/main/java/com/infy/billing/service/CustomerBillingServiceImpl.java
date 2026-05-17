@@ -24,6 +24,7 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
    private final CustomerRepository customerRepository;
    private final UserRepository userRepository;
    private final InvoicePdfService invoicePdfService;
+   private final SubscriptionCouponRepository subscriptionCouponRepository;
 
    public List<InvoiceDTO> getInvoices(String email, String status, String from, String to) {
        Customer customer = getCustomerByEmail(email);
@@ -82,10 +83,34 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
        Coupon coupon = couponRepository.findByCodeAndStatus(code, Status.ACTIVE)
                .orElseThrow(() -> new RuntimeException("Invalid or expired coupon"));
        
-       subscriptionRepository.findByCustomer_IdAndStatusIn(
+       Subscription subscription = subscriptionRepository.findByCustomer_IdAndStatusIn(
                customer.getId(), List.of(Status.ACTIVE, Status.TRIALING)).stream()
                .findFirst()
                .orElseThrow(() -> new RuntimeException("No active subscription"));
+
+       // Deactivate any currently active coupon on this subscription to enforce one active coupon at a time
+       java.util.Optional<SubscriptionCoupon> activeCouponOpt = subscriptionCouponRepository
+               .findBySubscription_IdAndStatus(subscription.getId(), Status.ACTIVE);
+       if (activeCouponOpt.isPresent()) {
+           SubscriptionCoupon activeSc = activeCouponOpt.get();
+           if (activeSc.getCoupon().getId().equals(coupon.getId())) {
+               throw new RuntimeException("Coupon already active on this subscription");
+           }
+           activeSc.setStatus(Status.CANCELED);
+           subscriptionCouponRepository.save(activeSc);
+       }
+
+       // Link and persist the new coupon to the subscription
+       SubscriptionCoupon sc = new SubscriptionCoupon();
+       sc.setSubscription(subscription);
+       sc.setCoupon(coupon);
+       sc.setAppliedAt(java.time.LocalDateTime.now());
+       sc.setStatus(Status.ACTIVE);
+       subscriptionCouponRepository.save(sc);
+
+       // Increment redemption count
+       coupon.setRedeemedCount(coupon.getRedeemedCount() + 1);
+       couponRepository.save(coupon);
        
        return mapToCouponDTO(coupon);
    }

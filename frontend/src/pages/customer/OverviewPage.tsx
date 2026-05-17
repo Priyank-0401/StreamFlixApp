@@ -28,27 +28,39 @@ export const OverviewPage: React.FC = () => {
 
   const loadDashboardData = async () => {
     try {
-      // Try to get subscription first - if 400/404, user is not a customer yet
+      let sub: CustomerService.Subscription | null = null;
+
+      // 1. Try to get subscription / check if customer record exists
       try {
-        const [sub, inv, pm, notifs] = await Promise.all([
-          CustomerService.getCurrentSubscription(),
-          CustomerService.getInvoices(),
-          CustomerService.getPaymentMethods(),
-          CustomerService.getUnreadNotifications()
-        ]);
-        setSubscription(sub);
-        setInvoices(inv); // Use all invoices to ensure OPEN ones are found
-        setPaymentMethods(pm);
-        setNotifications(notifs);
+        sub = await CustomerService.getCurrentSubscription();
         setIsCustomer(true);
+        setSubscription(sub);
       } catch (err: any) {
-        // If we get 400 Bad Request or 404, user doesn't have customer record yet
-        if (err.message?.includes('400') || err.message?.includes('404') || err.message?.includes('Customer not found')) {
+        const errMsg = err.message || '';
+        if (errMsg.includes('400') || errMsg.includes('404') || errMsg.includes('Customer not found')) {
           setIsCustomer(false);
+          setLoading(false);
+          return;
         } else {
           throw err;
         }
       }
+
+      // 2. Fetch other customer details in parallel, catching errors individually so they don't block each other
+      await Promise.all([
+        CustomerService.getInvoices()
+          .then(setInvoices)
+          .catch(err => console.error('Failed to load invoices:', err)),
+
+        CustomerService.getPaymentMethods()
+          .then(setPaymentMethods)
+          .catch(err => console.error('Failed to load payment methods:', err)),
+
+        CustomerService.getUnreadNotifications()
+          .then(setNotifications)
+          .catch(err => console.error('Failed to load notifications:', err))
+      ]);
+
     } catch (error: any) {
       console.error('Failed to load dashboard data:', error.message || error);
     } finally {
@@ -151,7 +163,7 @@ export const OverviewPage: React.FC = () => {
                   <strong>{notif.subject}</strong>: {notif.body}
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => handleDismissNotification(notif.id)}
                 style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}
               >
@@ -165,7 +177,7 @@ export const OverviewPage: React.FC = () => {
       {/* Stats Grid */}
       <div className="stats-grid">
         {/* Current Plan Card */}
-        <div className="stat-card">
+        <Link to="/dashboard/subscription" className="stat-card stat-card-clickable" style={{ textDecoration: 'none' }}>
           <div className="stat-card-content">
             <div className="stat-card-header">
               <div>
@@ -176,11 +188,11 @@ export const OverviewPage: React.FC = () => {
                 <CreditCard size={24} />
               </div>
             </div>
-            <Link to="/dashboard/subscription" className="stat-link">
-              Manage Subscription <ArrowRight size={16} />
-            </Link>
+            <p className="stat-subtext" style={{ color: '#5b4fff', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', margin: 'auto 0 0 0' }}>
+              Manage Subscription <ArrowRight size={14} />
+            </p>
           </div>
-        </div>
+        </Link>
 
         {/* Next Billing Card */}
         <div className="stat-card">
@@ -189,7 +201,7 @@ export const OverviewPage: React.FC = () => {
               <div>
                 <p className="stat-label">Next Billing</p>
                 <p className="stat-value">
-                  {subscription 
+                  {subscription
                     ? formatDate(subscription.status === 'TRIALING' ? subscription.trialEndDate : subscription.currentPeriodEnd)
                     : 'N/A'}
                 </p>
@@ -199,7 +211,7 @@ export const OverviewPage: React.FC = () => {
               </div>
             </div>
             <p className="stat-subtext">
-              {subscription?.status === 'TRIALING' 
+              {subscription?.status === 'TRIALING'
                 ? `Amount after trial: ${formatAmount(getNextBillingAmount(), subscription?.currency || 'INR')}`
                 : `Amount: ${formatAmount(getNextBillingAmount(), subscription?.currency || 'INR')}`}
             </p>
@@ -247,7 +259,7 @@ export const OverviewPage: React.FC = () => {
         </div>
 
         {/* Amount Due Card */}
-        <div className="stat-card">
+        <Link to="/dashboard/billing" className="stat-card stat-card-clickable" style={{ textDecoration: 'none' }}>
           <div className="stat-card-content">
             <div className="stat-card-header">
               <div>
@@ -263,14 +275,14 @@ export const OverviewPage: React.FC = () => {
                 <Receipt size={24} />
               </div>
             </div>
-            <Link to="/dashboard/billing" className="stat-link">
-              View Invoices <ArrowRight size={16} />
-            </Link>
+            <p className="stat-subtext" style={{ color: '#5b4fff', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', margin: 'auto 0 0 0' }}>
+              View Invoices <ArrowRight size={14} />
+            </p>
           </div>
-        </div>
+        </Link>
 
         {/* Payment Methods Card */}
-        <div className="stat-card">
+        <Link to="/dashboard/payment-methods" className="stat-card stat-card-clickable" style={{ textDecoration: 'none' }}>
           <div className="stat-card-content">
             <div className="stat-card-header">
               <div>
@@ -281,11 +293,11 @@ export const OverviewPage: React.FC = () => {
                 <CheckCircle size={24} />
               </div>
             </div>
-            <Link to="/dashboard/payment-methods" className="stat-link">
-              Manage Methods <ArrowRight size={16} />
-            </Link>
+            <p className="stat-subtext" style={{ color: '#5b4fff', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', margin: 'auto 0 0 0' }}>
+              Manage Methods <ArrowRight size={14} />
+            </p>
           </div>
-        </div>
+        </Link>
       </div>
 
       {/* Subscription Status */}
@@ -309,7 +321,7 @@ export const OverviewPage: React.FC = () => {
               <p className="detail-label">Plan</p>
               <p className="detail-value">{subscription.planName}</p>
             </div>
-            
+
             {subscription.status === 'TRIALING' ? (
               <>
                 <div className="detail-item">
@@ -320,7 +332,7 @@ export const OverviewPage: React.FC = () => {
                   <p className="detail-label">First Payment</p>
                   <p className="detail-value">
                     {formatAmount(
-                      subscription.totalDueMinor || 0, 
+                      subscription.totalDueMinor || 0,
                       subscription.currency
                     )} due on {formatDate(subscription.trialEndDate)}
                   </p>
@@ -334,7 +346,7 @@ export const OverviewPage: React.FC = () => {
                 </p>
               </div>
             )}
-            
+
             <div className="detail-item">
               <p className="detail-label">Add-ons</p>
               <p className="detail-value">{subscription.addOns?.length || 0} Active</p>

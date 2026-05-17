@@ -13,7 +13,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
 	List<Payment> findByStatus(com.infy.billing.enums.Status status);
 
-	List<Payment> findAllByOrderByCreatedAtDesc();
+	org.springframework.data.domain.Page<Payment> findAllByOrderByIdDesc(org.springframework.data.domain.Pageable pageable);
 
 	Optional<Payment> findFirstByInvoiceIdOrderByCreatedAtDesc(Long id);
 }

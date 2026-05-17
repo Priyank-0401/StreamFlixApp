@@ -20,6 +20,8 @@ public class FinanceDashboardDTO {
     private long ltvMinor;
     private BigDecimal netChurnPercent;  // percentage, e.g. 5.26
     private int activeCustomers;
+    private long failedPaymentsMinor;
+    private long refundAmountMinor;
 
     // Breakdowns
     private List<PlanRevenueDTO> revenueByPlan;      // MRR contribution per plan

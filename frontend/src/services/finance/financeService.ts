@@ -1,104 +1,10 @@
-// API base URL — proxied to backend by both CRA and Vite
+import type { DashboardOverview, MRRAnalytics, ARRAnalytics, ChurnMetric, ARPUAnalytics, Refund, RevenueSnapshot, Invoice, Payment } from "../../types/financeTypes";
+
 const API_BASE = '/api/finance';
 
-export interface RevenueSnapshot {
-  id: number;
-  snapshotDate: string;
-  mrrMinor: number;
-  arrMinor: number;
-  arpuMinor: number;
-  activeCustomers: number;
-  newCustomers: number;
-  churnedCustomers: number;
-  grossChurnPercent: number;
-  netChurnPercent: number;
-  ltvMinor: number;
-  totalRevenueMinor: number;
-  totalRefundsMinor: number;
-  createdAt: string;
-}
-
-export interface FinanceStatsResponse {
-  mrrMinor: number;
-  arrMinor: number;
-  arpuMinor: number;
-  ltvMinor: number;
-  churnRate: number;
-  totalInvoices: number;
-  paidInvoices: number;
-  pendingInvoices: number;
-  failedInvoices: number;
-  totalCollectedMinor: number;
-  pendingCollectionMinor: number;
-  recentSnapshots: RevenueSnapshot[];
-}
-
-export interface SubscriptionFinanceDTO {
-  subscriptionId: number;
-  customerName: string;
-  customerEmail: string;
-  planName: string;
-  billingPeriod: string;
-  monthlyValueMinor: number;
-  annualValueMinor: number;
-  currency: string;
-  status: string;
-  startDate: string;
-}
-
-export interface CustomerFinanceDTO {
-  customerId: number;
-  fullName: string;
-  email: string;
-  country: string;
-  currency: string;
-  activeSubscriptionsCount: number;
-  monthlyContributionMinor: number;
-}
-
-export interface ChurnFinanceDTO {
-  subscriptionId: number;
-  customerName: string;
-  customerEmail: string;
-  planName: string;
-  lostMonthlyRevenueMinor: number;
-  currency: string;
-  canceledAt: string;
-  reason: string;
-}
-
-export interface InvoiceLineItemDTO {
-  lineItemId: number;
-  description: string;
-  lineType: string;
-  quantity: number;
-  unitPriceMinor: number;
-  amountMinor: number;
-  periodStart: string | null;
-  periodEnd: string | null;
-}
-
-export interface InvoiceDTO {
-  invoiceId: number;
-  invoiceNumber: string;
-  subscriptionId: number;
-  status: string;
-  billingReason: string;
-  issueDate: string;
-  dueDate: string | null;
-  subtotalMinor: number;
-  taxMinor: number;
-  discountMinor: number;
-  totalMinor: number;
-  balanceMinor: number;
-  currency: string;
-  lineItems: InvoiceLineItemDTO[];
-}
-
-// Generic fetch wrapper with session cookie support
 async function financeFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
-  
+
   const res = await fetch(url, {
     ...options,
     credentials: 'include',
@@ -125,39 +31,178 @@ async function financeFetch<T>(endpoint: string, options?: RequestInit): Promise
   return text ? JSON.parse(text) : ({} as T);
 }
 
-// Endpoints
-export const getFinanceStats = () => financeFetch<FinanceStatsResponse>('/stats');
-export const getMrrSubscriptions = () => financeFetch<SubscriptionFinanceDTO[]>('/mrr-subscriptions');
-export const getArrSubscriptions = () => financeFetch<SubscriptionFinanceDTO[]>('/arr-subscriptions');
-export const getArpuCustomers = () => financeFetch<CustomerFinanceDTO[]>('/arpu-customers');
-export const getChurnedSubscriptions = () => financeFetch<ChurnFinanceDTO[]>('/churned-subscriptions');
-export const getFinanceInvoices = (status?: string) => 
-  financeFetch<InvoiceDTO[]>(status ? `/invoices?status=${status}` : '/invoices');
-export const recordSnapshot = () => financeFetch<void>('/snapshots/record', { method: 'POST' });
+export const financeService = {
+  getDashboardOverview: async (): Promise<DashboardOverview> => {
+    const data = await financeFetch<any>('/dashboard');
+    return {
+      mrr: { value: (data.mrrMinor || 0) / 100, trend: 0, trendDirection: 'up' },
+      arr: { value: (data.arrMinor || 0) / 100, trend: 0, trendDirection: 'up' },
+      arpu: { value: (data.arpuMinor || 0) / 100, trend: 0, trendDirection: 'up' },
+      ltv: { value: (data.ltvMinor || 0) / 100, trend: 0, trendDirection: 'up' },
+      churnRate: { value: data.netChurnPercent || 0, trend: 0, trendDirection: 'down' },
+      activeCustomers: { value: data.activeCustomers || 0, trend: 0, trendDirection: 'up' },
+      failedPayments: { value: (data.failedPaymentsMinor || 0) / 100, trend: 0, trendDirection: 'down' },
+      refundAmount: { value: (data.refundAmountMinor || 0) / 100, trend: 0, trendDirection: 'up' },
+      revenueByPlan: data.revenueByPlan?.map((p: any) => ({
+        name: p.planName,
+        value: (p.revenueMinor || 0) / 100
+      })) || [],
+      revenueByRegion: data.revenueByRegion?.map((r: any) => ({
+        name: r.region,
+        value: (r.revenueMinor || 0) / 100
+      })) || [],
+      recentActivity: [],
+      revenueTrend: data.revenueTrend?.map((t: any) => ({
+        date: t.month,
+        value: (t.valueMinor || 0) / 100
+      })) || []
+    };
+  },
 
-// Report Downloads
-export const downloadRevenueSnapshot = async () => {
-  const res = await fetch(`${API_BASE}/reports/revenue-snapshot`, { credentials: 'include' });
-  if (!res.ok) throw new Error('Failed to download Revenue Snapshot');
-  const blob = await res.blob();
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `revenue_snapshot_${new Date().toISOString().split('T')[0]}.pdf`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-};
+  getMRRAnalytics: async (): Promise<MRRAnalytics> => {
+    const data = await financeFetch<any>('/reports/mrr');
+    return {
+      total: (data.mrrMinor || 0) / 100,
+      expansion: (data.expansionMinor || 0) / 100,
+      contraction: (data.contractionMinor || 0) / 100,
+      newMRR: (data.newMrrMinor || 0) / 100,
+      reactivation: (data.reactivationMinor || 0) / 100,
+      history: data.revenueTrend?.map((t: any) => ({
+        date: t.month,
+        value: (t.valueMinor || 0) / 100
+      })) || []
+    };
+  },
 
-export const downloadTaxReport = async () => {
-  const res = await fetch(`${API_BASE}/reports/tax-compliance`, { credentials: 'include' });
-  if (!res.ok) throw new Error('Failed to download Tax Report');
-  const blob = await res.blob();
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `tax_compliance_report_${new Date().toISOString().split('T')[0]}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  getARRAnalytics: async (): Promise<ARRAnalytics> => {
+    const data = await financeFetch<any>('/reports/arr');
+    return {
+      total: (data.arrMinor || 0) / 100,
+      history: data.arrTrend?.map((t: any) => ({
+        date: t.month,
+        value: (t.valueMinor || 0) / 100
+      })) || [],
+      byRegion: data.revenueByRegion?.map((r: any) => ({
+        region: r.region,
+        value: (r.revenueMinor || 0) / 100
+      })) || [],
+      byPlan: data.revenueByPlan?.map((p: any) => ({
+        plan: p.planName,
+        value: (p.revenueMinor || 0) / 100
+      })) || []
+    };
+  },
+
+  getChurnAnalytics: async (): Promise<ChurnMetric> => {
+    const data = await financeFetch<any>('/reports/churn');
+    return {
+      customerChurnRate: data.netChurnPercent || 0,
+      revenueChurnRate: data.revenueChurnPercent || 0,
+      churnedRevenue: (data.churnedRevenueMinor || 0) / 100,
+      history: data.churnTrend?.map((t: any) => ({
+        date: t.month,
+        value: t.netChurnPercent || 0
+      })) || [],
+      reasons: data.reasons?.map((r: any) => ({
+        reason: r.reason,
+        count: r.count
+      })) || []
+    };
+  },
+
+  getARPUAnalytics: async (): Promise<ARPUAnalytics> => {
+    const data = await financeFetch<any>('/reports/arpu-ltv');
+    return {
+      arpu: (data.arpuMinor || 0) / 100,
+      ltv: (data.ltvMinor || 0) / 100,
+      cacLtvRatio: data.cacLtvRatio || 'N/A',
+      history: data.arpuTrend?.map((t: any) => ({
+        date: t.month,
+        value: (t.valueMinor || 0) / 100
+      })) || []
+    };
+  },
+
+  getInvoices: async (page = 1, limit = 10): Promise<{ data: Invoice[]; total: number }> => {
+    const response = await financeFetch<any>(`/invoices?page=${page - 1}&size=${limit}`);
+    return {
+      data: response.content?.map((i: any) => ({
+        id: i.invoiceNumber,
+        customerId: String(i.customerId),
+        customerName: `Customer ${i.customerId}`,
+        amount: i.amount, // Backend already returns decimal rupees
+        status: i.status === 'PAID' ? 'Paid' : i.status === 'DRAFT' ? 'Draft' : 'Pending',
+        date: i.date,
+        dueDate: i.dueDate
+      })) || [],
+      total: response.totalElements || 0
+    };
+  },
+
+  getPayments: async (page = 1, limit = 10): Promise<{ data: Payment[]; total: number }> => {
+    const response = await financeFetch<any>(`/payments?page=${page - 1}&size=${limit}`);
+    return {
+      data: response.content?.map((p: any) => ({
+        id: String(p.paymentId),
+        invoiceId: p.invoiceNumber,
+        customerId: 'N/A',
+        amount: p.amount, // Backend returns decimal rupees
+        status: p.status === 'SUCCESS' ? 'Successful' : 'Failed',
+        method: p.paymentMethod,
+        date: p.date
+      })) || [],
+      total: response.totalElements || 0
+    };
+  },
+
+  getCredits: async (page = 1, limit = 10): Promise<{ data: Refund[]; total: number }> => {
+    const response = await financeFetch<any>(`/refunds?page=${page - 1}&size=${limit}`);
+    return {
+      data: response.content?.map((r: any) => ({
+        id: r.refundId,
+        paymentId: String(r.paymentId),
+        customerId: 'N/A',
+        amount: r.amount, // Backend returns decimal rupees
+        status: r.status === 'APPLIED' ? 'Approved' : 'Pending',
+        reason: r.reason || 'No reason provided',
+        date: r.date
+      })) || [],
+      total: response.totalElements || 0
+    };
+  },
+
+  getRevenueSnapshots: async (page = 1, limit = 10): Promise<{ data: RevenueSnapshot[]; total: number }> => {
+    const response = await financeFetch<any>(`/snapshots?page=${page - 1}&size=${limit}`);
+    return {
+      data: response.content?.map((s: any, index: number) => ({
+        id: `snap-${index}`,
+        date: s.date,
+        totalRevenue: (s.totalRevenueMinor || 0) / 100,
+        mrr: (s.mrrMinor || 0) / 100,
+        arr: (s.arrMinor || 0) / 100,
+        activeCustomers: s.activeCustomers || 0,
+        newCustomers: s.newCustomers || 0,
+        netChurnPercent: s.netChurnPercent || 0
+      })) || [],
+      total: response.totalElements || 0
+    };
+  },
+
+  exportFinanceReport: async (type: string, format: 'CSV' | 'PDF'): Promise<Blob> => {
+    const response = await fetch(`${API_BASE}/reports/export?type=${encodeURIComponent(type)}&format=${format.toLowerCase()}`, {
+      method: 'GET',
+      headers: {
+        'Accept': format === 'PDF' ? 'application/pdf' : 'text/csv',
+        'Authorization': `Bearer ${localStorage.getItem('token')}` // Ensure auth if needed
+      },
+    });
+    if (!response.ok) {
+      throw new Error('Export failed');
+    }
+    return await response.blob();
+  },
+
+  getExports: async () => {
+    return []; // Optional: Create an endpoint for this if needed, returning empty for now
+  }
 };

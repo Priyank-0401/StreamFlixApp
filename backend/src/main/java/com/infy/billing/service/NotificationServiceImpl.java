@@ -4,10 +4,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import com.infy.billing.dto.customer.NotificationResponse;
 import com.infy.billing.entity.Notification;
 import com.infy.billing.entity.Subscription;
@@ -16,14 +14,13 @@ import com.infy.billing.enums.NotificationStatus;
 import com.infy.billing.enums.Status;
 import com.infy.billing.repository.NotificationRepository;
 import com.infy.billing.repository.SubscriptionRepository;
-
 import lombok.RequiredArgsConstructor;
 
 @Service
-
 @RequiredArgsConstructor
 
 @Transactional
+
 public class NotificationServiceImpl implements NotificationService {
 
 	private final NotificationRepository notificationRepository;
@@ -35,283 +32,135 @@ public class NotificationServiceImpl implements NotificationService {
 	@Transactional(readOnly = true)
 
 	public List<NotificationResponse> getCustomerNotifications(Long customerId) {
-
-		List<Notification> notifications = notificationRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
-
+		List<Notification> notifications = notificationRepository.findByCustomerIdAndStatusOrderByCreatedAtDesc(
+				customerId, com.infy.billing.enums.NotificationStatus.SENT);
 		return notifications.stream().map(this::mapToResponse).collect(Collectors.toList());
-
 	}
 
 	@Override
 
 	public void generateRenewalReminders() {
-
 		LocalDate today = LocalDate.now();
-
-		System.out.println(">>> TODAY=" + today); // ADD THIS
-
+		System.out.println(">>> TODAY=" + today);
 		LocalDate sevenDaysLater = today.plusDays(7);
-
-		LocalDate oneDayLater = today.plusDays(1);
-
-		List<Subscription> subscriptions = subscriptionRepository.findByStatus(Status.ACTIVE);
-
-		System.out.println(">>> ACTIVE SUBS=" + subscriptions.size()); // ADD THIS
-
-		for (Subscription subscription : subscriptions)
-
-		{
-
-			if (subscription.getCurrentPeriodEnd() == null)
-
-			{
-
-				continue;
-
-			}
-
-			if (subscription.getCustomer() == null) {
-
-				continue;
-
-			}
-
-			LocalDate renewalDate = subscription.getCurrentPeriodEnd();
-
-			if (renewalDate.equals(sevenDaysLater))
-
-			{
-
-				createNotification(subscription,
-
-						"RENEWAL_REMINDER_7_DAYS",
-
-						"Subscription Renewal Reminder",
-
-						"Your subscription renews in 7 days."
-
-				);
-
-			}
-
-			if (renewalDate.equals(oneDayLater))
-
-			{
-
-				createNotification(
-
-						subscription,
-
-						"RENEWAL_REMINDER_1_DAY",
-
-						"Subscription Renewal Reminder",
-
-						"Your subscription renews in 1 day."
-
-				);
-
-			}
-
-		}
-
-	}
-
-	@Override
-
-	public void generatePendingPaymentReminders() {
-
-		LocalDate today = LocalDate.now();
-
-		LocalDate sevenDaysLater = today.plusDays(7);
-
 		LocalDate threeDaysLater = today.plusDays(3);
-
 		LocalDate oneDayLater = today.plusDays(1);
-
 		List<Subscription> subscriptions = subscriptionRepository.findByStatus(Status.ACTIVE);
-
+		System.out.println(">>> ACTIVE SUBS=" + subscriptions.size());
 		for (Subscription subscription : subscriptions) {
-
 			if (subscription.getCurrentPeriodEnd() == null) {
-
 				continue;
-
 			}
-
 			if (subscription.getCustomer() == null) {
-
 				continue;
-
 			}
-
-			LocalDate periodEnd = subscription.getCurrentPeriodEnd();
-
-			if (periodEnd.equals(sevenDaysLater)) {
-
+			LocalDate renewalDate = subscription.getCurrentPeriodEnd();
+			if (renewalDate.equals(sevenDaysLater)) {
 				createNotification(subscription,
-
-						"PENDING_PAYMENT_7_DAYS",
-
-						"Payment Due Reminder",
-
-						"Your subscription payment is due in 7 days."
-
-				);
-
+						"UPCOMING_RENEWAL_AND_PAYMENT_7_DAYS",
+						"Upcoming Subscription Renewal & Payment Reminder",
+						"Your subscription will automatically renew and payment will be processed in 7 days.");
 			}
-
-			if (periodEnd.equals(threeDaysLater)) {
-
+			if (renewalDate.equals(threeDaysLater)) {
 				createNotification(subscription,
-
-						"PENDING_PAYMENT_3_DAYS",
-
-						"Payment Due Reminder",
-
-						"Your subscription payment is due in 3 days."
-
-				);
-
+						"UPCOMING_RENEWAL_AND_PAYMENT_3_DAYS",
+						"Upcoming Subscription Renewal & Payment Reminder",
+						"Your subscription will automatically renew and payment will be processed in 3 days.");
 			}
-
-			if (periodEnd.equals(oneDayLater)) {
-
+			if (renewalDate.equals(oneDayLater)) {
 				createNotification(subscription,
-
-						"PENDING_PAYMENT_1_DAY",
-
-						"Payment Due Reminder",
-
-						"Your subscription payment is due in 1 day."
-
-				);
-
+						"UPCOMING_RENEWAL_AND_PAYMENT_1_DAY",
+						"Upcoming Subscription Renewal & Payment Reminder",
+						"Your subscription will automatically renew and payment will be processed in 1 day.");
 			}
-
 		}
-
 	}
 
 	@Override
-
-	public void processPendingNotifications()
-
-	{
-
-		LocalDateTime now = LocalDateTime.now();
-
-		List<Notification> notifications = notificationRepository.findByStatus(NotificationStatus.PENDING);
-
-		for (Notification notification : notifications) {
-
-			try
-
-			{
-
-				notification.setStatus(NotificationStatus.SENT);
-
-				notification.setSentAt(now);
-
-				notificationRepository.save(notification);
-
-			}
-
-			catch (Exception ex) {
-
-				notification.setStatus(NotificationStatus.FAILED);
-
-				notificationRepository.save(notification);
-
-			}
-
+	public void generatePendingPaymentReminders() {
+		List<Subscription> pastDueSubscriptions = subscriptionRepository
+				.findByStatus(com.infy.billing.enums.Status.PAST_DUE);
+		for (Subscription subscription : pastDueSubscriptions) {
+			createNotification(subscription,
+					"PAYMENT_FAILED_RETRY",
+					"Payment Failed - Action Required",
+					"Your automatic subscription payment failed. We will automatically retry the payment according to our dunning schedule.");
 		}
+	}
 
+	@Override
+	public void processPendingNotifications() {
+		LocalDateTime now = LocalDateTime.now();
+		List<Notification> notifications = notificationRepository.findByStatus(NotificationStatus.PENDING);
+		for (Notification notification : notifications) {
+			try {
+				notification.setStatus(NotificationStatus.SENT);
+				notification.setSentAt(now);
+				notificationRepository.save(notification);
+			} catch (Exception ex) {
+				notification.setStatus(NotificationStatus.FAILED);
+				notificationRepository.save(notification);
+			}
+		}
 	}
 
 	private void createNotification(
-
 			Subscription subscription,
-
 			String type,
-
 			String subject,
-
-			String body
-
-	)
-
-	{
-
+			String body) {
 		LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
-
 		LocalDateTime endOfDay = LocalDate.now().plusDays(1).atStartOfDay();
-
 		boolean alreadyExists = notificationRepository.existsByCustomerIdAndTypeAndScheduledAtBetween(
-
 				subscription.getCustomer().getId(),
-
 				type,
-
 				startOfDay,
-
 				endOfDay);
-
-		if (alreadyExists)
-
-		{
-
+		if (alreadyExists) {
 			return;
-
 		}
-
 		Notification notification = Notification.builder()
-
 				.customer(subscription.getCustomer())
-
 				.type(type)
-
 				.subject(subject)
-
 				.body(body)
-
 				.channel(Channel.EMAIL)
-
-				.status(NotificationStatus.PENDING)
-
+				.status(com.infy.billing.enums.NotificationStatus.SENT)
 				.scheduledAt(LocalDateTime.now())
-
+				.sentAt(LocalDateTime.now())
 				.build();
-
 		notificationRepository.save(notification);
-
 	}
 
-	private NotificationResponse mapToResponse(Notification notification)
+	@Override
+	public void markAsRead(Long notificationId) {
+		Notification notification = notificationRepository.findById(notificationId)
+				.orElseThrow(() -> new RuntimeException("Notification not found"));
+		notification.setStatus(com.infy.billing.enums.NotificationStatus.READ);
+		notificationRepository.save(notification);
+	}
 
-	{
+	@Override
+	public void markAllAsRead(Long customerId) {
+		List<Notification> notifications = notificationRepository.findByCustomerIdAndStatusOrderByCreatedAtDesc(
+				customerId, com.infy.billing.enums.NotificationStatus.SENT);
+		for (Notification notification : notifications) {
+			notification.setStatus(com.infy.billing.enums.NotificationStatus.READ);
+		}
+		notificationRepository.saveAll(notifications);
+	}
 
+	private NotificationResponse mapToResponse(Notification notification) {
 		return NotificationResponse.builder()
-
 				.notificationId(notification.getNotificationId())
-
 				.type(notification.getType())
-
 				.subject(notification.getSubject())
-
 				.body(notification.getBody())
-
 				.channel(notification.getChannel())
-
 				.status(notification.getStatus())
-
 				.scheduledAt(notification.getScheduledAt())
-
 				.sentAt(notification.getSentAt())
-
 				.createdAt(notification.getCreatedAt())
-
 				.build();
-
 	}
-
 }

@@ -42,8 +42,7 @@ public class Notification {
 	
 	@Column(name="type",nullable=false,length=50)
 	private String type;
-	
-	
+
 	@Column(name="subject",length=255)
 	private String subject;
 	
@@ -66,8 +65,7 @@ public class Notification {
 	
 	@Column(name="created_at",nullable=false,updatable = false)
 	private LocalDateTime createdAt;
-	
-	
+
 	@PrePersist
 	public void prePersist() {
 		this.createdAt=LocalDateTime.now();

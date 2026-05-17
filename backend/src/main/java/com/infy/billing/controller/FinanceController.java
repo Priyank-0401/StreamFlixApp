@@ -9,8 +9,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 @RestController
 @RequestMapping("/api/finance")
@@ -123,8 +123,10 @@ public class FinanceController {
     //   status         → DRAFT / OPEN / PAID / VOID / UNCOLLECTIBLE
     // ─────────────────────────────────────────────────────────────────────────
     @GetMapping("/invoices")
-    public ResponseEntity<List<InvoiceRecordDTO>> getInvoices() {
-        return ResponseEntity.ok(revenueAnalyticsService.getAllInvoiceRecords());
+    public ResponseEntity<Page<InvoiceRecordDTO>> getInvoices(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(revenueAnalyticsService.getAllInvoiceRecords(PageRequest.of(page, size)));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -139,8 +141,10 @@ public class FinanceController {
     //   status         → PENDING / SUCCESS / FAILED / REFUNDED / PARTIALLY_REFUNDED
     // ─────────────────────────────────────────────────────────────────────────
     @GetMapping("/payments")
-    public ResponseEntity<List<PaymentRecordDTO>> getPayments() {
-        return ResponseEntity.ok(revenueAnalyticsService.getAllPaymentRecords());
+    public ResponseEntity<Page<PaymentRecordDTO>> getPayments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(revenueAnalyticsService.getAllPaymentRecords(PageRequest.of(page, size)));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -155,8 +159,10 @@ public class FinanceController {
     //   status         → DRAFT / ISSUED / APPLIED / VOIDED
     // ─────────────────────────────────────────────────────────────────────────
     @GetMapping("/refunds")
-    public ResponseEntity<List<RefundCreditDTO>> getRefunds() {
-        return ResponseEntity.ok(revenueAnalyticsService.getAllRefundCredits());
+    public ResponseEntity<Page<RefundCreditDTO>> getRefunds(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(revenueAnalyticsService.getAllRefundCredits(PageRequest.of(page, size)));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -172,7 +178,9 @@ public class FinanceController {
     //   netChurnPercent   → net_churn_percent
     // ─────────────────────────────────────────────────────────────────────────
     @GetMapping("/snapshots")
-    public ResponseEntity<List<RevenueSnapshotDTO>> getSnapshots() {
-        return ResponseEntity.ok(revenueAnalyticsService.getAllRevenueSnapshots());
+    public ResponseEntity<Page<RevenueSnapshotDTO>> getSnapshots(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return ResponseEntity.ok(revenueAnalyticsService.getAllRevenueSnapshots(PageRequest.of(page, size)));
     }
 }

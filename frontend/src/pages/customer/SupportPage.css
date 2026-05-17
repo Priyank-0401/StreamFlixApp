@@ -2,8 +2,8 @@
 
 .support-page {
   padding: 0;
-  max-width: 1400px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
 }
 
 /* Loading State */
@@ -65,7 +65,7 @@
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .card-header {
@@ -347,6 +347,7 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -414,6 +415,7 @@
 
 /* Reduced Motion */
 @media (prefers-reduced-motion: reduce) {
+
   .spinner,
   .btn-spinner,
   .faq-item,
@@ -449,6 +451,7 @@
 
 /* Print */
 @media print {
+
   .support-form,
   .faq-item.expanded .faq-answer {
     display: none;

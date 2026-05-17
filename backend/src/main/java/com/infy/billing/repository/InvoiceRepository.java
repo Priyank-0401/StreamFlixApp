@@ -14,5 +14,5 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     java.util.Optional<Invoice> findBySubscription_IdAndStatus(Long subscriptionId, com.infy.billing.enums.Status status);
     
     boolean existsBySubscriptionAndBillingReasonAndIssueDate(com.infy.billing.entity.Subscription subscription, com.infy.billing.enums.BillingReason billingReason, java.time.LocalDate issueDate);
-    List<Invoice> findAllByOrderByCreatedAtDesc();
+    org.springframework.data.domain.Page<Invoice> findAllByOrderByIdDesc(org.springframework.data.domain.Pageable pageable);
 }

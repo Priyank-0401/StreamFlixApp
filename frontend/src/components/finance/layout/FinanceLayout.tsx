@@ -2,17 +2,21 @@ import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useLocation, useNavigate, Outlet, Link } from 'react-router-dom';
 import { useAuthContext } from '../../../context/AuthContext';
 import {
-  LayoutDashboard,
-  TrendingUp,
-  DollarSign,
-  Users,
-  UserX,
-  FileText,
+
   Search,
   LogOut,
-  History,
+  DollarSign,
+  TrendingUp,
+  Activity,
+  TrendingDown,
+  UserCheck,
+  FileText,
+  CreditCard,
+  RefreshCcw,
+  Camera,
 } from 'lucide-react';
 import '../../../styles/admin.css';
+import '../../../styles/admin-modal.css';
 
 interface NavItem {
   section: string;
@@ -22,23 +26,27 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { section: 'Overview', label: 'Revenue Dashboard', path: '/finance', icon: <LayoutDashboard size={18} /> },
-  { section: 'Overview', label: 'Revenue Snapshots', path: '/finance/snapshots', icon: <History size={18} /> },
-  { section: 'Analytics', label: 'MRR Breakdown', path: '/finance/mrr', icon: <TrendingUp size={18} /> },
-  { section: 'Analytics', label: 'ARR Projections', path: '/finance/arr', icon: <DollarSign size={18} /> },
-  { section: 'Analytics', label: 'ARPU Contribution', path: '/finance/arpu', icon: <Users size={18} /> },
-  { section: 'Analytics', label: 'Churn Analysis', path: '/finance/churn', icon: <UserX size={18} /> },
-  { section: 'Collections', label: 'Invoice Aging', path: '/finance/invoices', icon: <FileText size={18} /> },
+  { section: 'Main', label: 'Overview', path: '/finance', icon: <DollarSign size={18} /> },
+  { section: 'Analytics', label: 'MRR', path: '/finance/mrr', icon: <TrendingUp size={18} /> },
+  { section: 'Analytics', label: 'ARR', path: '/finance/arr', icon: <Activity size={18} /> },
+  { section: 'Analytics', label: 'Churn', path: '/finance/churn', icon: <TrendingDown size={18} /> },
+  { section: 'Analytics', label: 'ARPU & LTV', path: '/finance/arpu', icon: <UserCheck size={18} /> },
+  { section: 'Billing', label: 'Invoices', path: '/finance/invoices', icon: <FileText size={18} /> },
+  { section: 'Billing', label: 'Payments', path: '/finance/payments', icon: <CreditCard size={18} /> },
+  { section: 'Billing', label: 'Credits & Refunds', path: '/finance/credits', icon: <RefreshCcw size={18} /> },
+  { section: 'Reports', label: 'Snapshots', path: '/finance/snapshots', icon: <Camera size={18} /> },
 ];
 
 const pageTitles: Record<string, string> = {
-  '/finance': 'Revenue Dashboard',
-  '/finance/snapshots': 'Historical Revenue Snapshots',
-  '/finance/mrr': 'MRR Breakdown',
-  '/finance/arr': 'ARR Projections',
-  '/finance/arpu': 'ARPU Contribution',
-  '/finance/churn': 'Churn Analysis',
-  '/finance/invoices': 'Invoice Aging & Collections',
+  '/finance': 'Finance Overview',
+  '/finance/mrr': 'MRR Analytics',
+  '/finance/arr': 'ARR Analytics',
+  '/finance/churn': 'Churn Analytics',
+  '/finance/arpu': 'ARPU Analytics',
+  '/finance/invoices': 'Invoices',
+  '/finance/payments': 'Payments',
+  '/finance/credits': 'Credits & Refunds',
+  '/finance/snapshots': 'Revenue Snapshots',
 };
 
 // Group items by section
@@ -47,7 +55,6 @@ const sections = navItems.reduce<Record<string, typeof navItems>>((acc, item) =>
   acc[item.section].push(item);
   return acc;
 }, {});
-
 export const FinanceLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -107,11 +114,15 @@ export const FinanceLayout: React.FC = () => {
   };
 
   const getTitle = () => {
-    return pageTitles[location.pathname] || 'Finance Portal';
+    if (pageTitles[location.pathname]) return pageTitles[location.pathname];
+    const basePath = Object.keys(pageTitles).find(path =>
+      path !== '/finance' && location.pathname.startsWith(path)
+    );
+    return basePath ? pageTitles[basePath] : 'Finance';
   };
 
   const isActive = (path: string) => {
-    if (path === '/finance') return location.pathname === '/finance';
+    if (path === '/finance') return location.pathname === '/finance' || location.pathname === '/finance/';
     return location.pathname.startsWith(path);
   };
 
@@ -169,7 +180,7 @@ export const FinanceLayout: React.FC = () => {
                 fontFamily: "'Outfit', sans-serif",
                 fontWeight: 700,
                 fontSize: '1.1rem',
-                color: '#5b4fff', // Original StreamFlix Indigo theme
+                color: '#5b4fff',
                 textTransform: 'uppercase',
                 letterSpacing: '-0.5px',
               }}
@@ -187,7 +198,7 @@ export const FinanceLayout: React.FC = () => {
                 <NavLink
                   key={item.path}
                   to={item.path}
-                  end={item.path === '/finance'}
+                  end={item.path === '/admin' || item.path === '/finance'}
                   className={`sidebar-link ${isActive(item.path) ? 'active' : ''}`}
                 >
                   <span className="sidebar-link-icon">{item.icon}</span>
@@ -234,7 +245,7 @@ export const FinanceLayout: React.FC = () => {
               />
               <input
                 type="text"
-                placeholder="Search Finance..."
+                placeholder="Quick Search Finance..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
@@ -302,25 +313,25 @@ export const FinanceLayout: React.FC = () => {
                 onClick={() => setDropdownOpen(!dropdownOpen)}
               >
                 <div style={{ textAlign: 'right' }}>
-                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#1E293B' }}>{user?.fullName || 'Finance Lead'}</p>
-                  <p style={{ margin: 0, fontSize: '11px', color: '#64748B', fontWeight: 500 }}>{user?.role || 'FINANCE'}</p>
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#1E293B' }}>{user?.fullName || 'Admin User'}</p>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#64748B', fontWeight: 500 }}>{user?.role || 'ADMIN'}</p>
                 </div>
                 <div
                   style={{
                     width: '42px',
                     height: '42px',
                     borderRadius: '12px',
-                    backgroundColor: '#10b981', // Emerald theme
+                    backgroundColor: '#5B4FFF',
                     color: 'white',
                     fontSize: '14px',
                     fontWeight: 700,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+                    boxShadow: '0 4px 12px rgba(91, 79, 255, 0.2)'
                   }}
                 >
-                  {user ? getInitials(user.fullName || user.email) : 'FI'}
+                  {user ? getInitials(user.fullName || user.email) : 'AD'}
                 </div>
               </button>
 
@@ -340,7 +351,7 @@ export const FinanceLayout: React.FC = () => {
                   }}
                 >
                   <div style={{ padding: '16px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B', margin: 0 }}>{user?.fullName || 'Finance Lead'}</p>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B', margin: 0 }}>{user?.fullName || 'Admin'}</p>
                     <p style={{ fontSize: '12px', color: '#64748B', margin: 0 }}>{user?.email}</p>
                   </div>
                   <div style={{ padding: '8px' }}>

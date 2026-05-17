@@ -299,7 +299,6 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          newSubtotal = 0;
       long newTaxMinor = calculateTaxMinor(newSubtotal, customer.getCountry(), newPlan.getTaxMode());
       long newTotalCost = (newPlan.getTaxMode() == TaxMode.INCLUSIVE) ? newSubtotal : newSubtotal + newTaxMinor;
-      long newSubtotalMinor = (newPlan.getTaxMode() == TaxMode.INCLUSIVE) ? newSubtotal - newTaxMinor : newSubtotal;
 
       // Immediate prorated charge amount
       long prorationAmount = newTotalCost - unusedCredit;
@@ -311,9 +310,11 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       invoice.setInvoiceNumber("INV-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
       invoice.setBillingReason(BillingReason.SUBSCRIPTION_UPDATE);
       invoice.setIssueDate(today);
-      invoice.setDueDate(today);
-      invoice.setSubtotalMinor(newSubtotalMinor);
-      invoice.setDiscountMinor(newDiscountMinor);
+      long headerSubtotal = (newPlan.getTaxMode() == TaxMode.INCLUSIVE) 
+            ? (newPriceMinor + newAddonTotal - unusedCredit - newTaxMinor) 
+            : (newPriceMinor + newAddonTotal - unusedCredit);
+
+      invoice.setSubtotalMinor(headerSubtotal);
       invoice.setTaxMinor(newTaxMinor);
       invoice.setCurrency(customer.getCurrency());
       invoice.setIdempotencyKey(UUID.randomUUID().toString());
@@ -321,6 +322,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       if (prorationAmount > 0) {
          // Upgrade: charge the difference
          invoice.setStatus(Status.PAID);
+         invoice.setDiscountMinor(newDiscountMinor);
          invoice.setTotalMinor(prorationAmount);
          invoice.setBalanceMinor(0L);
       } else if (prorationAmount < 0) {
@@ -330,6 +332,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          customerRepository.save(customer);
 
          invoice.setStatus(Status.PAID);
+         invoice.setDiscountMinor(headerSubtotal + newTaxMinor); // Keep total at 0 by matching subtotal + tax
          invoice.setTotalMinor(0L);
          invoice.setBalanceMinor(0L);
 
@@ -351,6 +354,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       } else {
          // Zero difference
          invoice.setStatus(Status.PAID);
+         invoice.setDiscountMinor(newDiscountMinor);
          invoice.setTotalMinor(0L);
          invoice.setBalanceMinor(0L);
       }

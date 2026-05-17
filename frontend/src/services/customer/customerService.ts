@@ -567,17 +567,30 @@ export const completeSubscription = async (customerId: number, data: Subscriptio
 // ==================== NOTIFICATIONS ====================
 
 export const getUnreadNotifications = async (): Promise<Notification[]> => {
-  const response = await fetchWithSession(`${API_BASE}/notifications/unread`);
+  const response = await fetchWithSession('/notifications/me');
   if (!response.ok) throw new Error('Failed to fetch notifications');
-  return response.json();
+  const data = await response.json();
+  return data.map((item: any) => ({
+    id: item.notificationId,
+    type: item.type,
+    subject: item.subject,
+    body: item.body,
+    channel: item.channel || 'IN_APP',
+    status: item.status,
+    createdAt: item.createdAt,
+  }));
 };
 
 export const markNotificationAsRead = async (id: number): Promise<void> => {
-  const response = await fetchWithSession(`${API_BASE}/notifications/${id}/read`, { method: 'POST' });
+  const response = await fetchWithSession(`/notifications/${id}/read`, {
+    method: 'PUT',
+  });
   if (!response.ok) throw new Error('Failed to mark notification as read');
 };
 
 export const markAllNotificationsAsRead = async (): Promise<void> => {
-  const response = await fetchWithSession(`${API_BASE}/notifications/read-all`, { method: 'POST' });
+  const response = await fetchWithSession(`/notifications/read-all`, {
+    method: 'PUT',
+  });
   if (!response.ok) throw new Error('Failed to mark all notifications as read');
 };
