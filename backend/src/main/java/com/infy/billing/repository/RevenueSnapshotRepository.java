@@ -10,6 +10,11 @@ import java.util.Optional;
 
 @Repository
 public interface RevenueSnapshotRepository extends JpaRepository<RevenueSnapshot, Long> {
+
     Optional<RevenueSnapshot> findBySnapshotDate(LocalDate snapshotDate);
+
     List<RevenueSnapshot> findBySnapshotDateBetweenOrderBySnapshotDateAsc(LocalDate startDate, LocalDate endDate);
+
+    // Returns all 12 monthly snapshots ordered oldest → newest (Jan–Dec 2026 in seed data)
+    List<RevenueSnapshot> findAllByOrderBySnapshotDateAsc();
 }

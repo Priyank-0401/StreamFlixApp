@@ -1,11 +1,17 @@
 package com.infy.billing.service;
 
-import com.infy.billing.dto.customer.NotificationDTO;
 import java.util.List;
 
+import com.infy.billing.dto.customer.NotificationResponse;
+
 public interface NotificationService {
-    List<NotificationDTO> getCustomerNotifications(String email);
-    List<NotificationDTO> getUnreadNotifications(String email);
-    void markAsRead(String email, Long notificationId);
-    void markAllAsRead(String email);
+
+	List<NotificationResponse> getCustomerNotifications(Long customerId);
+
+	void generateRenewalReminders();
+
+	void processPendingNotifications();
+
+	void generatePendingPaymentReminders();
+
 }

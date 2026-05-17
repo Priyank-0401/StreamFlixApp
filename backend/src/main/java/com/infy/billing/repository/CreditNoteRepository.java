@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface CreditNoteRepository extends JpaRepository<CreditNote, Long> {
 	List<CreditNote> findByInvoice_Id(Long invoiceId);
+	List<CreditNote> findAllByOrderByCreatedAtDesc();
 }

@@ -40,6 +40,6 @@ private LocalDate periodEnd;
 @Column(columnDefinition = "JSON")
 private String metadata;
 
-public enum LineType { PLAN, ADDON, METERED, PRORATION, DISCOUNT, TAX }
+public enum LineType { PLAN, ADDON, METERED, PRORATION, DISCOUNT, TAX, CREDIT }
 
 }

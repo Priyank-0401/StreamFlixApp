@@ -6,6 +6,8 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
+import com.infy.billing.enums.DunningStatus;
+
 @Entity
 @Table(name = "dunning_retry_log")
 @Getter
@@ -36,12 +38,8 @@ public class DunningRetryLog {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Status status;
+    private DunningStatus status;
 
     @Column(name = "failure_reason", length = 255)
     private String failureReason;
-
-    public enum Status {
-        SCHEDULED, ATTEMPTED, SUCCESS, FAILED, CANCELLED
-    }
 }

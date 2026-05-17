@@ -27,90 +27,71 @@ import com.infy.billing.repository.UserRepository;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
-                .securityContext(context -> context.requireExplicitSave(false))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/error").permitAll()
-                        .requestMatchers("/api/customer/login", "/api/customer/register").permitAll()
-                        .requestMatchers("/api/customer/plans/featured", "/api/customer/plans/all").permitAll()
-                        .requestMatchers("/api/customer/coupons", "/api/customer/coupons/validate").permitAll()
-                        .requestMatchers("/api/manager/login").permitAll()
-                        .requestMatchers("/logout").permitAll()
-                        .requestMatchers("/api/auth/me", "/api/auth/expired").permitAll()
-                        .requestMatchers("/").permitAll()
-                        .requestMatchers("/api/**").authenticated()
-                        .anyRequest().authenticated())
-                .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            response.setStatus(401);
-                            response.setContentType("application/json");
-                            response.getWriter()
-                                    .write("{\"error\":\"Unauthorized\",\"message\":\"Authentication required\"}");
-                        }))
-                .logout(logout -> logout
-                        .logoutUrl("/logout")
-                        .logoutSuccessHandler((request, response, authentication) -> {
-                            response.setStatus(200);
-                            response.setContentType("application/json");
-                            response.getWriter()
-                                    .write("{\"success\":true,\"message\":\"Logout successful\",\"redirect\":\"/\"}");
-                        })
-                        .invalidateHttpSession(true)
-                        .deleteCookies("JSESSIONID")
-                        .permitAll())
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                        .sessionFixation().migrateSession()
-                        .maximumSessions(1).expiredUrl("/api/auth/expired"));
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+		http.cors(cors -> cors.configurationSource(corsConfigurationSource())).csrf(csrf -> csrf.disable())
+				.securityContext(context -> context.requireExplicitSave(false))
+				.authorizeHttpRequests(auth -> auth.requestMatchers("/error").permitAll()
+						.requestMatchers("/api/customer/login", "/api/customer/register").permitAll()
+						.requestMatchers("/api/customer/plans/featured", "/api/customer/plans/all").permitAll()
+						.requestMatchers("/api/customer/coupons", "/api/customer/coupons/validate").permitAll()
+						.requestMatchers("/api/manager/login").permitAll().requestMatchers("/logout").permitAll()
+						.requestMatchers("/api/auth/me", "/api/auth/expired").permitAll().requestMatchers("/")
+						.permitAll().requestMatchers("/api/**").authenticated().anyRequest().authenticated())
+				.exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
+					response.setStatus(401);
+					response.setContentType("application/json");
+					response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"Authentication required\"}");
+				})).logout(logout -> logout.logoutUrl("/logout")
+						.logoutSuccessHandler((request, response, authentication) -> {
+							response.setStatus(200);
+							response.setContentType("application/json");
+							response.getWriter()
+									.write("{\"success\":true,\"message\":\"Logout successful\",\"redirect\":\"/\"}");
+						}).invalidateHttpSession(true).deleteCookies("JSESSIONID").permitAll())
+				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+						.sessionFixation().migrateSession().maximumSessions(1).expiredUrl("/api/auth/expired"));
 
-        return http.build();
-    }
+		return http.build();
+	}
 
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
-        return config.getAuthenticationManager();
-    }
+	@Bean
+	public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+		return config.getAuthenticationManager();
+	}
 
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+	@Bean
+	public PasswordEncoder passwordEncoder() {
+		return new BCryptPasswordEncoder();
+	}
 
-    @Bean
-    CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of(
-                "http://localhost:3000",
-                "http://127.0.0.1:3000"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin",
-                "X-Requested-With", "X-XSRF-TOKEN",
-                "Access-Control-Request-Method",
-                "Access-Control-Request-Headers"));
-        configuration.setExposedHeaders(
-                Arrays.asList("Access-Control-Allow-Origin", "Access-Control-Allow-Credentials", "Set-Cookie"));
-        configuration.setAllowCredentials(true);
+	@Bean
+	CorsConfigurationSource corsConfigurationSource() {
+		CorsConfiguration configuration = new CorsConfiguration();
+		configuration.setAllowedOriginPatterns(List.of("http://localhost:3000", "http://127.0.0.1:3000"));
+		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"));
+		configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With",
+				"X-XSRF-TOKEN", "Access-Control-Request-Method", "Access-Control-Request-Headers"));
+		configuration.setExposedHeaders(
+				Arrays.asList("Access-Control-Allow-Origin", "Access-Control-Allow-Credentials", "Set-Cookie"));
+		configuration.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		source.registerCorsConfiguration("/**", configuration);
+		return source;
+	}
 
-    @Bean
-    public UserDetailsService userDetailsService(UserRepository userRepository) {
-        return username -> userRepository.findByEmail(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-    }
+	@Bean
+	public UserDetailsService userDetailsService(UserRepository userRepository) {
+		return username -> userRepository.findByEmail(username)
+				.orElseThrow(() -> new UsernameNotFoundException("User not found"));
+	}
 
-    @Bean
-    public AuthenticationProvider authenticationProvider(UserRepository userRepository) {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService(userRepository));
-        provider.setPasswordEncoder(passwordEncoder());
-        return provider;
-    }
+	@Bean
+	public AuthenticationProvider authenticationProvider(UserRepository userRepository) {
+		DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+		provider.setUserDetailsService(userDetailsService(userRepository));
+		provider.setPasswordEncoder(passwordEncoder());
+		return provider;
+	}
 }

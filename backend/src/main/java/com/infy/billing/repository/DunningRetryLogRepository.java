@@ -1,14 +1,15 @@
 package com.infy.billing.repository;
 
-import com.infy.billing.entity.DunningRetryLog;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Repository;
+
+import com.infy.billing.entity.DunningRetryLog;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import com.infy.billing.enums.DunningStatus;
 
-@Repository
-public interface DunningRetryLogRepository extends JpaRepository<DunningRetryLog, Long> {
-    List<DunningRetryLog> findByStatusAndScheduledAtLessThanEqual(DunningRetryLog.Status status, LocalDateTime scheduledAt);
-    List<DunningRetryLog> findByInvoice_IdOrderByAttemptNoDesc(Long invoiceId);
+
+public interface DunningRetryLogRepository extends JpaRepository<DunningRetryLog,Long>{
+	
+	List<DunningRetryLog> findByStatusAndScheduledAtLessThanEqual(DunningStatus status,LocalDateTime time);
 }

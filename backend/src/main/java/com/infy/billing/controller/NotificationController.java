@@ -1,41 +1,45 @@
 package com.infy.billing.controller;
 
-import com.infy.billing.dto.customer.NotificationDTO;
-import com.infy.billing.service.NotificationService;
-import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.infy.billing.dto.customer.NotificationResponse;
+import com.infy.billing.entity.Customer;
+import com.infy.billing.entity.User;
+import com.infy.billing.exception.CustomException;
+import com.infy.billing.repository.CustomerRepository;
+import com.infy.billing.service.NotificationService;
+
+import lombok.RequiredArgsConstructor;
+
 @RestController
-@RequestMapping("/api/customer/notifications")
+
+@RequestMapping("/api/notifications")
 @RequiredArgsConstructor
+
 public class NotificationController {
 
-    private final NotificationService notificationService;
+	private final NotificationService notificationService;
 
-    @GetMapping
-    public ResponseEntity<List<NotificationDTO>> getAllNotifications(@AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(notificationService.getCustomerNotifications(userDetails.getUsername()));
-    }
+	private final CustomerRepository customerRepository;
 
-    @GetMapping("/unread")
-    public ResponseEntity<List<NotificationDTO>> getUnreadNotifications(@AuthenticationPrincipal UserDetails userDetails) {
-        return ResponseEntity.ok(notificationService.getUnreadNotifications(userDetails.getUsername()));
-    }
+	@GetMapping("/me")
 
-    @PostMapping("/{id}/read")
-    public ResponseEntity<Void> markAsRead(@AuthenticationPrincipal UserDetails userDetails, @PathVariable Long id) {
-        notificationService.markAsRead(userDetails.getUsername(), id);
-        return ResponseEntity.ok().build();
-    }
+	public ResponseEntity<List<NotificationResponse>> getMyNotifications(Authentication authentication) {
+		User user = (User) authentication.getPrincipal();
 
-    @PostMapping("/read-all")
-    public ResponseEntity<Void> markAllAsRead(@AuthenticationPrincipal UserDetails userDetails) {
-        notificationService.markAllAsRead(userDetails.getUsername());
-        return ResponseEntity.ok().build();
-    }
+		Customer customer = customerRepository.findByUser_Id(user.getId())
+				.orElseThrow(() -> CustomException.notFound("Customer not found"));
+
+		return ResponseEntity.ok(
+
+				notificationService.getCustomerNotifications(customer.getId())
+
+		);
+	}
 }

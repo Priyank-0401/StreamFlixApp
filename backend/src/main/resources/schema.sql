@@ -301,7 +301,8 @@ CREATE TABLE invoice_line_item (
         'METERED',
         'PRORATION',
         'DISCOUNT',
-        'TAX'
+        'TAX',
+        'CREDIT'
     ) NOT NULL,
     quantity INT NOT NULL DEFAULT 1,
     unit_price_minor BIGINT NOT NULL,
@@ -480,13 +481,12 @@ CREATE TABLE notification (
     type VARCHAR(50) NOT NULL,
     subject VARCHAR(255) NULL,
     body TEXT NULL,
-    channel ENUM('EMAIL', 'SMS', 'IN_APP') NOT NULL,
+    channel ENUM('EMAIL', 'SMS') NOT NULL,
     status ENUM(
         'PENDING',
         'SENT',
         'FAILED',
-        'SKIPPED',
-        'READ'
+        'SKIPPED'
     ) NOT NULL,
     scheduled_at TIMESTAMP NULL,
     sent_at TIMESTAMP NULL,
@@ -984,4 +984,4 @@ VALUES (
         'ACTIVE'
     );
 
--- END
+SET FOREIGN_KEY_CHECKS = 1;
