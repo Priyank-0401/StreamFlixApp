@@ -3,6 +3,7 @@ import { PageHeader } from '../../../components/admin/shared/PageHeader';
 import { DataTable } from '../../../components/admin/shared/DataTable';
 import { AdminModal } from '../../../components/admin/shared/AdminModal';
 import { FormField } from '../../../components/admin/shared/FormField';
+import { ConfirmDialog } from '../../../components/shared/ConfirmDialog';
 import { getTaxRates, createTaxRate, updateTaxRate, deleteTaxRate } from '../../../services/admin/adminService';
 import type { TaxRate } from '../../../services/admin/adminTypes';
 
@@ -15,6 +16,25 @@ export const TaxRatesPage: React.FC = () => {
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+
+  // Confirm Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+    confirmLabel?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+  };
 
   const load = () => { getTaxRates().then(setRates).catch(console.error).finally(() => setLoading(false)); };
   useEffect(() => { load(); }, []);
@@ -36,9 +56,19 @@ export const TaxRatesPage: React.FC = () => {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this tax rate?')) return;
-    await deleteTaxRate(id); load();
+  const handleDelete = (id: number) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Tax Rate',
+      message: 'Are you sure you want to delete this tax rate? This action cannot be undone.',
+      isDanger: true,
+      confirmLabel: 'Delete',
+      onConfirm: async () => {
+        closeConfirmDialog();
+        await deleteTaxRate(id);
+        load();
+      }
+    });
   };
 
   const columns = [
@@ -72,6 +102,17 @@ export const TaxRatesPage: React.FC = () => {
           <FormField label="Effective From" value={form.effectiveFrom} onChange={(v) => setForm({ ...form, effectiveFrom: v })} type="date" />
         </div>
       </AdminModal>
+
+      {/* Shared Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirmDialog}
+        isDanger={confirmDialog.isDanger}
+        confirmLabel={confirmDialog.confirmLabel}
+      />
     </>
   );
 };

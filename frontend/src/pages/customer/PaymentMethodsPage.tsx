@@ -10,6 +10,7 @@ import {
   Wallet,
   ShieldCheck
 } from 'lucide-react';
+import { ConfirmDialog } from '../../components/shared/ConfirmDialog';
 import './PaymentMethodsPage.css';
 
 export const PaymentMethodsPage: React.FC = () => {
@@ -24,6 +25,25 @@ export const PaymentMethodsPage: React.FC = () => {
   const [upiId, setUpiId] = useState('');
   const [isDefault, setIsDefault] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Confirm Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+    confirmLabel?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+  };
 
   useEffect(() => {
     loadPaymentMethods();
@@ -85,14 +105,23 @@ export const PaymentMethodsPage: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Remove this payment method?')) return;
-    try {
-      await CustomerService.deletePaymentMethod(id);
-      await loadPaymentMethods();
-    } catch (error: any) {
-      alert(error.message || 'Failed to delete payment method');
-    }
+  const handleDelete = (id: number) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Remove Payment Method',
+      message: 'Are you sure you want to remove this payment method? This action cannot be undone.',
+      isDanger: true,
+      confirmLabel: 'Remove Method',
+      onConfirm: async () => {
+        closeConfirmDialog();
+        try {
+          await CustomerService.deletePaymentMethod(id);
+          await loadPaymentMethods();
+        } catch (error: any) {
+          alert(error.message || 'Failed to delete payment method');
+        }
+      }
+    });
   };
 
   const resetForm = () => {
@@ -342,6 +371,17 @@ export const PaymentMethodsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Shared Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirmDialog}
+        isDanger={confirmDialog.isDanger}
+        confirmLabel={confirmDialog.confirmLabel}
+      />
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { PageHeader } from '../../../components/admin/shared/PageHeader';
 import { DataTable } from '../../../components/admin/shared/DataTable';
 import { AdminModal } from '../../../components/admin/shared/AdminModal';
 import { FormField } from '../../../components/admin/shared/FormField';
+import { ConfirmDialog } from '../../../components/shared/ConfirmDialog';
 import { getPriceBooks, createPriceBook, updatePriceBook, archivePriceBook, getAllPlans } from '../../../services/admin/adminService';
 import type { PriceBookResponse, PlanResponse } from '../../../services/admin/adminTypes';
 
@@ -23,6 +24,25 @@ export const PriceBooksPage: React.FC = () => {
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+
+  // Confirm Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+    confirmLabel?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+  };
 
   const load = () => {
     Promise.all([getPriceBooks(), getAllPlans()])
@@ -49,14 +69,23 @@ export const PriceBooksPage: React.FC = () => {
     finally { setSaving(false); }
   };
 
-  const handleArchive = async (id: number) => {
-    if (!window.confirm('Archive this price book entry?\n\nNote: If active subscriptions use this plan, you must archive the plan instead.')) return;
-    try {
-      await archivePriceBook(id);
-      load();
-    } catch (e: any) {
-      alert(e.message || 'Archive failed');
-    }
+  const handleArchive = (id: number) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Archive Price Book',
+      message: 'Archive this price book entry?\n\nNote: If active subscriptions use this plan, you must archive the plan instead.',
+      isDanger: true,
+      confirmLabel: 'Archive',
+      onConfirm: async () => {
+        closeConfirmDialog();
+        try {
+          await archivePriceBook(id);
+          load();
+        } catch (e: any) {
+          alert(e.message || 'Archive failed');
+        }
+      }
+    });
   };
 
   const columns = [
@@ -90,6 +119,17 @@ export const PriceBooksPage: React.FC = () => {
           <FormField label="Effective From" value={form.effectiveFrom} onChange={(v) => setForm({ ...form, effectiveFrom: v })} type="date" />
         </div>
       </AdminModal>
+
+      {/* Shared Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirmDialog}
+        isDanger={confirmDialog.isDanger}
+        confirmLabel={confirmDialog.confirmLabel}
+      />
     </>
   );
 };

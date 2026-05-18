@@ -16,6 +16,7 @@ import {
   TrendingUp,
   X
 } from 'lucide-react';
+import { ConfirmDialog } from '../../components/shared/ConfirmDialog';
 import './SubscriptionPage.css';
 
 export const SubscriptionPage: React.FC = () => {
@@ -31,6 +32,25 @@ export const SubscriptionPage: React.FC = () => {
   const [refundInfo, setRefundInfo] = useState<CustomerService.CancellationResponse | null>(null);
   const [pauseDate, setPauseDate] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  
+  // Confirm Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+    confirmLabel?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+  };
 
   useEffect(() => {
     loadData();
@@ -75,31 +95,39 @@ export const SubscriptionPage: React.FC = () => {
     }
   };
 
-  const handleCancel = async (atPeriodEnd: boolean) => {
+  const handleCancel = (atPeriodEnd: boolean) => {
+    const title = atPeriodEnd ? 'Cancel at Period End' : 'Cancel Immediately';
     const message = atPeriodEnd 
-      ? 'Are you sure you want to cancel? You can use until period end.' 
-      : 'Are you sure you want to cancel immediately?';
-    if (!window.confirm(message)) {
-      return;
-    }
-    setActionLoading(true);
-    try {
-      const response = await CustomerService.cancelSubscription({ atPeriodEnd });
-      if (!atPeriodEnd && response.refundIssued) {
-        // Show refund confirmation modal
-        setRefundInfo(response);
-        setShowRefundModal(true);
-      } else if (!atPeriodEnd) {
-        await refreshUserStatus();
-        navigate('/');
-      } else {
-        await loadData();
+      ? 'Are you sure you want to cancel? You can continue using your subscription until the end of the current billing period.' 
+      : 'Are you sure you want to cancel immediately? Your subscription will end right away.';
+    
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      isDanger: true,
+      confirmLabel: 'Cancel Subscription',
+      onConfirm: async () => {
+        closeConfirmDialog();
+        setActionLoading(true);
+        try {
+          const response = await CustomerService.cancelSubscription({ atPeriodEnd });
+          if (!atPeriodEnd && response.refundIssued) {
+            setRefundInfo(response);
+            setShowRefundModal(true);
+          } else if (!atPeriodEnd) {
+            await refreshUserStatus();
+            navigate('/');
+          } else {
+            await loadData();
+          }
+        } catch (error) {
+          alert('Failed to cancel subscription.');
+        } finally {
+          setActionLoading(false);
+        }
       }
-    } catch (error) {
-      alert('Failed to cancel subscription.');
-    } finally {
-      setActionLoading(false);
-    }
+    });
   };
 
   const handleRefundModalClose = async () => {
@@ -150,17 +178,26 @@ export const SubscriptionPage: React.FC = () => {
     }
   };
 
-  const handleRemoveAddOn = async (addonId: number) => {
-    if (!window.confirm('Remove this add-on?')) return;
-    setActionLoading(true);
-    try {
-      await CustomerService.removeAddOn(addonId);
-      await loadData();
-    } catch (error) {
-      alert('Failed to remove add-on.');
-    } finally {
-      setActionLoading(false);
-    }
+  const handleRemoveAddOn = (addonId: number) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Remove Add-on',
+      message: 'Are you sure you want to remove this add-on from your subscription?',
+      isDanger: true,
+      confirmLabel: 'Remove Add-on',
+      onConfirm: async () => {
+        closeConfirmDialog();
+        setActionLoading(true);
+        try {
+          await CustomerService.removeAddOn(addonId);
+          await loadData();
+        } catch (error) {
+          alert('Failed to remove add-on.');
+        } finally {
+          setActionLoading(false);
+        }
+      }
+    });
   };
 
   const getStatusColor = (status: string) => {
@@ -608,6 +645,17 @@ export const SubscriptionPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Shared Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirmDialog}
+        isDanger={confirmDialog.isDanger}
+        confirmLabel={confirmDialog.confirmLabel}
+      />
     </div>
   );
 };

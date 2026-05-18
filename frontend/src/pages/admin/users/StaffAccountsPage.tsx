@@ -4,6 +4,7 @@ import { DataTable } from '../../../components/admin/shared/DataTable';
 import { StatusBadge } from '../../../components/admin/shared/StatusBadge';
 import { AdminModal } from '../../../components/admin/shared/AdminModal';
 import { FormField } from '../../../components/admin/shared/FormField';
+import { ConfirmDialog } from '../../../components/shared/ConfirmDialog';
 import { useAuthContext } from '../../../context/AuthContext';
 import { getStaff, createStaff, deleteStaff } from '../../../services/admin/adminService';
 import type { StaffResponse } from '../../../services/admin/adminTypes';
@@ -23,6 +24,25 @@ export const StaffAccountsPage: React.FC = () => {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
+  // Confirm Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    isDanger?: boolean;
+    confirmLabel?: string;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+  };
+
   const load = () => { getStaff().then(setStaff).catch(console.error).finally(() => setLoading(false)); };
   useEffect(() => { load(); }, []);
 
@@ -37,9 +57,19 @@ export const StaffAccountsPage: React.FC = () => {
     finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Remove this staff member?')) return;
-    await deleteStaff(id); load();
+  const handleDelete = (id: number) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Remove Staff Member',
+      message: 'Are you sure you want to remove this staff member? This action cannot be undone.',
+      isDanger: true,
+      confirmLabel: 'Remove Staff',
+      onConfirm: async () => {
+        closeConfirmDialog();
+        await deleteStaff(id);
+        load();
+      }
+    });
   };
 
   const columns = [
@@ -85,6 +115,17 @@ export const StaffAccountsPage: React.FC = () => {
         <FormField label="Password" value={form.passwordHash} onChange={(v) => setForm({ ...form, passwordHash: v })} type="password" required placeholder="Minimum 8 characters" />
         <FormField label="Role" value={form.role} onChange={(v) => setForm({ ...form, role: v })} required options={[{ value: 'ADMIN', label: 'Admin' }, { value: 'FINANCE', label: 'Finance' }, { value: 'SUPPORT', label: 'Support' }]} />
       </AdminModal>
+
+      {/* Shared Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirmDialog}
+        isDanger={confirmDialog.isDanger}
+        confirmLabel={confirmDialog.confirmLabel}
+      />
     </>
   );
 };
