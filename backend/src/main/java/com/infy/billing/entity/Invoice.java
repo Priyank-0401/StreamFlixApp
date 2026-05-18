@@ -1,8 +1,10 @@
 package com.infy.billing.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -13,6 +15,8 @@ import com.infy.billing.enums.Status;
 @Table(name = "invoice")
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Invoice {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
