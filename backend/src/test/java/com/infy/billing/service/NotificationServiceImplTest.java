@@ -159,4 +159,54 @@ public class NotificationServiceImplTest {
         assertEquals(NotificationStatus.READ, notification.getStatus());
         verify(notificationRepository, times(1)).save(notification);
     }
+
+    @Test
+    void testGenerateRenewalReminders_NullPeriodEnd() {
+        subscription.setCurrentPeriodEnd(null);
+        when(subscriptionRepository.findByStatus(Status.ACTIVE)).thenReturn(Arrays.asList(subscription));
+
+        notificationService.generateRenewalReminders();
+
+        verify(notificationRepository, never()).save(any());
+    }
+
+    @Test
+    void testGenerateRenewalReminders_NullCustomer() {
+        subscription.setCustomer(null);
+        when(subscriptionRepository.findByStatus(Status.ACTIVE)).thenReturn(Arrays.asList(subscription));
+
+        notificationService.generateRenewalReminders();
+
+        verify(notificationRepository, never()).save(any());
+    }
+
+    @Test
+    void testProcessPendingNotifications_Exception() {
+        Notification notification = Notification.builder()
+                .notificationId(1L)
+                .status(NotificationStatus.PENDING)
+                .build();
+
+        when(notificationRepository.findByStatus(NotificationStatus.PENDING)).thenReturn(Arrays.asList(notification));
+        when(notificationRepository.save(any(Notification.class)))
+                .thenThrow(new RuntimeException("DB error"))
+                .thenReturn(notification);
+
+        notificationService.processPendingNotifications();
+        assertEquals(NotificationStatus.FAILED, notification.getStatus());
+    }
+
+    @Test
+    void testCreateNotification_AlreadyExists() {
+        when(notificationRepository.existsByCustomerIdAndTypeAndScheduledAtBetween(any(), any(), any(), any()))
+                .thenReturn(true);
+        
+        subscription.setCurrentPeriodEnd(LocalDate.now().plusDays(7));
+        when(subscriptionRepository.findByStatus(Status.ACTIVE)).thenReturn(Arrays.asList(subscription));
+
+        notificationService.generateRenewalReminders();
+
+        verify(notificationRepository, never()).save(any(Notification.class));
+    }
+
 }

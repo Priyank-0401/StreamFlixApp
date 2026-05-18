@@ -118,21 +118,22 @@ public class BillingEngineServiceImpl implements BillingEngineService {
 	}
 
 	private Invoice createInvoice(Subscription subscription, LocalDate today) {
-		Invoice invoice = new Invoice();
-		invoice.setInvoiceNumber("INV-" + System.currentTimeMillis());
-		invoice.setCustomer(subscription.getCustomer());
-		invoice.setSubscription(subscription);
-		invoice.setStatus(Status.OPEN);
-		invoice.setBillingReason(BillingReason.SUBSCRIPTION_CYCLE);
-		invoice.setIssueDate(today);
-		invoice.setDueDate(today);
-		invoice.setSubtotalMinor(0L);
-		invoice.setDiscountMinor(0L);
-		invoice.setTaxMinor(0L);
-		invoice.setTotalMinor(0L);
-		invoice.setBalanceMinor(0L);
-		invoice.setCurrency(subscription.getCurrency());
-		invoice.setIdempotencyKey("renewal-" + subscription.getId() + "-" + today);
+		Invoice invoice = Invoice.builder()
+				.invoiceNumber("INV-" + System.currentTimeMillis())
+				.customer(subscription.getCustomer())
+				.subscription(subscription)
+				.status(Status.OPEN)
+				.billingReason(BillingReason.SUBSCRIPTION_CYCLE)
+				.issueDate(today)
+				.dueDate(today)
+				.subtotalMinor(0L)
+				.discountMinor(0L)
+				.taxMinor(0L)
+				.totalMinor(0L)
+				.balanceMinor(0L)
+				.currency(subscription.getCurrency())
+				.idempotencyKey("renewal-" + subscription.getId() + "-" + today)
+				.build();
 		return invoiceRepository.save(invoice);
 	}
 

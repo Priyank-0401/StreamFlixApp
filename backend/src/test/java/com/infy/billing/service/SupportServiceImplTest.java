@@ -24,6 +24,10 @@ import com.infy.billing.entity.BillingJob;
 import com.infy.billing.entity.DunningRetryLog;
 import com.infy.billing.entity.Subscription;
 import com.infy.billing.entity.Plan;
+import com.infy.billing.entity.Invoice;
+import com.infy.billing.entity.UsageRecord;
+import com.infy.billing.entity.Notification;
+import com.infy.billing.entity.MeteredComponent;
 import com.infy.billing.enums.Status;
 import com.infy.billing.repository.CustomerRepository;
 import com.infy.billing.repository.SubscriptionRepository;
@@ -90,9 +94,34 @@ public class SupportServiceImplTest {
     void testGetCustomerDetails() {
         when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
         when(subscriptionRepository.findByCustomer_Id(1L)).thenReturn(Arrays.asList(subscription));
-        when(invoiceRepository.findByCustomer_IdOrderByIssueDateDesc(1L)).thenReturn(Arrays.asList());
-        when(usageRecordRepository.findBySubscription_Customer_Id(1L)).thenReturn(Arrays.asList());
-        when(notificationRepository.findByCustomerIdOrderByCreatedAtDesc(1L)).thenReturn(Arrays.asList());
+        
+        Invoice invoice = Invoice.builder()
+                .id(1L)
+                .invoiceNumber("INV-001")
+                .subscription(subscription)
+                .status(Status.ACTIVE)
+                .billingReason(com.infy.billing.enums.BillingReason.SUBSCRIPTION_CYCLE)
+                .build();
+        
+        when(invoiceRepository.findByCustomer_IdOrderByIssueDateDesc(1L)).thenReturn(Arrays.asList(invoice));
+
+        MeteredComponent component = MeteredComponent.builder().id(1L).name("Storage").unitName("GB").build();
+        UsageRecord usageRecord = new UsageRecord();
+        usageRecord.setId(1L);
+        usageRecord.setComponent(component);
+        usageRecord.setQuantity(10L);
+        
+        when(usageRecordRepository.findBySubscription_Customer_Id(1L)).thenReturn(Arrays.asList(usageRecord));
+
+        Notification notification = Notification.builder()
+                .notificationId(1L)
+                .type("TEST")
+                .subject("Test")
+                .body("Test")
+                .status(com.infy.billing.enums.NotificationStatus.SENT)
+                .build();
+        
+        when(notificationRepository.findByCustomerIdOrderByCreatedAtDesc(1L)).thenReturn(Arrays.asList(notification));
 
         CustomerDetailResponse response = supportService.getCustomerDetails(1L);
 
@@ -100,6 +129,9 @@ public class SupportServiceImplTest {
         assertEquals("John Doe", response.getCustomerProfile().getFullName());
         assertEquals(1, response.getSubscriptions().size());
         assertEquals("Premium", response.getSubscriptions().get(0).getPlanName());
+        assertEquals(1, response.getInvoices().size());
+        assertEquals(1, response.getUsageRecords().size());
+        assertEquals(1, response.getNotifications().size());
     }
 
     @Test

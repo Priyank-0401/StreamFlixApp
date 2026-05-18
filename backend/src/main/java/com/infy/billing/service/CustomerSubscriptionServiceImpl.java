@@ -304,20 +304,21 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       long prorationAmount = newTotalCost - unusedCredit;
 
       // Generate immediate proration invoice
-      Invoice invoice = new Invoice();
-      invoice.setCustomer(customer);
-      invoice.setSubscription(subscription);
-      invoice.setInvoiceNumber("INV-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
-      invoice.setBillingReason(BillingReason.SUBSCRIPTION_UPDATE);
-      invoice.setIssueDate(today);
       long headerSubtotal = (newPlan.getTaxMode() == TaxMode.INCLUSIVE) 
             ? (newPriceMinor + newAddonTotal - unusedCredit - newTaxMinor) 
             : (newPriceMinor + newAddonTotal - unusedCredit);
 
-      invoice.setSubtotalMinor(headerSubtotal);
-      invoice.setTaxMinor(newTaxMinor);
-      invoice.setCurrency(customer.getCurrency());
-      invoice.setIdempotencyKey(UUID.randomUUID().toString());
+      Invoice invoice = Invoice.builder()
+              .customer(customer)
+              .subscription(subscription)
+              .invoiceNumber("INV-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")))
+              .billingReason(BillingReason.SUBSCRIPTION_UPDATE)
+              .issueDate(today)
+              .subtotalMinor(headerSubtotal)
+              .taxMinor(newTaxMinor)
+              .currency(customer.getCurrency())
+              .idempotencyKey(UUID.randomUUID().toString())
+              .build();
 
       if (prorationAmount > 0) {
          // Upgrade: charge the difference
@@ -590,28 +591,27 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
             totalDays = 1;
          if (remainingDays <= 0)
             remainingDays = 1;
-
          long proratedAmount = (addOn.getPriceMinor() * remainingDays) / totalDays;
          Long taxMinor = calculateTaxMinor(proratedAmount, customer.getCountry(), addOn.getTaxMode());
          Long totalMinor = (addOn.getTaxMode() == TaxMode.INCLUSIVE) ? proratedAmount : proratedAmount + taxMinor;
          Long subtotalMinor = (addOn.getTaxMode() == TaxMode.INCLUSIVE) ? proratedAmount - taxMinor : proratedAmount;
 
-         Invoice invoice = new Invoice();
-         invoice.setCustomer(customer);
-         invoice.setSubscription(subscription);
-         invoice.setInvoiceNumber(
-               "INV-ADDON-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
-         invoice.setStatus(Status.PAID);
-         invoice.setBillingReason(BillingReason.SUBSCRIPTION_UPDATE);
-         invoice.setIssueDate(today);
-         invoice.setDueDate(today);
-         invoice.setSubtotalMinor(subtotalMinor);
-         invoice.setTaxMinor(taxMinor);
-         invoice.setDiscountMinor(0L);
-         invoice.setTotalMinor(totalMinor);
-         invoice.setBalanceMinor(0L);
-         invoice.setCurrency(subscription.getCurrency());
-         invoice.setIdempotencyKey(UUID.randomUUID().toString());
+         Invoice invoice = Invoice.builder()
+                 .customer(customer)
+                 .subscription(subscription)
+                 .invoiceNumber("INV-ADDON-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")))
+                 .status(Status.PAID)
+                 .billingReason(BillingReason.SUBSCRIPTION_UPDATE)
+                 .issueDate(today)
+                 .dueDate(today)
+                 .subtotalMinor(subtotalMinor)
+                 .taxMinor(taxMinor)
+                 .discountMinor(0L)
+                 .totalMinor(totalMinor)
+                 .balanceMinor(0L)
+                 .currency(subscription.getCurrency())
+                 .idempotencyKey(UUID.randomUUID().toString())
+                 .build();
          invoiceRepository.save(invoice);
 
          // Line items

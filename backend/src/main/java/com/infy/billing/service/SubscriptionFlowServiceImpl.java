@@ -442,21 +442,22 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
 
     private Invoice createInvoice(Customer customer, Subscription subscription,
             Long subtotal, Long tax, Long total, LocalDate today, LocalDate dueDate, Status status) {
-        Invoice invoice = new Invoice();
-        invoice.setCustomer(customer);
-        invoice.setSubscription(subscription);
-        invoice.setInvoiceNumber("INV-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
-        invoice.setStatus(status);
-        invoice.setBillingReason(BillingReason.SUBSCRIPTION_CREATE);
-        invoice.setIssueDate(today);
-        invoice.setDueDate(dueDate);
-        invoice.setSubtotalMinor(subtotal);
-        invoice.setTaxMinor(tax);
-        invoice.setDiscountMinor(0L);
-        invoice.setTotalMinor(total);
-        invoice.setBalanceMinor(status == Status.OPEN ? total : 0L);
-        invoice.setCurrency(customer.getCurrency());
-        invoice.setIdempotencyKey(UUID.randomUUID().toString());
+        Invoice invoice = Invoice.builder()
+                .customer(customer)
+                .subscription(subscription)
+                .invoiceNumber("INV-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")))
+                .status(status)
+                .billingReason(BillingReason.SUBSCRIPTION_CREATE)
+                .issueDate(today)
+                .dueDate(dueDate)
+                .subtotalMinor(subtotal)
+                .taxMinor(tax)
+                .discountMinor(0L)
+                .totalMinor(total)
+                .balanceMinor(status == Status.OPEN ? total : 0L)
+                .currency(customer.getCurrency())
+                .idempotencyKey(UUID.randomUUID().toString())
+                .build();
 
         invoiceRepository.save(invoice);
         return invoice;

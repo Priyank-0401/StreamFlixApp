@@ -1,0 +1,171 @@
+package com.infy.billing.service;
+
+import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.Optional;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.infy.billing.entity.DunningRetryLog;
+import com.infy.billing.entity.Invoice;
+import com.infy.billing.entity.Payment;
+import com.infy.billing.entity.PaymentMethod;
+import com.infy.billing.entity.Subscription;
+import com.infy.billing.entity.Plan;
+import com.infy.billing.enums.BillingPeriod;
+import com.infy.billing.enums.DunningStatus;
+import com.infy.billing.enums.Status;
+import com.infy.billing.exception.CustomException;
+import com.infy.billing.repository.DunningRetryLogRepository;
+import com.infy.billing.repository.InvoiceRepository;
+import com.infy.billing.repository.PaymentMethodRepository;
+import com.infy.billing.repository.PaymentRepository;
+import com.infy.billing.repository.SubscriptionRepository;
+
+@ExtendWith(MockitoExtension.class)
+public class BillingRetryServiceImplTest {
+
+        @Mock
+        private DunningRetryLogRepository dunningRetryLogRepository;
+        @Mock
+        private PaymentRepository paymentRepository;
+        @Mock
+        private PaymentMethodRepository paymentMethodRepository;
+        @Mock
+        private InvoiceRepository invoiceRepository;
+        @Mock
+        private SubscriptionRepository subscriptionRepository;
+        @Mock
+        private MockPaymentGateway mockPaymentGateway;
+
+        @InjectMocks
+        private BillingRetryServiceImpl billingRetryService;
+
+        private DunningRetryLog retryLog;
+        private Invoice invoice;
+        private Subscription subscription;
+        private PaymentMethod paymentMethod;
+        private Plan plan;
+
+        @BeforeEach
+        void setUp() {
+                plan = Plan.builder()
+                                .id(1L)
+                                .billingPeriod(BillingPeriod.MONTHLY)
+                                .build();
+
+                subscription = Subscription.builder()
+                                .id(1L)
+                                .status(Status.ACTIVE)
+                                .currentPeriodEnd(LocalDate.now())
+                                .plan(plan)
+                                .paymentMethodId(1L)
+                                .build();
+
+                invoice = Invoice.builder()
+                                .id(1L)
+                                .status(Status.PENDING)
+                                .totalMinor(1000L)
+                                .subscription(subscription)
+                                .currency("USD")
+                                .build();
+
+                retryLog = new DunningRetryLog();
+                retryLog.setId(1L);
+                retryLog.setStatus(DunningStatus.SCHEDULED);
+                retryLog.setInvoice(invoice);
+                retryLog.setAttemptNo(1);
+
+                paymentMethod = new PaymentMethod();
+                paymentMethod.setId(1L);
+                paymentMethod.setGatewayToken("token_123");
+        }
+
+        @Test
+        void testRetryFailedPayments_Success() throws Exception {
+                when(dunningRetryLogRepository.findByStatusAndScheduledAtLessThanEqual(any(), any()))
+                                .thenReturn(Arrays.asList(retryLog));
+                when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+                when(mockPaymentGateway.charge(anyString(), anyLong(), anyString())).thenReturn("gw_ref_123");
+
+                billingRetryService.retryFailedPayments();
+
+                assertEquals(DunningStatus.SUCCESS, retryLog.getStatus());
+                assertEquals(Status.PAID, invoice.getStatus());
+                assertEquals(Status.ACTIVE, subscription.getStatus());
+                verify(paymentRepository, times(2)).save(any(Payment.class));
+        }
+
+        @Test
+        void testRetryFailedPayments_InvoiceAlreadyPaid() {
+                invoice.setStatus(Status.PAID);
+                when(dunningRetryLogRepository.findByStatusAndScheduledAtLessThanEqual(any(), any()))
+                                .thenReturn(Arrays.asList(retryLog));
+
+                billingRetryService.retryFailedPayments();
+
+                assertEquals(DunningStatus.SCHEDULED, retryLog.getStatus());
+        }
+
+        @Test
+        void testRetryFailedPayments_ZeroTotalInvoice() {
+                invoice.setTotalMinor(0L);
+                when(dunningRetryLogRepository.findByStatusAndScheduledAtLessThanEqual(any(), any()))
+                                .thenReturn(Arrays.asList(retryLog));
+
+                billingRetryService.retryFailedPayments();
+
+                assertEquals(DunningStatus.SUCCESS, retryLog.getStatus());
+                assertEquals(Status.PAID, invoice.getStatus());
+        }
+
+        @Test
+        void testRetryFailedPayments_InvalidPaymentMethod() {
+                paymentMethod.setGatewayToken(null);
+                when(dunningRetryLogRepository.findByStatusAndScheduledAtLessThanEqual(any(), any()))
+                                .thenReturn(Arrays.asList(retryLog));
+                when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+
+                billingRetryService.retryFailedPayments();
+
+                assertEquals(DunningStatus.FAILED, retryLog.getStatus());
+        }
+
+        @Test
+        void testRetryFailedPayments_PaymentGatewayFailure() throws Exception {
+                when(dunningRetryLogRepository.findByStatusAndScheduledAtLessThanEqual(any(), any()))
+                                .thenReturn(Arrays.asList(retryLog));
+                when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+                when(mockPaymentGateway.charge(anyString(), anyLong(), anyString()))
+                                .thenThrow(CustomException.badRequest("Card declined"));
+
+                billingRetryService.retryFailedPayments();
+
+                assertEquals(DunningStatus.FAILED, retryLog.getStatus());
+                verify(dunningRetryLogRepository, times(3)).save(any(DunningRetryLog.class));
+        }
+
+        @Test
+        void testRetryFailedPayments_FinalAttemptFailure() throws Exception {
+                retryLog.setAttemptNo(3);
+                when(dunningRetryLogRepository.findByStatusAndScheduledAtLessThanEqual(any(), any()))
+                                .thenReturn(Arrays.asList(retryLog));
+                when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+                when(mockPaymentGateway.charge(anyString(), anyLong(), anyString()))
+                                .thenThrow(CustomException.badRequest("Card declined"));
+
+                billingRetryService.retryFailedPayments();
+
+                assertEquals(DunningStatus.FAILED, retryLog.getStatus());
+                assertEquals(Status.CANCELED, subscription.getStatus());
+                verify(subscriptionRepository, times(1)).save(subscription);
+        }
+}
