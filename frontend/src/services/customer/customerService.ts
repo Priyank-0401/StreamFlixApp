@@ -196,6 +196,15 @@ export interface CreditNote {
   createdAt: string;
 }
 
+export interface CancellationResponse {
+  refundIssued: boolean;
+  refundAmountMinor: number;
+  currency: string;
+  refundGatewayRef: string | null;
+  creditNoteNumber: string | null;
+  message: string;
+}
+
 // ==================== PROFILE ====================
 
 export const getCustomerProfile = async (): Promise<CustomerProfile> => {
@@ -267,12 +276,13 @@ export const upgradeSubscription = async (data: {
   return response.json();
 };
 
-export const cancelSubscription = async (params?: { atPeriodEnd?: boolean }): Promise<void> => {
-  const query = params?.atPeriodEnd ? '?atPeriodEnd=true' : '';
+export const cancelSubscription = async (params?: { atPeriodEnd?: boolean }): Promise<CancellationResponse> => {
+  const query = params?.atPeriodEnd !== undefined ? `?atPeriodEnd=${params.atPeriodEnd}` : '';
   const response = await fetchWithSession(`${API_BASE}/subscription${query}`, {
     method: 'DELETE',
   });
   if (!response.ok) throw new Error('Failed to cancel subscription');
+  return response.json();
 };
 
 export const pauseSubscription = async (data: { pausedTo: string }): Promise<Subscription> => {

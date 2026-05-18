@@ -13,9 +13,5 @@ import java.util.List;
 @AllArgsConstructor
 public class MrrReportDTO {
     private long mrrMinor;                       // current MRR in INR paise
-    private long expansionMinor;                 // MRR gained from upgrades
-    private long contractionMinor;               // MRR lost from downgrades
-    private long newMrrMinor;                    // MRR from new customers
-    private long reactivationMinor;              // MRR from reactivated customers
     private List<MonthlyTrendDTO> revenueTrend;  // all months from snapshots, valueMinor = MRR
 }

@@ -41,7 +41,7 @@ public class MockPaymentGatewayImpl implements MockPaymentGateway {
             "fail@upi",
             "0000000000@upi");
 
-    private static final double DEFAULT_RANDOM_FAILURE_RATE = 0.00; // Disabled for deterministic tests
+    private static final double DEFAULT_RANDOM_FAILURE_RATE = 0.20;
 
     private final Random random = new Random();
 
@@ -79,5 +79,11 @@ public class MockPaymentGatewayImpl implements MockPaymentGateway {
             return true;
         }
         return false;
+    }
+
+    @Override
+    public String refund(String originalGatewayRef, long amountMinor, String currency) {
+        // Mock refund always succeeds
+        return "mock_refund_" + System.currentTimeMillis();
     }
 }

@@ -41,7 +41,7 @@ export const financeService = {
       ltv: { value: (data.ltvMinor || 0) / 100, trend: 0, trendDirection: 'up' },
       churnRate: { value: data.netChurnPercent || 0, trend: 0, trendDirection: 'down' },
       activeCustomers: { value: data.activeCustomers || 0, trend: 0, trendDirection: 'up' },
-      failedPayments: { value: (data.failedPaymentsMinor || 0) / 100, trend: 0, trendDirection: 'down' },
+      failedPayments: { value: data.failedPaymentsCount || 0, trend: 0, trendDirection: 'down' },
       refundAmount: { value: (data.refundAmountMinor || 0) / 100, trend: 0, trendDirection: 'up' },
       revenueByPlan: data.revenueByPlan?.map((p: any) => ({
         name: p.planName,

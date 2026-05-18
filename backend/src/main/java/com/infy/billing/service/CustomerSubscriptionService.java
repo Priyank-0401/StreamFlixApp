@@ -7,7 +7,7 @@ public interface CustomerSubscriptionService {
    SubscriptionDTO getCurrentSubscription(String email);
    SubscriptionDTO createSubscription(String email, CreateSubscriptionRequest request);
    SubscriptionDTO upgradeSubscription(String email, UpgradeSubscriptionRequest request);
-   void cancelSubscription(String email, boolean atPeriodEnd);
+   CancellationResponse cancelSubscription(String email, boolean atPeriodEnd);
    SubscriptionDTO pauseSubscription(String email, PauseSubscriptionRequest request);
    SubscriptionDTO resumeSubscription(String email);
    SubscriptionDTO addAddOn(String email, Long addonId);

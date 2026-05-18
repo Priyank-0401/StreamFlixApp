@@ -20,7 +20,7 @@ public class FinanceDashboardDTO {
     private long ltvMinor;
     private BigDecimal netChurnPercent;  // percentage, e.g. 5.26
     private int activeCustomers;
-    private long failedPaymentsMinor;
+    private long failedPaymentsCount;
     private long refundAmountMinor;
 
     // Breakdowns

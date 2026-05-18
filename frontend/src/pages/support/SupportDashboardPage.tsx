@@ -138,7 +138,7 @@ export const SupportDashboardPage: React.FC = () => {
 
                   {/* Tabs */}
                   <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', marginBottom: '20px' }}>
-                    {['subscriptions', 'invoices', 'usage', 'notifications'].map((tab) => (
+                    {['subscriptions', 'invoices', 'usage', 'refunds'].map((tab) => (
                       <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -229,21 +229,23 @@ export const SupportDashboardPage: React.FC = () => {
                     </div>
                   )}
 
-                  {activeTab === 'notifications' && (
+                  {activeTab === 'refunds' && (
                     <div>
-                      <h4 style={{ marginBottom: '12px' }}>Notification History</h4>
-                      {selectedCustomer.notifications.length === 0 ? (
-                        <p style={{ color: '#64748b' }}>No notifications found.</p>
+                      <h4 style={{ marginBottom: '12px' }}>Refunds (Credit Notes)</h4>
+                      {!selectedCustomer.creditNotes || selectedCustomer.creditNotes.length === 0 ? (
+                        <p style={{ color: '#64748b' }}>No refunds found.</p>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          {selectedCustomer.notifications.map((n) => (
-                            <div key={n.id} style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <span style={{ fontWeight: 600 }}>{n.subject}</span>
-                                <StatusBadge status={n.status} />
+                          {selectedCustomer.creditNotes.map((cn) => (
+                            <div key={cn.creditNoteId} style={{ padding: '16px', border: '1px solid #e2e8f0', borderRadius: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                              <div>
+                                <div style={{ fontWeight: 600 }}>{cn.creditNoteNumber}</div>
+                                <div style={{ fontSize: '13px', color: '#64748b' }}>Reason: {cn.reason}</div>
+                                <div style={{ fontSize: '13px', color: '#64748b' }}>Date: {cn.createdAt}</div>
                               </div>
-                              <div style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
-                                Channel: {n.channel} | Created: {n.createdAt ? new Date(n.createdAt).toLocaleString() : 'Pending'}
+                              <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontWeight: 600 }}>{(cn.amountMinor / 100).toFixed(2)}</div>
+                                <StatusBadge status={cn.status} />
                               </div>
                             </div>
                           ))}
@@ -251,6 +253,7 @@ export const SupportDashboardPage: React.FC = () => {
                       )}
                     </div>
                   )}
+
                 </div>
               )}
             </div>

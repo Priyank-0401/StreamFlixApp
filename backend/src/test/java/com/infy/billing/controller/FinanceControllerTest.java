@@ -11,7 +11,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -48,7 +47,7 @@ public class FinanceControllerTest {
                 .ltvMinor(95000L)
                 .netChurnPercent(BigDecimal.valueOf(2.0))
                 .activeCustomers(3)
-                .failedPaymentsMinor(9500L)
+                .failedPaymentsCount(10L)
                 .refundAmountMinor(129500L)
                 .build();
 
@@ -66,10 +65,6 @@ public class FinanceControllerTest {
     void getMrrReport_shouldReturnMrrReport() {
         MrrReportDTO mockReport = MrrReportDTO.builder()
                 .mrrMinor(10000L)
-                .expansionMinor(500L)
-                .contractionMinor(200L)
-                .newMrrMinor(1000L)
-                .reactivationMinor(100L)
                 .revenueTrend(Collections.emptyList())
                 .build();
 

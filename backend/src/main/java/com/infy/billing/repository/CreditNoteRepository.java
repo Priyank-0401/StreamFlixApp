@@ -9,5 +9,6 @@ import java.util.List;
 @Repository
 public interface CreditNoteRepository extends JpaRepository<CreditNote, Long> {
 	List<CreditNote> findByInvoice_Id(Long invoiceId);
+	List<CreditNote> findByInvoice_Customer_Id(Long customerId);
 	org.springframework.data.domain.Page<CreditNote> findAllByOrderByIdDesc(org.springframework.data.domain.Pageable pageable);
 }

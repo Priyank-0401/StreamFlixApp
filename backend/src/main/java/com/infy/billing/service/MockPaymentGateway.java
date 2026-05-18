@@ -21,4 +21,14 @@ public interface MockPaymentGateway {
      * @throws com.infy.billing.exception.CustomException with PAYMENT_FAILED if the charge is declined
      */
     String charge(String gatewayToken, long amountMinor, String currency);
+
+    /**
+     * Processes a mock refund.
+     *
+     * @param originalGatewayRef the original charge gateway reference
+     * @param amountMinor        refund amount in minor currency units
+     * @param currency           currency code (e.g., INR, USD)
+     * @return a mock refund reference on success
+     */
+    String refund(String originalGatewayRef, long amountMinor, String currency);
 }

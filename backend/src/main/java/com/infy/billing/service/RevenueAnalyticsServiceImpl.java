@@ -282,9 +282,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
         long ltvMinor = computeLtvMinor(arpuMinor, netChurnPercent);
 
         // Fetch failed payments and refund amounts
-        long failedPaymentsMinor = paymentRepository.findByStatus(Status.FAILED).stream()
-                .mapToLong(p -> toINRMinor(p.getAmountMinor(), p.getCurrency()))
-                .sum();
+        long failedPaymentsCount = paymentRepository.findByStatus(Status.FAILED).size();
 
         long refundAmountMinor = creditNoteRepository.findAll().stream()
                 .mapToLong(cn -> toINRMinor(cn.getAmountMinor(),
@@ -298,7 +296,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
                 .ltvMinor(ltvMinor)
                 .netChurnPercent(BigDecimal.valueOf(netChurnPercent))
                 .activeCustomers(activeCustomers)
-                .failedPaymentsMinor(failedPaymentsMinor)
+                .failedPaymentsCount(failedPaymentsCount)
                 .refundAmountMinor(refundAmountMinor)
                 .revenueByPlan(buildRevenueByPlan(activeSubs, 1L))
                 .revenueByRegion(buildRevenueByRegion(activeSubs, 1L))
@@ -318,19 +316,10 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
 
         long mrrMinor = computeMrrMinor(activeSubs);
 
-        // Approximate breakdowns for demonstration based on total MRR
-        // In a real scenario, this would come from an event log comparing M/M changes
-        long newMrrMinor = (long) (mrrMinor * 0.10);
-        long expansionMinor = (long) (mrrMinor * 0.05);
-        long contractionMinor = (long) (mrrMinor * 0.02);
-        long reactivationMinor = (long) (mrrMinor * 0.01);
+
 
         return MrrReportDTO.builder()
                 .mrrMinor(mrrMinor)
-                .expansionMinor(expansionMinor)
-                .contractionMinor(contractionMinor)
-                .newMrrMinor(newMrrMinor)
-                .reactivationMinor(reactivationMinor)
                 .revenueTrend(buildMrrTrend(snapshots))
                 .build();
     }

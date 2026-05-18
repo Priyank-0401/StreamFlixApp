@@ -26,14 +26,13 @@ import com.infy.billing.entity.Subscription;
 import com.infy.billing.entity.Plan;
 import com.infy.billing.entity.Invoice;
 import com.infy.billing.entity.UsageRecord;
-import com.infy.billing.entity.Notification;
 import com.infy.billing.entity.MeteredComponent;
 import com.infy.billing.enums.Status;
 import com.infy.billing.repository.CustomerRepository;
 import com.infy.billing.repository.SubscriptionRepository;
 import com.infy.billing.repository.InvoiceRepository;
 import com.infy.billing.repository.UsageRecordRepository;
-import com.infy.billing.repository.NotificationRepository;
+import com.infy.billing.repository.CreditNoteRepository;
 import com.infy.billing.repository.AuditLogRepository;
 import com.infy.billing.repository.BillingJobRepository;
 import com.infy.billing.repository.DunningRetryLogRepository;
@@ -50,7 +49,7 @@ public class SupportServiceImplTest {
     @Mock
     private UsageRecordRepository usageRecordRepository;
     @Mock
-    private NotificationRepository notificationRepository;
+    private CreditNoteRepository creditNoteRepository;
     @Mock
     private AuditLogRepository auditLogRepository;
     @Mock
@@ -113,15 +112,17 @@ public class SupportServiceImplTest {
         
         when(usageRecordRepository.findBySubscription_Customer_Id(1L)).thenReturn(Arrays.asList(usageRecord));
 
-        Notification notification = Notification.builder()
-                .notificationId(1L)
-                .type("TEST")
-                .subject("Test")
-                .body("Test")
-                .status(com.infy.billing.enums.NotificationStatus.SENT)
-                .build();
-        
-        when(notificationRepository.findByCustomerIdOrderByCreatedAtDesc(1L)).thenReturn(Arrays.asList(notification));
+        com.infy.billing.entity.CreditNote creditNote = new com.infy.billing.entity.CreditNote();
+        creditNote.setId(1L);
+        creditNote.setCreditNoteNumber("CN-001");
+        creditNote.setInvoice(invoice);
+        creditNote.setReason("Test refund");
+        creditNote.setAmountMinor(1000L);
+        creditNote.setStatus(Status.ACTIVE);
+        creditNote.setCreatedAt(java.time.LocalDateTime.now());
+
+        when(creditNoteRepository.findByInvoice_Customer_Id(1L)).thenReturn(Arrays.asList(creditNote));
+        when(invoiceRepository.findById(1L)).thenReturn(Optional.of(invoice));
 
         CustomerDetailResponse response = supportService.getCustomerDetails(1L);
 
@@ -131,7 +132,8 @@ public class SupportServiceImplTest {
         assertEquals("Premium", response.getSubscriptions().get(0).getPlanName());
         assertEquals(1, response.getInvoices().size());
         assertEquals(1, response.getUsageRecords().size());
-        assertEquals(1, response.getNotifications().size());
+        assertEquals(1, response.getCreditNotes().size());
+        assertEquals("CN-001", response.getCreditNotes().get(0).getCreditNoteNumber());
     }
 
     @Test

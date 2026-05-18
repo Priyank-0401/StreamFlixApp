@@ -9,6 +9,8 @@ import java.util.Optional;
 import java.util.List;
 import com.infy.billing.dto.customer.UsageRecordDTO;
 import com.infy.billing.entity.AddOn;
+import com.infy.billing.entity.Invoice;
+import com.infy.billing.entity.CreditNote;
 import com.infy.billing.enums.TaxMode;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -153,12 +155,33 @@ public class CustomerSubscriptionServiceImplTest {
                 when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
                 when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
                                 .thenReturn(Arrays.asList(subscription));
-
+                
+                // Mock Invoice
+                Invoice invoice = Invoice.builder()
+                        .id(1L)
+                        .subscription(subscription)
+                        .status(Status.PAID)
+                        .totalMinor(10000L)
+                        .build();
+                when(invoiceRepository.findByCustomer_IdOrderByIssueDateDesc(1L))
+                                .thenReturn(Arrays.asList(invoice));
+                                
+                // Mock Other Subscriptions (None active)
+                when(subscriptionRepository.findByCustomer_Id(1L))
+                                .thenReturn(Arrays.asList(subscription));
+                                
                 customerSubscriptionService.cancelSubscription("test@test.com", false);
-
+ 
                 assertEquals(Status.CANCELED, subscription.getStatus());
                 assertNotNull(subscription.getCanceledAt());
                 verify(subscriptionRepository, times(1)).save(subscription);
+                
+                // Verify CreditNote
+                verify(creditNoteRepository, times(1)).save(any(CreditNote.class));
+                
+                // Verify Customer Status
+                assertEquals(Status.INACTIVE, customer.getStatus());
+                verify(customerRepository, times(1)).save(customer);
         }
 
         @Test

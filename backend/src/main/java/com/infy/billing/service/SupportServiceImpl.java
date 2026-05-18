@@ -4,14 +4,14 @@ import com.infy.billing.dto.customer.CustomerProfileDTO;
 import com.infy.billing.dto.customer.SubscriptionDTO;
 import com.infy.billing.dto.customer.InvoiceDTO;
 import com.infy.billing.dto.customer.UsageRecordDTO;
-import com.infy.billing.dto.customer.NotificationDTO;
+import com.infy.billing.dto.customer.CreditNoteDTO;
 import com.infy.billing.dto.support.CustomerSearchResponse;
 import com.infy.billing.dto.support.CustomerDetailResponse;
+import com.infy.billing.repository.CreditNoteRepository;
 import com.infy.billing.entity.Customer;
 import com.infy.billing.entity.Subscription;
 import com.infy.billing.entity.Invoice;
 import com.infy.billing.entity.UsageRecord;
-import com.infy.billing.entity.Notification;
 import com.infy.billing.entity.User;
 import com.infy.billing.entity.AuditLog;
 import com.infy.billing.entity.BillingJob;
@@ -21,7 +21,6 @@ import com.infy.billing.repository.CustomerRepository;
 import com.infy.billing.repository.SubscriptionRepository;
 import com.infy.billing.repository.InvoiceRepository;
 import com.infy.billing.repository.UsageRecordRepository;
-import com.infy.billing.repository.NotificationRepository;
 import com.infy.billing.repository.AuditLogRepository;
 import com.infy.billing.repository.BillingJobRepository;
 import com.infy.billing.repository.DunningRetryLogRepository;
@@ -34,54 +33,54 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class SupportServiceImpl implements SupportService {
-
-    private final CustomerRepository customerRepository;
-    private final SubscriptionRepository subscriptionRepository;
-    private final InvoiceRepository invoiceRepository;
-    private final UsageRecordRepository usageRecordRepository;
-    private final NotificationRepository notificationRepository;
-    private final AuditLogRepository auditLogRepository;
-    private final BillingJobRepository billingJobRepository;
-    private final DunningRetryLogRepository dunningRetryLogRepository;
-
-    @Override
-    public List<CustomerSearchResponse> searchCustomers(String query) {
-        List<Customer> customers = customerRepository
-                .findByUser_FullNameContainingIgnoreCaseOrUser_EmailContainingIgnoreCase(query, query);
-        return customers.stream()
-                .map(this::mapToSearchResponse)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public CustomerDetailResponse getCustomerDetails(Long customerId) {
-        Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new RuntimeException("Customer not found"));
-
-        CustomerProfileDTO profileDTO = mapToProfileDTO(customer);
-
-        List<Subscription> subscriptions = subscriptionRepository.findByCustomer_Id(customerId);
-        List<SubscriptionDTO> subscriptionDTOs = subscriptions.stream()
-                .map(this::mapToSubscriptionDTO)
-                .collect(Collectors.toList());
-
-        List<Invoice> invoices = invoiceRepository.findByCustomer_IdOrderByIssueDateDesc(customerId);
-        List<InvoiceDTO> invoiceDTOs = invoices.stream()
-                .map(this::mapToInvoiceDTO)
-                .collect(Collectors.toList());
-
-        List<UsageRecord> usageRecords = usageRecordRepository.findBySubscription_Customer_Id(customerId);
-        List<UsageRecordDTO> usageRecordDTOs = usageRecords.stream()
-                .map(this::mapToUsageRecordDTO)
-                .collect(Collectors.toList());
-
-        List<Notification> notifications = notificationRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
-        List<NotificationDTO> notificationDTOs = notifications.stream()
-                .map(this::mapToNotificationDTO)
-                .collect(Collectors.toList());
-
-        return new CustomerDetailResponse(profileDTO, subscriptionDTOs, invoiceDTOs, usageRecordDTOs, notificationDTOs);
-    }
+ 
+     private final CustomerRepository customerRepository;
+     private final SubscriptionRepository subscriptionRepository;
+     private final InvoiceRepository invoiceRepository;
+     private final UsageRecordRepository usageRecordRepository;
+     private final AuditLogRepository auditLogRepository;
+     private final BillingJobRepository billingJobRepository;
+     private final DunningRetryLogRepository dunningRetryLogRepository;
+     private final CreditNoteRepository creditNoteRepository;
+ 
+     @Override
+     public List<CustomerSearchResponse> searchCustomers(String query) {
+         List<Customer> customers = customerRepository
+                 .findByUser_FullNameContainingIgnoreCaseOrUser_EmailContainingIgnoreCase(query, query);
+         return customers.stream()
+                 .map(this::mapToSearchResponse)
+                 .collect(Collectors.toList());
+     }
+ 
+     @Override
+     public CustomerDetailResponse getCustomerDetails(Long customerId) {
+         Customer customer = customerRepository.findById(customerId)
+                 .orElseThrow(() -> new RuntimeException("Customer not found"));
+ 
+         CustomerProfileDTO profileDTO = mapToProfileDTO(customer);
+ 
+         List<Subscription> subscriptions = subscriptionRepository.findByCustomer_Id(customerId);
+         List<SubscriptionDTO> subscriptionDTOs = subscriptions.stream()
+                 .map(this::mapToSubscriptionDTO)
+                 .collect(Collectors.toList());
+ 
+         List<Invoice> invoices = invoiceRepository.findByCustomer_IdOrderByIssueDateDesc(customerId);
+         List<InvoiceDTO> invoiceDTOs = invoices.stream()
+                 .map(this::mapToInvoiceDTO)
+                 .collect(Collectors.toList());
+ 
+         List<UsageRecord> usageRecords = usageRecordRepository.findBySubscription_Customer_Id(customerId);
+         List<UsageRecordDTO> usageRecordDTOs = usageRecords.stream()
+                 .map(this::mapToUsageRecordDTO)
+                 .collect(Collectors.toList());
+ 
+         List<com.infy.billing.entity.CreditNote> creditNotes = creditNoteRepository.findByInvoice_Customer_Id(customerId);
+         List<CreditNoteDTO> creditNoteDTOs = creditNotes.stream()
+                 .map(this::mapToCreditNoteDTO)
+                 .collect(Collectors.toList());
+ 
+         return new CustomerDetailResponse(profileDTO, subscriptionDTOs, invoiceDTOs, usageRecordDTOs, creditNoteDTOs);
+     }
 
     private CustomerSearchResponse mapToSearchResponse(Customer customer) {
         User user = customer.getUser();
@@ -149,32 +148,19 @@ public class SupportServiceImpl implements SupportService {
         return dto;
     }
 
-    private NotificationDTO mapToNotificationDTO(Notification n) {
-        NotificationDTO dto = new NotificationDTO();
-        dto.setNotificationId(n.getNotificationId());
-        dto.setType(n.getType());
-        dto.setSubject(n.getSubject());
-        dto.setBody(n.getBody());
-        dto.setChannel(n.getChannel());
-        dto.setStatus(com.infy.billing.enums.Status.ACTIVE); // Defaulting to ACTIVE as requested by the DTO structure
-                                                             // or map correctly if possible. Wait, DTO uses
-                                                             // com.infy.billing.enums.Status. Entity might use
-                                                             // NotificationStatus.
-        // Let's check Notification entity status type.
-        // In schema.sql, notification status is ENUM('PENDING', 'SENT', 'FAILED',
-        // 'SKIPPED', 'READ').
-        // So I need to map it to com.infy.billing.enums.Status if needed, or if DTO
-        // uses Status.
-        // Let's check NotificationDTO again. Line 6: import
-        // com.infy.billing.enums.Status;
-        // Line 17: private Status status;
-        // So it expects com.infy.billing.enums.Status.
-        // I will default to ACTIVE or try to map it. Since NotificationStatus is likely
-        // different, I'll just default to ACTIVE for now or map common ones.
-        // Let's see if I can find a mapping or just leave it as ACTIVE.
-        dto.setStatus(com.infy.billing.enums.Status.ACTIVE);
-        dto.setSentAt(n.getSentAt());
-        dto.setCreatedAt(n.getCreatedAt());
+    
+
+    private CreditNoteDTO mapToCreditNoteDTO(com.infy.billing.entity.CreditNote creditNote) {
+        CreditNoteDTO dto = new CreditNoteDTO();
+        dto.setCreditNoteId(creditNote.getId());
+        dto.setCreditNoteNumber(creditNote.getCreditNoteNumber());
+        dto.setInvoiceId(creditNote.getInvoice().getId());
+        Invoice inv = invoiceRepository.findById(creditNote.getInvoice().getId()).orElse(null);
+        dto.setInvoiceNumber(inv != null ? inv.getInvoiceNumber() : "N/A");
+        dto.setReason(creditNote.getReason());
+        dto.setAmountMinor(creditNote.getAmountMinor());
+        dto.setStatus(creditNote.getStatus());
+        dto.setCreatedAt(creditNote.getCreatedAt().toString());
         return dto;
     }
 

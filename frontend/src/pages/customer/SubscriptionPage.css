@@ -276,7 +276,8 @@
 .btn-primary,
 .btn-secondary,
 .btn-success,
-.btn-danger-outline {
+.btn-danger-outline,
+.btn-danger {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -328,6 +329,15 @@
 .btn-danger-outline:hover:not(:disabled) {
   background-color: #ef4444;
   color: white;
+}
+
+.btn-danger {
+  background-color: #ef4444;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #dc2626;
 }
 
 button:disabled {

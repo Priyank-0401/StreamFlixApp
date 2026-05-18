@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import * as CustomerService from '../../services/customer/customerService';
+import { useAuthContext } from '../../context/AuthContext';
 import {
   Check,
   Pause,
@@ -18,12 +19,16 @@ import {
 import './SubscriptionPage.css';
 
 export const SubscriptionPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { refreshUserStatus } = useAuthContext();
   const [subscription, setSubscription] = useState<CustomerService.Subscription | null>(null);
   const [availablePlans, setAvailablePlans] = useState<CustomerService.Plan[]>([]);
   const [availableAddOns, setAvailableAddOns] = useState<CustomerService.AddOn[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundInfo, setRefundInfo] = useState<CustomerService.CancellationResponse | null>(null);
   const [pauseDate, setPauseDate] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -71,18 +76,37 @@ export const SubscriptionPage: React.FC = () => {
   };
 
   const handleCancel = async (atPeriodEnd: boolean) => {
-    if (!window.confirm(`Are you sure you want to cancel? ${atPeriodEnd ? 'You can use until period end.' : 'This takes effect immediately.'}`)) {
+    const message = atPeriodEnd 
+      ? 'Are you sure you want to cancel? You can use until period end.' 
+      : 'Are you sure you want to cancel immediately?';
+    if (!window.confirm(message)) {
       return;
     }
     setActionLoading(true);
     try {
-      await CustomerService.cancelSubscription({ atPeriodEnd });
-      await loadData();
+      const response = await CustomerService.cancelSubscription({ atPeriodEnd });
+      if (!atPeriodEnd && response.refundIssued) {
+        // Show refund confirmation modal
+        setRefundInfo(response);
+        setShowRefundModal(true);
+      } else if (!atPeriodEnd) {
+        await refreshUserStatus();
+        navigate('/');
+      } else {
+        await loadData();
+      }
     } catch (error) {
       alert('Failed to cancel subscription.');
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleRefundModalClose = async () => {
+    setShowRefundModal(false);
+    setRefundInfo(null);
+    await refreshUserStatus();
+    navigate('/');
   };
 
   const handlePause = async () => {
@@ -322,13 +346,23 @@ export const SubscriptionPage: React.FC = () => {
           )}
 
           {!subscription.cancelAtPeriodEnd && (
-            <button
-              onClick={() => handleCancel(true)}
-              className="btn-danger-outline"
-              disabled={actionLoading}
-            >
-              Cancel at Period End
-            </button>
+            <>
+              <button
+                onClick={() => handleCancel(true)}
+                className="btn-danger-outline"
+                disabled={actionLoading}
+              >
+                Cancel at Period End
+              </button>
+              <button
+                onClick={() => handleCancel(false)}
+                className="btn-danger"
+                disabled={actionLoading}
+                style={{ marginLeft: '12px' }}
+              >
+                Cancel Immediately
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -509,6 +543,66 @@ export const SubscriptionPage: React.FC = () => {
               </button>
               <button onClick={() => setShowPauseModal(false)} className="btn-secondary">
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Refund Confirmation Modal */}
+      {showRefundModal && refundInfo && (
+        <div className="modal-overlay">
+          <div className="modal modal-small" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title" style={{ color: '#22c55e' }}>Refund Processed</h3>
+            </div>
+            <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: '50%',
+                background: 'linear-gradient(135deg, #22c55e20, #22c55e10)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 1rem', border: '2px solid #22c55e30'
+              }}>
+                <Check size={32} style={{ color: '#22c55e' }} />
+              </div>
+              <p style={{ color: '#e2e8f0', fontSize: '16px', marginBottom: '0.5rem' }}>
+                Your subscription has been canceled.
+              </p>
+              <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '1.5rem' }}>
+                A refund has been processed to your original payment method.
+              </p>
+              <div style={{
+                background: '#1e293b', borderRadius: '12px', padding: '1rem',
+                border: '1px solid #334155', textAlign: 'left'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                  <span style={{ color: '#94a3b8', fontSize: '13px' }}>Refund Amount</span>
+                  <span style={{ color: '#22c55e', fontWeight: 600, fontSize: '15px' }}>
+                    {formatAmount(refundInfo.refundAmountMinor, refundInfo.currency)}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                  <span style={{ color: '#94a3b8', fontSize: '13px' }}>Transaction ID</span>
+                  <span style={{ color: '#cbd5e1', fontSize: '13px', fontFamily: 'monospace' }}>
+                    {refundInfo.refundGatewayRef}
+                  </span>
+                </div>
+                {refundInfo.creditNoteNumber && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8', fontSize: '13px' }}>Credit Note</span>
+                    <span style={{ color: '#cbd5e1', fontSize: '13px', fontFamily: 'monospace' }}>
+                      {refundInfo.creditNoteNumber}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <p style={{ color: '#64748b', fontSize: '12px', marginTop: '1rem' }}>
+                Please allow 5-7 business days for the refund to reflect in your account.
+              </p>
+            </div>
+            <div className="modal-actions" style={{ justifyContent: 'center' }}>
+              <button onClick={handleRefundModalClose} className="btn-primary">
+                Done
               </button>
             </div>
           </div>

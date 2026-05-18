@@ -1,5 +1,5 @@
 import { fetchWithSession } from '../auth/authService';
-import type { CustomerProfile, Subscription, Invoice, UsageRecord, Notification } from '../customer/customerService';
+import type { CustomerProfile, Subscription, Invoice, UsageRecord, Notification, CreditNote } from '../customer/customerService';
 
 const API_BASE = '/support';
 
@@ -18,6 +18,7 @@ export interface CustomerDetailResponse {
   invoices: Invoice[];
   usageRecords: UsageRecord[];
   notifications: Notification[];
+  creditNotes: CreditNote[];
 }
 
 export interface AuditLog {

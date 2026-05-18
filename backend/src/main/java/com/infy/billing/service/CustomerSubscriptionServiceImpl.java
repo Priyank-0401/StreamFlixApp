@@ -469,17 +469,92 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
    }
 
    @Transactional
-   public void cancelSubscription(String email, boolean atPeriodEnd) {
+   public CancellationResponse cancelSubscription(String email, boolean atPeriodEnd) {
       Customer customer = getCustomerByEmail(email);
       Subscription subscription = getActiveSubscription(customer.getId());
 
       if (atPeriodEnd) {
          subscription.setCancelAtPeriodEnd(true);
+         subscriptionRepository.save(subscription);
+         return new CancellationResponse(false, 0, customer.getCurrency(), null, null,
+               "Subscription will be canceled at the end of the current billing period.");
       } else {
          subscription.setStatus(Status.CANCELED);
          subscription.setCanceledAt(LocalDateTime.now());
+         subscriptionRepository.save(subscription);
+
+         // Refund logic – find the last PAID invoice for this subscription
+         List<Invoice> invoices = invoiceRepository.findByCustomer_IdOrderByIssueDateDesc(customer.getId());
+
+         // Void any OPEN invoices for this subscription since it's being canceled immediately
+         invoices.stream()
+                 .filter(inv -> inv.getSubscription() != null
+                         && inv.getSubscription().getId().equals(subscription.getId())
+                         && inv.getStatus() == Status.OPEN)
+                 .forEach(openInv -> {
+                     openInv.setStatus(Status.VOID);
+                     invoiceRepository.save(openInv);
+                 });
+
+         // Find the most recent PAID invoice to calculate the pro-rata refund
+         Invoice lastPaidInvoice = invoices.stream()
+                 .filter(inv -> inv.getSubscription() != null
+                         && inv.getSubscription().getId().equals(subscription.getId())
+                         && inv.getStatus() == Status.PAID)
+                 .findFirst()
+                 .orElse(null);
+
+         CancellationResponse response = new CancellationResponse(
+               false, 0, customer.getCurrency(), null, null,
+               "Subscription canceled. No refund applicable.");
+
+         if (lastPaidInvoice != null) {
+             LocalDate today = LocalDate.now();
+             long totalDays = ChronoUnit.DAYS.between(subscription.getCurrentPeriodStart(), subscription.getCurrentPeriodEnd());
+             long remainingDays = ChronoUnit.DAYS.between(today, subscription.getCurrentPeriodEnd());
+
+             if (remainingDays > 0 && totalDays > 0) {
+                 long refundAmountMinor = (lastPaidInvoice.getTotalMinor() * remainingDays) / totalDays;
+
+                 User currentUser = userRepository.findByEmail(email)
+                         .orElseThrow(() -> new RuntimeException("User not found."));
+
+                 // Issue mock refund via payment gateway
+                 Payment originalPayment = paymentRepository.findByInvoice_Id(lastPaidInvoice.getId())
+                         .stream().filter(p -> p.getStatus() == Status.SUCCESS).findFirst().orElse(null);
+                 String refundGatewayRef = mockPaymentGateway.refund(
+                         originalPayment != null ? originalPayment.getGatewayRef() : "unknown",
+                         refundAmountMinor, customer.getCurrency());
+
+                 // Create credit note for audit trail
+                 CreditNote creditNote = new CreditNote();
+                 String cnNumber = "CN-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+                 creditNote.setCreditNoteNumber(cnNumber);
+                 creditNote.setInvoice(lastPaidInvoice);
+                 creditNote.setAmountMinor(refundAmountMinor);
+                 creditNote.setReason("Mid-cycle cancellation refund for " + subscription.getPlan().getName());
+                 creditNote.setStatus(Status.APPLIED);
+                 creditNote.setCreatedBy(currentUser);
+                 creditNoteRepository.save(creditNote);
+
+                 response = new CancellationResponse(true, refundAmountMinor, customer.getCurrency(),
+                       refundGatewayRef, cnNumber,
+                       "Refund of " + refundAmountMinor + " minor units processed successfully.");
+             }
+         }
+
+         // Customer status update
+         List<Subscription> otherSubs = subscriptionRepository.findByCustomer_Id(customer.getId());
+         boolean hasActive = otherSubs.stream()
+                 .anyMatch(s -> s.getStatus() == Status.ACTIVE || s.getStatus() == Status.TRIALING || s.getStatus() == Status.PAST_DUE);
+
+         if (!hasActive) {
+             customer.setStatus(Status.INACTIVE);
+             customerRepository.save(customer);
+         }
+
+         return response;
       }
-      subscriptionRepository.save(subscription);
    }
 
    @Transactional

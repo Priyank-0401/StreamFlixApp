@@ -4,7 +4,7 @@ import com.infy.billing.dto.customer.CustomerProfileDTO;
 import com.infy.billing.dto.customer.SubscriptionDTO;
 import com.infy.billing.dto.customer.InvoiceDTO;
 import com.infy.billing.dto.customer.UsageRecordDTO;
-import com.infy.billing.dto.customer.NotificationDTO;
+import com.infy.billing.dto.customer.CreditNoteDTO;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -19,5 +19,5 @@ public class CustomerDetailResponse {
     private List<SubscriptionDTO> subscriptions;
     private List<InvoiceDTO> invoices;
     private List<UsageRecordDTO> usageRecords;
-    private List<NotificationDTO> notifications;
+    private List<CreditNoteDTO> creditNotes;
 }

@@ -40,13 +40,13 @@ public class CustomerSubscriptionController {
        return ResponseEntity.ok(subscriptionService.upgradeSubscription(user.getEmail(), request));
    }
 
-   @DeleteMapping("/subscription")
-   public ResponseEntity<Void> cancelSubscription(
-           @AuthenticationPrincipal User user,
-           @RequestParam(defaultValue = "true") boolean atPeriodEnd) {
-       subscriptionService.cancelSubscription(user.getEmail(), atPeriodEnd);
-       return ResponseEntity.ok().build();
-   }
+    @DeleteMapping("/subscription")
+    public ResponseEntity<CancellationResponse> cancelSubscription(
+            @AuthenticationPrincipal User user,
+            @RequestParam(defaultValue = "true") boolean atPeriodEnd) {
+        CancellationResponse response = subscriptionService.cancelSubscription(user.getEmail(), atPeriodEnd);
+        return ResponseEntity.ok(response);
+    }
 
    @PutMapping("/subscription/pause")
    public ResponseEntity<SubscriptionDTO> pauseSubscription(

@@ -53,7 +53,7 @@ export const FinanceDashboard: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '32px' }}>
         <FinanceMetricCard title="Churn Rate" metric={data.churnRate} icon={<TrendingDown />} suffix="%" />
         <FinanceMetricCard title="Active Customers" metric={data.activeCustomers} icon={<Users />} />
-        <FinanceMetricCard title="Failed Payments" metric={data.failedPayments} icon={<TrendingDown />} prefix="₹" />
+        <FinanceMetricCard title="Failed Payments" metric={data.failedPayments} icon={<TrendingDown />} />
         <FinanceMetricCard title="Total Refunds" metric={data.refundAmount} icon={<DollarSign />} prefix="₹" />
       </div>
 
