@@ -631,4 +631,499 @@ public class CustomerSubscriptionServiceImplTest {
                 
                 verify(mockPaymentGateway, never()).charge(anyString(), anyLong(), anyString());
         }
+
+        @Test
+        void testUpgradeSubscription_TrialingWithOpenInvoice() {
+                subscription.setStatus(Status.TRIALING);
+                subscription.setTrialEndDate(LocalDate.now().plusDays(7));
+                Plan newPlan = Plan.builder().id(2L).name("Premium").defaultPriceMinor(2000L)
+                                .billingPeriod(BillingPeriod.MONTHLY).taxMode(TaxMode.EXCLUSIVE).trialDays(14).build();
+
+                com.infy.billing.entity.Invoice openInvoice = com.infy.billing.entity.Invoice.builder()
+                                .id(1L).subtotalMinor(1000L).taxMinor(0L).totalMinor(1000L).balanceMinor(1000L)
+                                .discountMinor(0L).build();
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(planRepository.findById(2L)).thenReturn(Optional.of(newPlan));
+                when(subscriptionCouponRepository.findBySubscription_IdAndStatus(anyLong(), any()))
+                                .thenReturn(Optional.empty());
+                when(subscriptionItemRepository.findBySubscription_Id(anyLong()))
+                                .thenReturn(new java.util.ArrayList<>());
+                when(subscriptionItemRepository.findBySubscription_IdAndItemType(anyLong(), any())).thenReturn(null);
+                when(invoiceRepository.findBySubscription_IdAndStatus(anyLong(), eq(Status.OPEN)))
+                                .thenReturn(Optional.of(openInvoice));
+                when(invoiceLineItemRepository.findByInvoice_Id(anyLong()))
+                                .thenReturn(new java.util.ArrayList<>());
+                when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                                .thenReturn(Optional.empty());
+
+                UpgradeSubscriptionRequest req = new UpgradeSubscriptionRequest();
+                req.setPlanId(2L);
+
+                SubscriptionDTO dto = customerSubscriptionService.upgradeSubscription("test@test.com", req);
+                assertNotNull(dto);
+                verify(invoiceLineItemRepository).deleteAll(anyList());
+                verify(invoiceRepository, atLeast(1)).save(any());
+        }
+
+        @Test
+        void testUpgradeSubscription_TrialingWithFixedCouponAndAddons() {
+                subscription.setStatus(Status.TRIALING);
+                subscription.setTrialEndDate(LocalDate.now().plusDays(7));
+                Plan newPlan = Plan.builder().id(2L).name("Premium").defaultPriceMinor(2000L)
+                                .billingPeriod(BillingPeriod.MONTHLY).taxMode(TaxMode.EXCLUSIVE).trialDays(14).build();
+
+                com.infy.billing.entity.Coupon coupon = com.infy.billing.entity.Coupon.builder()
+                                .id(1L).code("FLAT200").name("Flat 200 Off")
+                                .type(com.infy.billing.enums.CouponType.FIXED).amount(200L)
+                                .status(Status.ACTIVE).redeemedCount(0).build();
+                SubscriptionCoupon sc = new SubscriptionCoupon();
+                sc.setCoupon(coupon);
+
+                AddOn addon = AddOn.builder().id(1L).name("Support").priceMinor(500L).build();
+                SubscriptionItem addonItem = new SubscriptionItem();
+                addonItem.setItemType(ItemType.ADDON);
+                addonItem.setAddOn(addon);
+                addonItem.setUnitPriceMinor(500L);
+                addonItem.setQuantity(1);
+
+                com.infy.billing.entity.Invoice openInvoice = com.infy.billing.entity.Invoice.builder()
+                                .id(1L).subtotalMinor(1000L).taxMinor(0L).totalMinor(1000L).balanceMinor(1000L)
+                                .discountMinor(0L).build();
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(planRepository.findById(2L)).thenReturn(Optional.of(newPlan));
+                when(subscriptionCouponRepository.findBySubscription_IdAndStatus(anyLong(), any()))
+                                .thenReturn(Optional.of(sc));
+                when(subscriptionItemRepository.findBySubscription_Id(anyLong()))
+                                .thenReturn(Arrays.asList(addonItem));
+                when(subscriptionItemRepository.findBySubscription_IdAndItemType(anyLong(), any())).thenReturn(null);
+                when(invoiceRepository.findBySubscription_IdAndStatus(anyLong(), eq(Status.OPEN)))
+                                .thenReturn(Optional.of(openInvoice));
+                when(invoiceLineItemRepository.findByInvoice_Id(anyLong()))
+                                .thenReturn(new java.util.ArrayList<>());
+                when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                                .thenReturn(Optional.empty());
+
+                UpgradeSubscriptionRequest req = new UpgradeSubscriptionRequest();
+                req.setPlanId(2L);
+
+                SubscriptionDTO dto = customerSubscriptionService.upgradeSubscription("test@test.com", req);
+                assertNotNull(dto);
+                // Discount line + addon line + plan line should be saved
+                verify(invoiceLineItemRepository, atLeast(3)).save(any());
+        }
+
+        @Test
+        void testUpgradeSubscription_TrialingNewTrialDaysZero() {
+                subscription.setStatus(Status.TRIALING);
+                subscription.setStartDate(LocalDate.now().minusDays(20));
+                subscription.setTrialEndDate(LocalDate.now().plusDays(1));
+                // New plan has only 5 trial days, but 20 days already used -> newTrialDays = max(0, 5-20) = 0
+                Plan newPlan = Plan.builder().id(2L).name("Premium").defaultPriceMinor(2000L)
+                                .billingPeriod(BillingPeriod.MONTHLY).taxMode(TaxMode.EXCLUSIVE).trialDays(5).build();
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(planRepository.findById(2L)).thenReturn(Optional.of(newPlan));
+                when(subscriptionCouponRepository.findBySubscription_IdAndStatus(anyLong(), any()))
+                                .thenReturn(Optional.empty());
+                when(subscriptionItemRepository.findBySubscription_Id(anyLong()))
+                                .thenReturn(new java.util.ArrayList<>());
+                when(subscriptionItemRepository.findBySubscription_IdAndItemType(anyLong(), any())).thenReturn(null);
+                when(invoiceRepository.findBySubscription_IdAndStatus(anyLong(), eq(Status.OPEN)))
+                                .thenReturn(Optional.empty());
+                when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                                .thenReturn(Optional.empty());
+
+                UpgradeSubscriptionRequest req = new UpgradeSubscriptionRequest();
+                req.setPlanId(2L);
+
+                customerSubscriptionService.upgradeSubscription("test@test.com", req);
+                assertEquals(Status.ACTIVE, subscription.getStatus()); // newTrialDays==0 -> ACTIVE
+        }
+
+        @Test
+        void testUpgradeSubscription_ActiveWithInclusiveTax() {
+                com.infy.billing.entity.TaxRate taxRate = new com.infy.billing.entity.TaxRate();
+                taxRate.setRatePercent(java.math.BigDecimal.TEN); // 10%
+
+                Plan newPlan = Plan.builder().id(2L).name("Premium").defaultPriceMinor(2200L)
+                                .billingPeriod(BillingPeriod.MONTHLY).taxMode(TaxMode.INCLUSIVE).build();
+                plan.setTaxMode(TaxMode.INCLUSIVE);
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(planRepository.findById(2L)).thenReturn(Optional.of(newPlan));
+                when(subscriptionCouponRepository.findBySubscription_IdAndStatus(anyLong(), any()))
+                                .thenReturn(Optional.empty());
+                when(subscriptionItemRepository.findBySubscription_Id(anyLong()))
+                                .thenReturn(new java.util.ArrayList<>());
+                when(subscriptionItemRepository.findBySubscription_IdAndItemType(anyLong(), any())).thenReturn(null);
+                when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                                .thenReturn(Optional.of(taxRate));
+
+                subscription.setPaymentMethodId(1L);
+                PaymentMethod pm = new PaymentMethod();
+                pm.setId(1L); pm.setGatewayToken("tok"); pm.setStatus(Status.ACTIVE);
+                when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(pm));
+                when(mockPaymentGateway.charge(anyString(), anyLong(), any())).thenReturn("ref");
+
+                UpgradeSubscriptionRequest req = new UpgradeSubscriptionRequest();
+                req.setPlanId(2L);
+
+                SubscriptionDTO dto = customerSubscriptionService.upgradeSubscription("test@test.com", req);
+                assertNotNull(dto);
+        }
+
+        @Test
+        void testUpgradeSubscription_ActiveWithAddonsAndTax() {
+                com.infy.billing.entity.TaxRate taxRate = new com.infy.billing.entity.TaxRate();
+                taxRate.setRatePercent(new java.math.BigDecimal("18")); // 18%
+
+                Plan newPlan = Plan.builder().id(2L).name("Premium").defaultPriceMinor(2000L)
+                                .billingPeriod(BillingPeriod.MONTHLY).taxMode(TaxMode.EXCLUSIVE).build();
+
+                AddOn addon = AddOn.builder().id(1L).name("Support").priceMinor(500L).build();
+                SubscriptionItem addonItem = new SubscriptionItem();
+                addonItem.setItemType(ItemType.ADDON);
+                addonItem.setAddOn(addon);
+                addonItem.setUnitPriceMinor(500L);
+                addonItem.setQuantity(1);
+
+                SubscriptionItem planSI = new SubscriptionItem();
+                planSI.setId(10L);
+                planSI.setItemType(ItemType.PLAN);
+                planSI.setPlan(plan);
+                planSI.setSubscription(subscription);
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(planRepository.findById(2L)).thenReturn(Optional.of(newPlan));
+                when(subscriptionCouponRepository.findBySubscription_IdAndStatus(anyLong(), any()))
+                                .thenReturn(Optional.empty());
+                when(subscriptionItemRepository.findBySubscription_Id(anyLong()))
+                                .thenReturn(Arrays.asList(addonItem));
+                when(subscriptionItemRepository.findBySubscription_IdAndItemType(anyLong(), eq(ItemType.PLAN)))
+                                .thenReturn(planSI); // existing plan item
+                when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                                .thenReturn(Optional.of(taxRate));
+
+                subscription.setPaymentMethodId(1L);
+                PaymentMethod pm = new PaymentMethod();
+                pm.setId(1L); pm.setGatewayToken("tok"); pm.setStatus(Status.ACTIVE);
+                when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(pm));
+                when(mockPaymentGateway.charge(anyString(), anyLong(), any())).thenReturn("ref");
+
+                UpgradeSubscriptionRequest req = new UpgradeSubscriptionRequest();
+                req.setPlanId(2L);
+
+                SubscriptionDTO dto = customerSubscriptionService.upgradeSubscription("test@test.com", req);
+                assertNotNull(dto);
+                // Tax line + addon line + plan line + credit line saved
+                verify(invoiceLineItemRepository, atLeast(4)).save(any());
+        }
+
+        @Test
+        void testAddAddOn_TrialingWithOpenInvoice() {
+                subscription.setStatus(Status.TRIALING);
+                AddOn addOn = AddOn.builder().id(1L).name("HD").priceMinor(500L)
+                                .billingPeriod(BillingPeriod.MONTHLY).taxMode(TaxMode.EXCLUSIVE).build();
+
+                com.infy.billing.entity.Invoice openInvoice = com.infy.billing.entity.Invoice.builder()
+                                .id(1L).subtotalMinor(1000L).taxMinor(100L).totalMinor(1100L).balanceMinor(1100L)
+                                .discountMinor(0L).build();
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(addOnRepository.findById(1L)).thenReturn(Optional.of(addOn));
+                when(subscriptionItemRepository.findBySubscription_IdAndAddOn_Id(1L, 1L)).thenReturn(null);
+                when(invoiceRepository.findBySubscription_IdAndStatus(anyLong(), eq(Status.OPEN)))
+                                .thenReturn(Optional.of(openInvoice));
+                when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                                .thenReturn(Optional.empty());
+
+                SubscriptionDTO dto = customerSubscriptionService.addAddOn("test@test.com", 1L);
+                assertNotNull(dto);
+                // Addon line + tax line saved
+                verify(invoiceLineItemRepository, atLeast(2)).save(any());
+                verify(invoiceRepository, atLeast(1)).save(any());
+        }
+
+        @Test
+        void testAddAddOn_ActiveCreditCoversAll() {
+                customer.setCreditBalanceMinor(10000L); // Large credit
+
+                AddOn addOn = AddOn.builder().id(1L).name("HD").priceMinor(500L)
+                                .billingPeriod(BillingPeriod.MONTHLY).taxMode(TaxMode.EXCLUSIVE).build();
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(addOnRepository.findById(1L)).thenReturn(Optional.of(addOn));
+                when(subscriptionItemRepository.findBySubscription_IdAndAddOn_Id(1L, 1L)).thenReturn(null);
+                when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                                .thenReturn(Optional.empty());
+
+                customerSubscriptionService.addAddOn("test@test.com", 1L);
+
+                // Credit covers everything — no gateway charge
+                verify(mockPaymentGateway, never()).charge(anyString(), anyLong(), any());
+        }
+
+        @Test
+        void testGetCurrentSubscription_WithMeteredComponent() {
+                com.infy.billing.entity.MeteredComponent comp = com.infy.billing.entity.MeteredComponent.builder()
+                                .id(1L).name("API Calls").unitName("call").pricePerUnitMinor(10L).freeTierQuantity(100L).build();
+
+                SubscriptionItem meteredItem = new SubscriptionItem();
+                meteredItem.setId(2L);
+                meteredItem.setItemType(ItemType.METERED);
+                meteredItem.setComponent(comp);
+                meteredItem.setSubscription(subscription);
+                meteredItem.setQuantity(1);
+                meteredItem.setUnitPriceMinor(10L);
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(subscriptionItemRepository.findBySubscription_Id(1L)).thenReturn(Arrays.asList(meteredItem));
+                when(subscriptionCouponRepository.findBySubscription_IdAndStatus(anyLong(), any()))
+                                .thenReturn(Optional.empty());
+                when(meteredComponentRepository.findById(1L)).thenReturn(Optional.of(comp));
+                when(usageRecordRepository.sumQuantityBySubscription_IdAndComponent_Id(1L, 1L)).thenReturn(150L);
+                when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                                .thenReturn(Optional.empty());
+
+                SubscriptionDTO dto = customerSubscriptionService.getCurrentSubscription("test@test.com");
+
+                assertNotNull(dto);
+                assertEquals(1, dto.getMeteredUsage().size());
+                assertEquals("API Calls", dto.getMeteredUsage().get(0).getComponentName());
+                assertEquals(150L, dto.getMeteredUsage().get(0).getQuantityUsed());
+                // billable = max(0, 150-100)=50, cost = 50*10=500
+                assertEquals(500L, dto.getMeteredUsage().get(0).getCostMinor());
+        }
+
+        @Test
+        void testGetCurrentSubscription_NullBillingPeriod() {
+                plan.setBillingPeriod(null); // null billing period -> default "MONTHLY"
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(subscriptionItemRepository.findBySubscription_Id(1L))
+                                .thenReturn(new java.util.ArrayList<>());
+                when(subscriptionCouponRepository.findBySubscription_IdAndStatus(anyLong(), any()))
+                                .thenReturn(Optional.empty());
+                when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                                .thenReturn(Optional.empty());
+
+                SubscriptionDTO dto = customerSubscriptionService.getCurrentSubscription("test@test.com");
+
+                assertNotNull(dto);
+                assertEquals("MONTHLY", dto.getBillingPeriod());
+        }
+
+        @Test
+        void testGetCurrentSubscription_WithFixedCoupon() {
+                com.infy.billing.entity.Coupon coupon = com.infy.billing.entity.Coupon.builder()
+                                .id(1L).code("FLAT500").name("Flat 500 Off")
+                                .type(com.infy.billing.enums.CouponType.FIXED).amount(500L)
+                                .status(Status.ACTIVE).redeemedCount(0).build();
+                SubscriptionCoupon sc = new SubscriptionCoupon();
+                sc.setCoupon(coupon);
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(subscriptionItemRepository.findBySubscription_Id(1L))
+                                .thenReturn(new java.util.ArrayList<>());
+                when(subscriptionCouponRepository.findBySubscription_IdAndStatus(anyLong(), any()))
+                                .thenReturn(Optional.of(sc));
+                when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                                .thenReturn(Optional.empty());
+
+                SubscriptionDTO dto = customerSubscriptionService.getCurrentSubscription("test@test.com");
+
+                assertNotNull(dto);
+                assertEquals(500L, dto.getDiscountMinor());
+        }
+
+        @Test
+        void testGetCurrentSubscription_NegativeSubtotalClampedToZero() {
+                // Discount (2000) > plan price (1000) -> subtotal clamped to 0
+                com.infy.billing.entity.Coupon coupon = com.infy.billing.entity.Coupon.builder()
+                                .id(1L).code("BIG").name("Big Discount")
+                                .type(com.infy.billing.enums.CouponType.FIXED).amount(2000L)
+                                .status(Status.ACTIVE).redeemedCount(0).build();
+                SubscriptionCoupon sc = new SubscriptionCoupon();
+                sc.setCoupon(coupon);
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(subscriptionItemRepository.findBySubscription_Id(1L))
+                                .thenReturn(new java.util.ArrayList<>());
+                when(subscriptionCouponRepository.findBySubscription_IdAndStatus(anyLong(), any()))
+                                .thenReturn(Optional.of(sc));
+                when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                                .thenReturn(Optional.empty());
+
+                SubscriptionDTO dto = customerSubscriptionService.getCurrentSubscription("test@test.com");
+
+                assertNotNull(dto);
+                assertEquals(0L, dto.getTotalDueMinor()); // subtotal clamped to 0
+        }
+
+        @Test
+        void testGetCurrentSubscription_InclusiveTaxWithRate() {
+                plan.setTaxMode(TaxMode.INCLUSIVE);
+                com.infy.billing.entity.TaxRate taxRate = new com.infy.billing.entity.TaxRate();
+                taxRate.setRatePercent(java.math.BigDecimal.TEN); // 10%
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(subscriptionItemRepository.findBySubscription_Id(1L))
+                                .thenReturn(new java.util.ArrayList<>());
+                when(subscriptionCouponRepository.findBySubscription_IdAndStatus(anyLong(), any()))
+                                .thenReturn(Optional.empty());
+                when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                                .thenReturn(Optional.of(taxRate));
+
+                SubscriptionDTO dto = customerSubscriptionService.getCurrentSubscription("test@test.com");
+
+                assertNotNull(dto);
+                // INCLUSIVE: totalDue = subtotal (1000), not subtotal + tax
+                assertEquals(1000L, dto.getTotalDueMinor());
+        }
+
+        @Test
+        void testAddAddOn_InclusiveTaxMode() {
+                AddOn addOn = AddOn.builder().id(1L).name("HD").priceMinor(500L)
+                                .billingPeriod(BillingPeriod.MONTHLY).taxMode(TaxMode.INCLUSIVE).build();
+
+                com.infy.billing.entity.TaxRate taxRate = new com.infy.billing.entity.TaxRate();
+                taxRate.setRatePercent(java.math.BigDecimal.TEN);
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(addOnRepository.findById(1L)).thenReturn(Optional.of(addOn));
+                when(subscriptionItemRepository.findBySubscription_IdAndAddOn_Id(1L, 1L)).thenReturn(null);
+                when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                                .thenReturn(Optional.of(taxRate));
+
+                subscription.setPaymentMethodId(1L);
+                PaymentMethod pm = new PaymentMethod();
+                pm.setId(1L); pm.setGatewayToken("tok"); pm.setStatus(Status.ACTIVE);
+                when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(pm));
+                when(mockPaymentGateway.charge(anyString(), anyLong(), any())).thenReturn("ref");
+
+                SubscriptionDTO dto = customerSubscriptionService.addAddOn("test@test.com", 1L);
+                assertNotNull(dto);
+        }
+
+        @Test
+        void testGetMeteredUsage_WithDefaultDates() {
+                // No startDate/endDate provided — uses subscription period dates
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(usageRecordRepository
+                                .findBySubscription_IdAndBillingPeriodStartGreaterThanEqualAndBillingPeriodEndLessThanEqual(
+                                                eq(1L), any(), any()))
+                                .thenReturn(new java.util.ArrayList<>());
+
+                List<UsageRecordDTO> usage = customerSubscriptionService.getMeteredUsage("test@test.com", null, null);
+
+                assertNotNull(usage);
+                assertTrue(usage.isEmpty());
+        }
+
+        @Test
+        void testGetCurrentSubscription_WithMeteredComponent_ComponentNotFound() {
+                SubscriptionItem meteredItem = new SubscriptionItem();
+                meteredItem.setId(2L);
+                meteredItem.setItemType(ItemType.METERED);
+                com.infy.billing.entity.MeteredComponent comp = new com.infy.billing.entity.MeteredComponent();
+                comp.setId(1L);
+                meteredItem.setComponent(comp);
+                meteredItem.setSubscription(subscription);
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(subscriptionItemRepository.findBySubscription_Id(1L)).thenReturn(Arrays.asList(meteredItem));
+                when(subscriptionCouponRepository.findBySubscription_IdAndStatus(anyLong(), any()))
+                                .thenReturn(Optional.empty());
+                // Return empty to trigger the "Unknown" and default branches
+                when(meteredComponentRepository.findById(1L)).thenReturn(Optional.empty());
+                when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                                .thenReturn(Optional.empty());
+
+                SubscriptionDTO dto = customerSubscriptionService.getCurrentSubscription("test@test.com");
+
+                assertNotNull(dto);
+                assertEquals(1, dto.getMeteredUsage().size());
+                assertEquals("Unknown", dto.getMeteredUsage().get(0).getComponentName());
+                assertEquals("unit", dto.getMeteredUsage().get(0).getUnitName());
+        }
+
+        @Test
+        void testUpgradeSubscription_ActiveEdgeDates() {
+                // Set end date to today to trigger remainingDays <= 0
+                subscription.setCurrentPeriodEnd(LocalDate.now());
+                subscription.setCurrentPeriodStart(LocalDate.now()); // totalDays = 0
+
+                Plan newPlan = Plan.builder().id(2L).name("Premium").defaultPriceMinor(2000L)
+                                .billingPeriod(BillingPeriod.MONTHLY).taxMode(TaxMode.EXCLUSIVE).build();
+
+                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                                .thenReturn(Arrays.asList(subscription));
+                when(planRepository.findById(2L)).thenReturn(Optional.of(newPlan));
+                when(subscriptionCouponRepository.findBySubscription_IdAndStatus(anyLong(), any()))
+                                .thenReturn(Optional.empty());
+                when(subscriptionItemRepository.findBySubscription_Id(anyLong()))
+                                .thenReturn(new java.util.ArrayList<>());
+                when(subscriptionItemRepository.findBySubscription_IdAndItemType(anyLong(), any())).thenReturn(null);
+
+                subscription.setPaymentMethodId(1L);
+                PaymentMethod pm = new PaymentMethod();
+                pm.setId(1L); pm.setGatewayToken("tok"); pm.setStatus(Status.ACTIVE);
+                when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(pm));
+                when(mockPaymentGateway.charge(anyString(), anyLong(), any())).thenReturn("ref");
+
+                UpgradeSubscriptionRequest req = new UpgradeSubscriptionRequest();
+                req.setPlanId(2L);
+
+                SubscriptionDTO dto = customerSubscriptionService.upgradeSubscription("test@test.com", req);
+                assertNotNull(dto);
+        }
 }
