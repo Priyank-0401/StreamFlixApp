@@ -63,7 +63,15 @@ public class AuthController {
        System.out.println("DEBUG: /auth/me - Session: " + (session != null ? session.getId() : "null"));
        System.out.println("DEBUG: /auth/me - Authentication: " + (authentication != null ? authentication.getName() : "null"));
        
-       if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+       if (authentication == null) {
+           System.out.println("DEBUG: /auth/me - Not authenticated, returning 401");
+           return ResponseEntity.status(401).body("Not authenticated");
+       }
+       if (!authentication.isAuthenticated()) {
+           System.out.println("DEBUG: /auth/me - Not authenticated, returning 401");
+           return ResponseEntity.status(401).body("Not authenticated");
+       }
+       if ("anonymousUser".equals(authentication.getPrincipal())) {
            System.out.println("DEBUG: /auth/me - Not authenticated, returning 401");
            return ResponseEntity.status(401).body("Not authenticated");
        }
