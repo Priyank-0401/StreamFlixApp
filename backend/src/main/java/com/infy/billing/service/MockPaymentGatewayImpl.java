@@ -41,7 +41,7 @@ public class MockPaymentGatewayImpl implements MockPaymentGateway {
             "fail@upi",
             "0000000000@upi");
 
-    private static final double DEFAULT_RANDOM_FAILURE_RATE = 0.0; // Disabled for deterministic tests
+    private static final double DEFAULT_RANDOM_FAILURE_RATE = 0.00; // Disabled for deterministic tests
 
     private final Random random = new Random();
 

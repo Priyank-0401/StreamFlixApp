@@ -180,4 +180,14 @@ public class CustomerServiceImplTest {
 
         assertThrows(RuntimeException.class, () -> customerService.getProfile("test@test.com"));
     }
+
+    @Test
+    void testGetAvailablePlans_EmptyList() {
+        when(planRepository.findByStatus(Status.ACTIVE)).thenReturn(Arrays.asList());
+
+        List<PlanDTO> plans = customerService.getAvailablePlans();
+
+        assertNotNull(plans);
+        assertTrue(plans.isEmpty());
+    }
 }

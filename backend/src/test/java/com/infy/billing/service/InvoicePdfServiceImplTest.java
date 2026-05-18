@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.infy.billing.entity.Invoice;
 import com.infy.billing.entity.InvoiceLineItem;
+import com.infy.billing.entity.Payment;
 import com.infy.billing.entity.Customer;
 import com.infy.billing.entity.User;
 import com.infy.billing.entity.Subscription;
@@ -88,5 +89,63 @@ public class InvoicePdfServiceImplTest {
 
         assertNotNull(pdf);
         assertTrue(pdf.length > 0);
+    }
+
+    @Test
+    void testGeneratePdf_NullDueDate() {
+        invoice.setDueDate(null);
+        invoice.setIssueDate(null);
+        when(lineItemRepository.findByInvoice_Id(1L)).thenReturn(Arrays.asList());
+
+        byte[] pdf = invoicePdfService.generatePdf(invoice);
+
+        assertNotNull(pdf);
+        assertTrue(pdf.length > 0);
+    }
+
+    @Test
+    void testGeneratePdf_VoidStatus() {
+        invoice.setStatus(Status.VOID);
+        when(lineItemRepository.findByInvoice_Id(1L)).thenReturn(Arrays.asList());
+
+        byte[] pdf = invoicePdfService.generatePdf(invoice);
+
+        assertNotNull(pdf);
+        assertTrue(pdf.length > 0);
+    }
+
+    @Test
+    void testGeneratePdf_DifferentCurrencies() {
+        InvoiceLineItem item = new InvoiceLineItem();
+        item.setId(1L);
+        item.setDescription("Item INR");
+        item.setQuantity(1);
+        item.setUnitPriceMinor(50000L);
+        item.setAmountMinor(-50000L); // Negative amount test
+        item.setLineType(InvoiceLineItem.LineType.DISCOUNT);
+
+        invoice.setCurrency("INR");
+        invoice.setDiscountMinor(100L);
+        invoice.setTaxMinor(50L);
+        invoice.setBalanceMinor(950L);
+        invoice.setStatus(Status.PAID);
+        
+        Payment payment = new Payment();
+        payment.setGatewayRef("REF-123");
+        payment.setCreatedAt(java.time.LocalDateTime.now());
+
+        when(lineItemRepository.findByInvoice_Id(1L)).thenReturn(Arrays.asList(item));
+        when(paymentRepository.findByInvoice_Id(1L)).thenReturn(Arrays.asList(payment));
+
+        byte[] pdfInr = invoicePdfService.generatePdf(invoice);
+        assertNotNull(pdfInr);
+
+        invoice.setCurrency("GBP");
+        byte[] pdfGbp = invoicePdfService.generatePdf(invoice);
+        assertNotNull(pdfGbp);
+
+        invoice.setCurrency("UNKNOWN");
+        byte[] pdfUnknown = invoicePdfService.generatePdf(invoice);
+        assertNotNull(pdfUnknown);
     }
 }

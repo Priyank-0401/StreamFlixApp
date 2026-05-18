@@ -12,13 +12,13 @@
     </parent>
 
     <groupId>com.infy</groupId>
-    <artifactId>streamflix-billing</artifactId>
+    <artifactId>BIlling</artifactId>
     <version>1.0.0</version>
     <name>StreamFlix Subscription Billing</name>
     <description>Subscription Billing &amp; Revenue Management System for StreamFlix</description>
 
     <properties>
-        <java.version>21</java.version>
+        <java.version>17</java.version>
     </properties>
 
     <dependencies>

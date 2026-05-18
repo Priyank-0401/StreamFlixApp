@@ -196,4 +196,50 @@ public class CustomerPaymentServiceImplTest {
         verify(paymentMethodRepository, times(1)).save(otherMethod);
         verify(paymentMethodRepository, times(1)).delete(paymentMethod);
     }
+
+    @Test
+    void testSetDefaultPaymentMethod_NotFound() {
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+        when(paymentMethodRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> customerPaymentService.setDefaultPaymentMethod("test@test.com", 1L));
+    }
+
+    @Test
+    void testSetDefaultPaymentMethod_Unauthorized() {
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+        
+        Customer otherCustomer = new Customer();
+        otherCustomer.setId(2L);
+        paymentMethod.setCustomer(otherCustomer);
+
+        when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+
+        assertThrows(RuntimeException.class, () -> customerPaymentService.setDefaultPaymentMethod("test@test.com", 1L));
+    }
+
+    @Test
+    void testDeletePaymentMethod_NotFound() {
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+        when(paymentMethodRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(RuntimeException.class, () -> customerPaymentService.deletePaymentMethod("test@test.com", 1L));
+    }
+
+    @Test
+    void testDeletePaymentMethod_Unauthorized() {
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+        
+        Customer otherCustomer = new Customer();
+        otherCustomer.setId(2L);
+        paymentMethod.setCustomer(otherCustomer);
+
+        when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+
+        assertThrows(RuntimeException.class, () -> customerPaymentService.deletePaymentMethod("test@test.com", 1L));
+    }
 }
