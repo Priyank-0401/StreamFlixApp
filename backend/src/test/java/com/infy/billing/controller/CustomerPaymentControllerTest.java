@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(CustomerPaymentController.class)
-public class CustomerPaymentControllerTest {
+class CustomerPaymentControllerTest {
 
     @Autowired
     private MockMvc mockMvc;

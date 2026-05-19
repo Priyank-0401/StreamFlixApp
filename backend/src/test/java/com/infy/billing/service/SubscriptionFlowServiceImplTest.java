@@ -22,7 +22,7 @@ import com.infy.billing.enums.*;
 import com.infy.billing.repository.*;
 
 @ExtendWith(MockitoExtension.class)
-public class SubscriptionFlowServiceImplTest {
+class SubscriptionFlowServiceImplTest {
 
         @Mock
         private CustomerRepository customerRepository;

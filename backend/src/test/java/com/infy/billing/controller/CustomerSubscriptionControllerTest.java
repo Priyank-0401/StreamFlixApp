@@ -35,7 +35,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(CustomerSubscriptionController.class)
-public class CustomerSubscriptionControllerTest {
+class CustomerSubscriptionControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -178,6 +178,17 @@ public class CustomerSubscriptionControllerTest {
                         .with(authentication(auth)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.requestId").value(1));
+
+        verify(subscriptionService, times(1)).getPendingCancellationRequest("test@test.com");
+    }
+
+    @Test
+    void testGetPendingCancellationRequest_NoContent() throws Exception {
+        when(subscriptionService.getPendingCancellationRequest(anyString())).thenReturn(null);
+
+        mockMvc.perform(get("/api/customer/subscription/cancel-request")
+                        .with(authentication(auth)))
+                .andExpect(status().isNoContent());
 
         verify(subscriptionService, times(1)).getPendingCancellationRequest("test@test.com");
     }

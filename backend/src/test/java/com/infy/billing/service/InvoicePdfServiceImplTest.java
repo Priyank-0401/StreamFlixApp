@@ -27,7 +27,7 @@ import com.infy.billing.repository.InvoiceLineItemRepository;
 import com.infy.billing.repository.PaymentRepository;
 
 @ExtendWith(MockitoExtension.class)
-public class InvoicePdfServiceImplTest {
+class InvoicePdfServiceImplTest {
 
     @Mock private InvoiceLineItemRepository lineItemRepository;
     @Mock private PaymentRepository paymentRepository;

@@ -25,7 +25,7 @@ import com.infy.billing.repository.NotificationRepository;
 import com.infy.billing.repository.SubscriptionRepository;
 
 @ExtendWith(MockitoExtension.class)
-public class NotificationServiceImplTest {
+class NotificationServiceImplTest {
 
     @Mock
     private NotificationRepository notificationRepository;

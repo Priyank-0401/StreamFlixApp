@@ -47,6 +47,8 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class AdminDashboardServiceImpl implements AdminDashboardService {
 
+    private static final String PRODUCT_NOT_FOUND_MSG = "Product not found with id: ";
+
     private final ProductRepository productRepository;
     private final PlanRepository planRepository;
     private final PriceBookEntryRepository priceBookEntryRepository;
@@ -87,7 +89,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     @Override
     public ProductResponse getProductById(Long id) {
         Product p = productRepository.findById(id)
-                .orElseThrow(() -> CustomException.notFound("Product not found with id: " + id));
+                .orElseThrow(() -> CustomException.notFound(PRODUCT_NOT_FOUND_MSG + id));
         return ProductResponse.from(p, planRepository.countByProductId(p.getId()));
     }
 
@@ -100,7 +102,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     @Override
     public ProductResponse updateProduct(Long id, Product updated) {
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> CustomException.notFound("Product not found with id: " + id));
+                .orElseThrow(() -> CustomException.notFound(PRODUCT_NOT_FOUND_MSG + id));
         product.setName(updated.getName());
         product.setDescription(updated.getDescription());
         Product saved = productRepository.save(product);
@@ -110,7 +112,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     @Override
     public void toggleProductStatus(Long id) {
         Product product = productRepository.findById(id)
-                .orElseThrow(() -> CustomException.notFound("Product not found with id: " + id));
+                .orElseThrow(() -> CustomException.notFound(PRODUCT_NOT_FOUND_MSG + id));
         product.setStatus(product.getStatus().equals(Status.ACTIVE) ? Status.INACTIVE : Status.ACTIVE);
         productRepository.save(product);
     }

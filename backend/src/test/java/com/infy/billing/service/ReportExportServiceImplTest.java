@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 import com.infy.billing.dto.finance.*;
 
-public class ReportExportServiceImplTest {
+class ReportExportServiceImplTest {
 
     private ReportExportServiceImpl reportExportService;
     private FinanceDashboardDTO emptyData;

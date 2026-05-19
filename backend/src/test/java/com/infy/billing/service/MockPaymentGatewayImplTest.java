@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import com.infy.billing.exception.CustomException;
 
-public class MockPaymentGatewayImplTest {
+class MockPaymentGatewayImplTest {
 
     private MockPaymentGatewayImpl mockPaymentGateway;
 

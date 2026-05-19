@@ -26,7 +26,7 @@ import com.infy.billing.repository.UserRepository;
 import com.infy.billing.request.AddPaymentMethodRequest;
 
 @ExtendWith(MockitoExtension.class)
-public class CustomerPaymentServiceImplTest {
+class CustomerPaymentServiceImplTest {
 
     @Mock
     private PaymentMethodRepository paymentMethodRepository;

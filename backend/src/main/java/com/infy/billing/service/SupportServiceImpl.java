@@ -240,7 +240,12 @@ public class SupportServiceImpl implements SupportService {
             body = "Your subscription has been canceled immediately.";
             if (response.isRefundIssued()) {
                 double refundAmt = response.getRefundAmountMinor() / 100.0;
-                String symbol = "USD".equalsIgnoreCase(response.getCurrency()) ? "$" : "GBP".equalsIgnoreCase(response.getCurrency()) ? "£" : "₹";
+                String symbol;
+                try {
+                    symbol = java.util.Currency.getInstance(response.getCurrency()).getSymbol();
+                } catch (Exception e) {
+                    symbol = response.getCurrency();
+                }
                 body += String.format(" A refund of %s%.2f has been processed to your payment method.", symbol, refundAmt);
             } else {
                 body += " No refund was applicable.";

@@ -20,9 +20,7 @@ public class BillingScheduler {
 	// @Scheduled(fixedRate = 60000)
 	@Scheduled(cron = "0 0 0 * * ?", zone = "Asia/Kolkata")
 	public void runRenewalProcessing() {
-		System.out.println("Starting automated renewal processing ...");
 		billingEngineService.processRenewals();
-		System.out.println("Completed automated renewal processing");
 	}
 
 	// @Scheduled(fixedRate = 60000)

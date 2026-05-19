@@ -47,7 +47,7 @@ import com.infy.billing.dto.customer.CancellationResponse;
 import com.infy.billing.request.ProcessCancellationRequestInput;
 
 @ExtendWith(MockitoExtension.class)
-public class SupportServiceImplTest {
+class SupportServiceImplTest {
 
     @Mock
     private CustomerRepository customerRepository;

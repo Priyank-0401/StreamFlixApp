@@ -25,7 +25,7 @@ import com.infy.billing.enums.CouponType;
 import com.infy.billing.repository.*;
 
 @ExtendWith(MockitoExtension.class)
-public class CustomerBillingServiceImplTest {
+class CustomerBillingServiceImplTest {
 
     @Mock private InvoiceRepository invoiceRepository;
     @Mock private InvoiceLineItemRepository invoiceLineItemRepository;

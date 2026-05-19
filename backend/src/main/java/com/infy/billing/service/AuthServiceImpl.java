@@ -55,21 +55,17 @@ public class AuthServiceImpl implements AuthService {
    }
 
    private UserResponse authenticateAndBuildSession(String email, String password, UserRole allowedRole) {
-       System.out.println("DEBUG: Authenticating user: " + email);
        
        // 1. Validate native Spring Security Credentials
        Authentication authentication = authenticationManager.authenticate(
                new UsernamePasswordAuthenticationToken(email, password)
        );
-       System.out.println("DEBUG: Authentication successful, principal: " + authentication.getPrincipal());
 
        // 2. Set Context (This is what tells Spring Boot to issue the Session Cookie!)
        SecurityContextHolder.getContext().setAuthentication(authentication);
-       System.out.println("DEBUG: SecurityContext set with authentication: " + SecurityContextHolder.getContext().getAuthentication());
 
        // 3. Check Portal Boundaries
        User user = userRepository.findByEmail(email).orElseThrow();
-       System.out.println("DEBUG: User found: " + user.getEmail() + " with role: " + user.getRole());
        
        if (allowedRole == UserRole.CUSTOMER && user.getRole() != UserRole.CUSTOMER) {
             SecurityContextHolder.clearContext();
@@ -80,7 +76,6 @@ public class AuthServiceImpl implements AuthService {
             throw CustomException.forbidden("Access Denied: Customers cannot access the Management Portal.");
        }
 
-       System.out.println("DEBUG: Returning UserResponse for: " + user.getEmail());
        return new UserResponse(user);
    }
 

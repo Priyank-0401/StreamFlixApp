@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(CustomerBillingController.class)
-public class CustomerBillingControllerTest {
+class CustomerBillingControllerTest {
 
     @Autowired
     private MockMvc mockMvc;

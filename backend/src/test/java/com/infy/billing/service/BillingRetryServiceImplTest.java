@@ -31,7 +31,7 @@ import com.infy.billing.repository.PaymentRepository;
 import com.infy.billing.repository.SubscriptionRepository;
 
 @ExtendWith(MockitoExtension.class)
-public class BillingRetryServiceImplTest {
+class BillingRetryServiceImplTest {
 
         @Mock
         private DunningRetryLogRepository dunningRetryLogRepository;

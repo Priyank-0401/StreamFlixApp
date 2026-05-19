@@ -26,7 +26,7 @@ import com.infy.billing.repository.*;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-public class BillingEngineServiceImplTest {
+class BillingEngineServiceImplTest {
 
 	@Mock
 	private SubscriptionRepository subscriptionRepository;

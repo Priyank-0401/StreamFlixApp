@@ -32,7 +32,7 @@ import com.infy.billing.repository.AddOnRepository;
 import com.infy.billing.repository.SubscriptionRepository;
 
 @ExtendWith(MockitoExtension.class)
-public class CustomerServiceImplTest {
+class CustomerServiceImplTest {
 
     @Mock private CustomerRepository customerRepository;
     @Mock private UserRepository userRepository;

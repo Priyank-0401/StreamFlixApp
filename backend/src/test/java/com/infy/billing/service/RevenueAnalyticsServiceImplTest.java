@@ -29,7 +29,7 @@ import com.infy.billing.enums.PaymentType;
 import com.infy.billing.repository.*;
 
 @ExtendWith(MockitoExtension.class)
-public class RevenueAnalyticsServiceImplTest {
+class RevenueAnalyticsServiceImplTest {
 
     @Mock private SubscriptionRepository subscriptionRepository;
     @Mock private InvoiceRepository invoiceRepository;

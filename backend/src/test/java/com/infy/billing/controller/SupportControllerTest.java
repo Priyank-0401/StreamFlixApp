@@ -10,6 +10,13 @@ import com.infy.billing.entity.AuditLog;
 import com.infy.billing.entity.BillingJob;
 import com.infy.billing.entity.DunningRetryLog;
 import com.infy.billing.service.SupportService;
+import com.infy.billing.entity.User;
+import com.infy.billing.enums.UserRole;
+import com.infy.billing.dto.customer.CancellationRequestDTO;
+import com.infy.billing.dto.customer.CancellationResponse;
+import com.infy.billing.request.ProcessCancellationRequestInput;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.MediaType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,23 +33,36 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(SupportController.class)
-public class SupportControllerTest {
+class SupportControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @MockitoBean
     private SupportService supportService;
 
+    private User supportAgent;
     private UsernamePasswordAuthenticationToken supportAuth;
 
     @BeforeEach
     void setUp() {
+        supportAgent = User.builder()
+                .id(2L)
+                .email("support@test.com")
+                .fullName("Support Agent")
+                .role(UserRole.SUPPORT)
+                .status(Status.ACTIVE)
+                .build();
         supportAuth = new UsernamePasswordAuthenticationToken(
-                "support@test.com", null, List.of(new SimpleGrantedAuthority("ROLE_SUPPORT")));
+                supportAgent, null, List.of(new SimpleGrantedAuthority("ROLE_SUPPORT")));
     }
 
     @Test
@@ -130,5 +150,61 @@ public class SupportControllerTest {
                 .andExpect(jsonPath("$[0].status").value("PAST_DUE"));
 
         verify(supportService, times(1)).getPastDueSubscriptions();
+    }
+
+    @Test
+    void testGetPendingCancellationRequests() throws Exception {
+        CancellationRequestDTO dto = new CancellationRequestDTO();
+        dto.setRequestId(1L);
+        dto.setReason("Too expensive");
+        
+        when(supportService.getPendingCancellationRequests()).thenReturn(List.of(dto));
+
+        mockMvc.perform(get("/api/support/cancellation-requests")
+                        .with(authentication(supportAuth)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].requestId").value(1))
+                .andExpect(jsonPath("$[0].reason").value("Too expensive"));
+
+        verify(supportService, times(1)).getPendingCancellationRequests();
+    }
+
+    @Test
+    void testApproveCancellationRequest() throws Exception {
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+        input.setAgentNotes("Approved refund");
+
+        CancellationResponse response = new CancellationResponse();
+        response.setRefundAmountMinor(50L);
+
+        when(supportService.approveCancellationRequest(eq(1L), eq("support@test.com"), any(ProcessCancellationRequestInput.class)))
+                .thenReturn(response);
+
+        mockMvc.perform(post("/api/support/cancellation-requests/1/approve")
+                        .with(authentication(supportAuth))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(input)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refundAmountMinor").value(50));
+
+        verify(supportService, times(1)).approveCancellationRequest(eq(1L), eq("support@test.com"), any(ProcessCancellationRequestInput.class));
+    }
+
+    @Test
+    void testRejectCancellationRequest() throws Exception {
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+        input.setAgentNotes("Rejected cancellation");
+
+        doNothing().when(supportService).rejectCancellationRequest(eq(1L), eq("support@test.com"), any(ProcessCancellationRequestInput.class));
+
+        mockMvc.perform(post("/api/support/cancellation-requests/1/reject")
+                        .with(authentication(supportAuth))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(input)))
+                .andExpect(status().isNoContent());
+
+        verify(supportService, times(1)).rejectCancellationRequest(eq(1L), eq("support@test.com"), any(ProcessCancellationRequestInput.class));
     }
 }

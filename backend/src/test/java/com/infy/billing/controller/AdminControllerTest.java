@@ -34,7 +34,7 @@ import com.infy.billing.service.AdminDashboardService;
 @WebMvcTest(AdminController.class)
 @Import(SecurityConfig.class)
 @EnableMethodSecurity
-public class AdminControllerTest {
+class AdminControllerTest {
 
     @Autowired
     private MockMvc mockMvc;

@@ -9,7 +9,7 @@ import lombok.Data;
 public class CustomerRegistrationRequest {
     
     @NotBlank(message = "{customer.phone.required}")
-    @Pattern(regexp = "^[0-9]{10,15}$", message = "{customer.phone.invalid}")
+    @Pattern(regexp = "^\\d{10,15}$", message = "{customer.phone.invalid}")
     private String phone;
     
     @NotBlank(message = "{customer.country.required}")

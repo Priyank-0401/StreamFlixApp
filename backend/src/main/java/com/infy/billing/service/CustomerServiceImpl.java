@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,30 +40,27 @@ public class CustomerServiceImpl implements CustomerService {
    public List<PlanDTO> getAvailablePlans() {
        // Fetch active plans
        List<Plan> plans = planRepository.findByStatus(Status.ACTIVE);
-       System.out.println("DEBUG: Found " + plans.size() + " available plans");
        return plans.stream()
                .map(this::mapToPlanDTO)
-               .collect(Collectors.toList());
+               .toList();
    }
 
    public List<PlanDTO> getFeaturedPlans() {
 	   // Return Basic Monthly (id=1) and Premium Monthly (id=3) as featured plans
 	   List<Long> featuredPlanIds = java.util.Arrays.asList(1L, 3L);
 	   List<Plan> featuredPlans = planRepository.findAllById(featuredPlanIds);
-	   System.out.println("DEBUG: Found " + featuredPlans.size() + " featured plans");
 	   return featuredPlans.stream()
 			   .filter(plan -> plan.getStatus() == Status.ACTIVE)
                .map(this::mapToPlanDTO)
-               .collect(Collectors.toList());
+               .toList();
    }
 
    public List<PlanDTO> getAllActivePlans() {
 	   // Return all active plans without filtering by effectiveTo
 	   List<Plan> plans = planRepository.findByStatus(Status.ACTIVE);
-	   System.out.println("DEBUG: Found " + plans.size() + " total active plans");
 	   return plans.stream()
                .map(this::mapToPlanDTO)
-               .collect(Collectors.toList());
+               .toList();
    }
 
     public List<AddOnDTO> getAvailableAddOns(String email) {
@@ -85,14 +81,14 @@ public class CustomerServiceImpl implements CustomerService {
         return addOnRepository.findByStatus(com.infy.billing.enums.Status.ACTIVE).stream()
                 .filter(a -> a.getBillingPeriod() == currentPeriod)
                 .map(this::mapToAddOnDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
    private Customer getCustomerByEmail(String email) {
        User user = userRepository.findByEmail(email)
-               .orElseThrow(() -> new RuntimeException("User not found"));
+               .orElseThrow(() -> com.infy.billing.exception.CustomException.notFound("User not found"));
        return customerRepository.findByUser_Id(user.getId())
-               .orElseThrow(() -> new RuntimeException("Customer not found"));
+               .orElseThrow(() -> com.infy.billing.exception.CustomException.notFound("Customer not found"));
    }
 
    private CustomerProfileDTO mapToProfileDTO(Customer customer) {

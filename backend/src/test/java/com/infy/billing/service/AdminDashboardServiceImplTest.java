@@ -30,7 +30,7 @@ import com.infy.billing.enums.CouponType;
 import com.infy.billing.repository.*;
 
 @ExtendWith(MockitoExtension.class)
-public class AdminDashboardServiceImplTest {
+class AdminDashboardServiceImplTest {
 
     @Mock
     private ProductRepository productRepository;

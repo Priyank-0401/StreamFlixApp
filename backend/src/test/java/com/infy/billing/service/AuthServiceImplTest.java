@@ -26,7 +26,7 @@ import com.infy.billing.exception.CustomException;
 import com.infy.billing.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
-public class AuthServiceImplTest {
+class AuthServiceImplTest {
 
     @Mock private UserRepository userRepository;
     @Mock private PasswordEncoder passwordEncoder;
