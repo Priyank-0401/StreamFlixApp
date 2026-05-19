@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -150,7 +151,7 @@ public class FinanceControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertArrayEquals(pdfBytes, response.getBody());
         assertEquals(MediaType.APPLICATION_PDF, response.getHeaders().getContentType());
-        assertTrue(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION).contains("filename=\"financial_report.pdf\""));
+        assertTrue(Objects.requireNonNull(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION)).contains("filename=\"financial_report.pdf\""));
 
         verify(revenueAnalyticsService, times(1)).getFinanceDashboard();
         verify(reportExportService, times(1)).exportDashboardAsPdf(mockDashboard);
@@ -171,7 +172,7 @@ public class FinanceControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertArrayEquals(pdfBytes, response.getBody());
         assertEquals(MediaType.APPLICATION_PDF, response.getHeaders().getContentType());
-        assertTrue(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION).contains("filename=\"financial_report.pdf\""));
+        assertTrue(Objects.requireNonNull(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION)).contains("filename=\"financial_report.pdf\""));
 
         verify(revenueAnalyticsService, times(1)).getFinanceDashboard();
         verify(reportExportService, times(1)).exportDashboardAsPdf(mockDashboard);
@@ -192,7 +193,7 @@ public class FinanceControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertArrayEquals(csvBytes, response.getBody());
         assertEquals(MediaType.parseMediaType("text/csv"), response.getHeaders().getContentType());
-        assertTrue(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION).contains("filename=\"financial_report.csv\""));
+        assertTrue(Objects.requireNonNull(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION)).contains("filename=\"financial_report.csv\""));
 
         verify(revenueAnalyticsService, times(1)).getFinanceDashboard();
         verify(reportExportService, times(1)).exportDashboardAsCsv(mockDashboard);
@@ -213,7 +214,7 @@ public class FinanceControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertArrayEquals(csvBytes, response.getBody());
         assertEquals(MediaType.parseMediaType("text/csv"), response.getHeaders().getContentType());
-        assertTrue(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION).contains("filename=\"financial_report.csv\""));
+        assertTrue(Objects.requireNonNull(response.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION)).contains("filename=\"financial_report.csv\""));
 
         verify(revenueAnalyticsService, times(1)).getFinanceDashboard();
         verify(reportExportService, times(1)).exportDashboardAsCsv(mockDashboard);

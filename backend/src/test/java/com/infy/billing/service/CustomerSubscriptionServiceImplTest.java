@@ -65,6 +65,8 @@ public class CustomerSubscriptionServiceImplTest {
         @Mock
         private SubscriptionCouponRepository subscriptionCouponRepository;
         @Mock
+        private PriceBookEntryRepository priceBookEntryRepository;
+        @Mock
         private MockPaymentGateway mockPaymentGateway;
         @Mock
         private TaxRateRepository taxRateRepository;

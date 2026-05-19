@@ -37,6 +37,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
    private final InvoiceLineItemRepository invoiceLineItemRepository;
    private final PaymentRepository paymentRepository;
    private final SubscriptionCouponRepository subscriptionCouponRepository;
+   private final PriceBookEntryRepository priceBookEntryRepository;
    private final MockPaymentGateway mockPaymentGateway;
    private final TaxRateRepository taxRateRepository;
    private final CreditNoteRepository creditNoteRepository;
@@ -160,7 +161,11 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
                if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
                   discountMinor = priceMinor * coupon.getAmount() / 100;
                } else {
-                  discountMinor = coupon.getAmount();
+                  if (coupon.getCurrency() == null || coupon.getCurrency().equals(customer.getCurrency())) {
+                     discountMinor = coupon.getAmount();
+                  } else {
+                     discountMinor = 0L;
+                  }
                }
             }
 
@@ -255,14 +260,18 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       // Old Plan calculations
       long oldPriceMinor = oldPlan.getDefaultPriceMinor();
       long oldDiscountMinor = 0L;
-      if (scOpt.isPresent()) {
-         Coupon coupon = scOpt.get().getCoupon();
-         if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
-            oldDiscountMinor = oldPriceMinor * coupon.getAmount() / 100;
-         } else {
-            oldDiscountMinor = coupon.getAmount();
-         }
-      }
+       if (scOpt.isPresent()) {
+          Coupon coupon = scOpt.get().getCoupon();
+          if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
+             oldDiscountMinor = oldPriceMinor * coupon.getAmount() / 100;
+          } else {
+             if (coupon.getCurrency() == null || coupon.getCurrency().equals(customer.getCurrency())) {
+                oldDiscountMinor = coupon.getAmount();
+             } else {
+                oldDiscountMinor = 0L;
+             }
+          }
+       }
       long oldAddonTotal = items.stream()
             .filter(i -> i.getItemType() == ItemType.ADDON)
             .mapToLong(i -> i.getUnitPriceMinor() * i.getQuantity())
@@ -281,14 +290,18 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       long newPriceMinor = newPlan.getDefaultPriceMinor();
       long newDiscountMinor = 0L;
       Coupon activeCoupon = null;
-      if (scOpt.isPresent()) {
-         activeCoupon = scOpt.get().getCoupon();
-         if (activeCoupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
-            newDiscountMinor = newPriceMinor * activeCoupon.getAmount() / 100;
-         } else {
-            newDiscountMinor = activeCoupon.getAmount();
-         }
-      }
+       if (scOpt.isPresent()) {
+          activeCoupon = scOpt.get().getCoupon();
+          if (activeCoupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
+             newDiscountMinor = newPriceMinor * activeCoupon.getAmount() / 100;
+          } else {
+             if (activeCoupon.getCurrency() == null || activeCoupon.getCurrency().equals(customer.getCurrency())) {
+                newDiscountMinor = activeCoupon.getAmount();
+             } else {
+                newDiscountMinor = 0L;
+             }
+          }
+       }
       long newAddonTotal = items.stream()
             .filter(i -> i.getItemType() == ItemType.ADDON)
             .mapToLong(i -> i.getUnitPriceMinor() * i.getQuantity())
@@ -810,7 +823,13 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
       Plan plan = subscription.getPlan();
       dto.setPlanName(plan.getName());
-      dto.setPlanPriceMinor(plan.getDefaultPriceMinor());
+
+      // Fetch region and currency specific plan price
+      Long basePrice = priceBookEntryRepository.findByPlan_IdAndRegionAndCurrency(
+            plan.getId(), subscription.getCustomer().getCountry(), subscription.getCurrency()
+      ).map(PriceBookEntry::getPriceMinor).orElse(plan.getDefaultPriceMinor() != null ? plan.getDefaultPriceMinor() : 0L);
+
+      dto.setPlanPriceMinor(basePrice);
       dto.setBillingPeriod(plan.getBillingPeriod() != null ? plan.getBillingPeriod().name() : "MONTHLY");
 
       dto.setStatus(subscription.getStatus());
@@ -842,15 +861,18 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       if (scOpt.isPresent()) {
          Coupon coupon = scOpt.get().getCoupon();
          if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
-            discountMinor = plan.getDefaultPriceMinor() * coupon.getAmount() / 100;
+            discountMinor = basePrice * coupon.getAmount() / 100;
          } else {
-            discountMinor = coupon.getAmount();
+            if (coupon.getCurrency() == null || coupon.getCurrency().equals(subscription.getCurrency())) {
+               discountMinor = coupon.getAmount();
+            } else {
+               discountMinor = 0L;
+            }
          }
       }
       dto.setDiscountMinor(discountMinor);
 
       // Calculate total due (Plan + Add-ons - Discount + dynamic tax)
-      Long basePrice = plan.getDefaultPriceMinor() != null ? plan.getDefaultPriceMinor() : 0L;
       Long addOnTotal = items.stream()
             .filter(i -> i.getItemType() == ItemType.ADDON)
             .mapToLong(i -> i.getUnitPriceMinor() != null ? i.getUnitPriceMinor() * i.getQuantity() : 0L)

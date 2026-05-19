@@ -2,6 +2,7 @@ package com.infy.billing.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infy.billing.dto.customer.SubscriptionDTO;
+import com.infy.billing.dto.customer.CancellationResponse;
 import com.infy.billing.dto.customer.UsageRecordDTO;
 import com.infy.billing.entity.User;
 import com.infy.billing.enums.UserRole;
@@ -127,13 +128,15 @@ public class CustomerSubscriptionControllerTest {
 
     @Test
     void testCancelSubscription() throws Exception {
-        doNothing().when(subscriptionService).cancelSubscription(anyString(), anyBoolean());
+        CancellationResponse response = new CancellationResponse(true, 1000L, "USD", "REF-123", "CN-123", "Success");
+        when(subscriptionService.cancelSubscription(anyString(), anyBoolean())).thenReturn(response);
 
         mockMvc.perform(delete("/api/customer/subscription")
                         .param("atPeriodEnd", "false")
                         .with(authentication(auth))
                         .with(csrf()))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refundIssued").value(true));
 
         verify(subscriptionService, times(1)).cancelSubscription("test@test.com", false);
     }
