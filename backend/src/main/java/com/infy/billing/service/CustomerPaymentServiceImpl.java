@@ -4,6 +4,7 @@ import com.infy.billing.dto.customer.*;
 import com.infy.billing.entity.*;
 import com.infy.billing.enums.PaymentType;
 import com.infy.billing.enums.Status;
+import com.infy.billing.exception.CustomException;
 import com.infy.billing.repository.*;
 import com.infy.billing.request.AddPaymentMethodRequest;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,7 +26,7 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
        Customer customer = getCustomerByEmail(email);
        return paymentMethodRepository.findByCustomer_Id(customer.getId()).stream()
                .map(this::mapToPaymentMethodDTO)
-               .collect(Collectors.toList());
+               .toList();
    }
 
    @Transactional
@@ -52,8 +52,8 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
        }
 
        List<PaymentMethod> existing = paymentMethodRepository.findByCustomer_Id(customer.getId());
-       if (existing.isEmpty() || request.getIsDefault()) {
-           existing.stream().filter(PaymentMethod::getIsDefault).forEach(m -> {
+       if (existing.isEmpty() || Boolean.TRUE.equals(request.getIsDefault())) {
+           existing.stream().filter(m -> Boolean.TRUE.equals(m.getIsDefault())).forEach(m -> {
                m.setIsDefault(false);
                paymentMethodRepository.save(m);
            });
@@ -75,10 +75,10 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
        });
 
        PaymentMethod method = paymentMethodRepository.findById(paymentMethodId)
-               .orElseThrow(() -> new RuntimeException("Payment method not found"));
+               .orElseThrow(() -> CustomException.notFound("Payment method not found"));
        
        if (!method.getCustomer().getId().equals(customer.getId())) {
-           throw new RuntimeException("Unauthorized");
+           throw CustomException.forbidden("Unauthorized");
        }
        
        method.setIsDefault(true);
@@ -89,18 +89,18 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
    public void deletePaymentMethod(String email, Long paymentMethodId) {
        Customer customer = getCustomerByEmail(email);
        PaymentMethod method = paymentMethodRepository.findById(paymentMethodId)
-               .orElseThrow(() -> new RuntimeException("Payment method not found"));
+               .orElseThrow(() -> CustomException.notFound("Payment method not found"));
        
        if (!method.getCustomer().getId().equals(customer.getId())) {
-           throw new RuntimeException("Unauthorized");
+           throw CustomException.forbidden("Unauthorized");
        }
 
        List<PaymentMethod> remaining = paymentMethodRepository.findByCustomer_Id(customer.getId());
-       if (method.getIsDefault() && remaining.size() == 1) {
-           throw new RuntimeException("Cannot delete your only payment method");
+       if (Boolean.TRUE.equals(method.getIsDefault()) && remaining.size() == 1) {
+           throw CustomException.badRequest("Cannot delete your only payment method");
        }
 
-       if (method.getIsDefault() && remaining.size() > 1) {
+       if (Boolean.TRUE.equals(method.getIsDefault()) && remaining.size() > 1) {
            PaymentMethod newDefault = remaining.stream()
                    .filter(m -> !m.getId().equals(paymentMethodId))
                    .findFirst()
@@ -116,9 +116,9 @@ public class CustomerPaymentServiceImpl implements CustomerPaymentService {
 
    private Customer getCustomerByEmail(String email) {
        User user = userRepository.findByEmail(email)
-               .orElseThrow(() -> new RuntimeException("User not found"));
+               .orElseThrow(() -> CustomException.notFound("User not found"));
        return customerRepository.findByUser_Id(user.getId())
-               .orElseThrow(() -> new RuntimeException("Customer not found"));
+               .orElseThrow(() -> CustomException.notFound("Customer not found"));
    }
 
    private String detectCardBrand(String cardNumber) {

@@ -3,6 +3,7 @@ package com.infy.billing.service;
 import com.infy.billing.dto.customer.*;
 import com.infy.billing.entity.*;
 import com.infy.billing.enums.*;
+import com.infy.billing.exception.CustomException;
 
 import com.infy.billing.repository.*;
 import com.infy.billing.request.*;
@@ -62,11 +63,11 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
       if (subscriptionRepository.findByCustomer_IdAndStatusIn(customer.getId(),
             List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE)).size() > 0) {
-         throw new RuntimeException("Customer already has an active subscription");
+         throw CustomException.conflict("Customer already has an active subscription");
       }
 
       Plan plan = planRepository.findById(request.getPlanId())
-            .orElseThrow(() -> new RuntimeException("Plan not found"));
+            .orElseThrow(() -> CustomException.notFound("Plan not found"));
 
       SubscriptionCompletionRequest compReq = new SubscriptionCompletionRequest();
       compReq.setPlanId(request.getPlanId());
@@ -77,7 +78,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       SubscriptionResponse resp = subscriptionFlowService.completeSubscription(customer.getId(), compReq);
 
       Subscription subscription = subscriptionRepository.findById(resp.getSubscriptionId())
-            .orElseThrow(() -> new RuntimeException("Subscription not found after creation"));
+            .orElseThrow(() -> CustomException.notFound("Subscription not found after creation"));
 
       return mapToSubscriptionDTO(subscription);
    }
@@ -89,10 +90,10 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       Plan oldPlan = subscription.getPlan();
 
       Plan newPlan = planRepository.findById(request.getPlanId())
-            .orElseThrow(() -> new RuntimeException("Plan not found"));
+            .orElseThrow(() -> CustomException.notFound("Plan not found"));
 
       if (oldPlan.getId().equals(newPlan.getId())) {
-         throw new RuntimeException("Already on this plan");
+         throw CustomException.badRequest("Already on this plan");
       }
 
       boolean isTrialing = subscription.getStatus() == Status.TRIALING;
@@ -354,7 +355,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          invoiceRepository.save(invoice);
 
          User currentUser = userRepository.findByEmail(email)
-               .orElseThrow(() -> new RuntimeException("User not found."));
+               .orElseThrow(() -> CustomException.notFound("User not found."));
 
          // Create credit note for audit trail
          CreditNote creditNote = new CreditNote();
@@ -440,7 +441,11 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
       // Create the immediate payment record if upgrade (positive amount)
       if (prorationAmount > 0) {
-         PaymentMethod pm = paymentMethodRepository.findById(subscription.getPaymentMethodId()).orElse(null);
+         PaymentMethod pm = paymentMethodRepository.findById(subscription.getPaymentMethodId())
+               .orElseThrow(() -> CustomException.notFound("Payment method not found"));
+         if (pm.getGatewayToken() == null || pm.getGatewayToken().isBlank()) {
+            throw CustomException.badRequest("Payment method has no gateway token");
+         }
          String gatewayRef = mockPaymentGateway.charge(pm.getGatewayToken(), prorationAmount, customer.getCurrency());
 
          Payment payment = new Payment();
@@ -531,7 +536,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
                  long refundAmountMinor = (lastPaidInvoice.getTotalMinor() * remainingDays) / totalDays;
 
                  User currentUser = userRepository.findByEmail(email)
-                         .orElseThrow(() -> new RuntimeException("User not found."));
+                         .orElseThrow(() -> CustomException.notFound("User not found."));
 
                  // Issue mock refund via payment gateway
                  Payment originalPayment = paymentRepository.findByInvoice_Id(lastPaidInvoice.getId())
@@ -589,7 +594,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       Customer customer = getCustomerByEmail(email);
       Subscription subscription = subscriptionRepository.findByCustomer_IdAndStatus(
             customer.getId(), Status.PAUSED)
-            .orElseThrow(() -> new RuntimeException("No paused subscription found"));
+            .orElseThrow(() -> CustomException.notFound("No paused subscription found"));
 
       subscription.setStatus(Status.ACTIVE);
       subscription.setPausedFrom(null);
@@ -604,11 +609,11 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       Customer customer = getCustomerByEmail(email);
       Subscription subscription = getActiveSubscription(customer.getId());
       AddOn addOn = addOnRepository.findById(addonId)
-            .orElseThrow(() -> new RuntimeException("Add-on not found"));
+            .orElseThrow(() -> CustomException.notFound("Add-on not found"));
 
       // Compatibility check: Monthly add-ons only for monthly plans, etc.
       if (addOn.getBillingPeriod() != subscription.getPlan().getBillingPeriod()) {
-         throw new RuntimeException("Add-on billing period (" + addOn.getBillingPeriod() +
+         throw CustomException.badRequest("Add-on billing period (" + addOn.getBillingPeriod() +
                ") must match your plan's billing period (" + subscription.getPlan().getBillingPeriod() + ")");
       }
 
@@ -616,7 +621,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       SubscriptionItem existing = subscriptionItemRepository.findBySubscription_IdAndAddOn_Id(
             subscription.getId(), addonId);
       if (existing != null) {
-         throw new RuntimeException("Add-on already active on this subscription");
+         throw CustomException.conflict("Add-on already active on this subscription");
       }
 
       SubscriptionItem item = new SubscriptionItem();
@@ -749,7 +754,11 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
          // Create payment via mock gateway for remaining amount
          if (amountToCharge > 0) {
-            PaymentMethod pm = paymentMethodRepository.findById(subscription.getPaymentMethodId()).orElse(null);
+            PaymentMethod pm = paymentMethodRepository.findById(subscription.getPaymentMethodId())
+                  .orElseThrow(() -> CustomException.notFound("Payment method not found"));
+            if (pm.getGatewayToken() == null || pm.getGatewayToken().isBlank()) {
+               throw CustomException.badRequest("Payment method has no gateway token");
+            }
             String gatewayRef = mockPaymentGateway.charge(pm.getGatewayToken(), amountToCharge, invoice.getCurrency());
 
             Payment payment = new Payment();
@@ -804,16 +813,16 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
    private Customer getCustomerByEmail(String email) {
       User user = userRepository.findByEmail(email)
-            .orElseThrow(() -> new RuntimeException("User not found"));
+            .orElseThrow(() -> CustomException.notFound("User not found"));
       return customerRepository.findByUser_Id(user.getId())
-            .orElseThrow(() -> new RuntimeException("Customer not found"));
+            .orElseThrow(() -> CustomException.notFound("Customer not found"));
    }
 
    private Subscription getActiveSubscription(Long customerId) {
       return subscriptionRepository.findByCustomer_IdAndStatusIn(customerId,
             List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED, Status.ON_HOLD)).stream()
             .findFirst()
-            .orElseThrow(() -> new RuntimeException("No active subscription found"));
+            .orElseThrow(() -> CustomException.notFound("No active subscription found"));
    }
 
    private SubscriptionDTO mapToSubscriptionDTO(Subscription subscription) {

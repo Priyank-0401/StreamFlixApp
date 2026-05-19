@@ -32,6 +32,7 @@ import com.infy.billing.dto.customer.CancellationRequestDTO;
 import com.infy.billing.dto.customer.CancellationResponse;
 import com.infy.billing.request.ProcessCancellationRequestInput;
 import com.infy.billing.enums.CancellationRequestStatus;
+import com.infy.billing.exception.CustomException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -68,7 +69,7 @@ public class SupportServiceImpl implements SupportService {
      @Override
      public CustomerDetailResponse getCustomerDetails(Long customerId) {
          Customer customer = customerRepository.findById(customerId)
-                 .orElseThrow(() -> new RuntimeException("Customer not found"));
+                 .orElseThrow(() -> CustomException.notFound("Customer not found"));
  
          CustomerProfileDTO profileDTO = mapToProfileDTO(customer);
  
@@ -211,14 +212,14 @@ public class SupportServiceImpl implements SupportService {
     @Override
     public CancellationResponse approveCancellationRequest(Long requestId, String agentEmail, ProcessCancellationRequestInput input) {
         com.infy.billing.entity.CancellationRequest request = cancellationRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Cancellation request not found"));
+                .orElseThrow(() -> CustomException.notFound("Cancellation request not found"));
 
         if (request.getStatus() != CancellationRequestStatus.PENDING) {
-            throw new RuntimeException("Cancellation request is not pending");
+            throw CustomException.badRequest("Cancellation request is not pending");
         }
 
         User agent = userRepository.findByEmail(agentEmail)
-                .orElseThrow(() -> new RuntimeException("Agent not found"));
+                .orElseThrow(() -> CustomException.notFound("Agent not found"));
 
         request.setStatus(CancellationRequestStatus.APPROVED);
         request.setProcessedBy(agent);
@@ -264,14 +265,14 @@ public class SupportServiceImpl implements SupportService {
     @Override
     public void rejectCancellationRequest(Long requestId, String agentEmail, ProcessCancellationRequestInput input) {
         com.infy.billing.entity.CancellationRequest request = cancellationRequestRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Cancellation request not found"));
+                .orElseThrow(() -> CustomException.notFound("Cancellation request not found"));
 
         if (request.getStatus() != CancellationRequestStatus.PENDING) {
-            throw new RuntimeException("Cancellation request is not pending");
+            throw CustomException.badRequest("Cancellation request is not pending");
         }
 
         User agent = userRepository.findByEmail(agentEmail)
-                .orElseThrow(() -> new RuntimeException("Agent not found"));
+                .orElseThrow(() -> CustomException.notFound("Agent not found"));
 
         request.setStatus(CancellationRequestStatus.REJECTED);
         request.setProcessedBy(agent);

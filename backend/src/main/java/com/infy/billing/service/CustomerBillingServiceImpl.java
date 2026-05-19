@@ -3,13 +3,13 @@ package com.infy.billing.service;
 import com.infy.billing.dto.customer.*;
 import com.infy.billing.entity.*;
 import com.infy.billing.enums.Status;
+import com.infy.billing.exception.CustomException;
 import com.infy.billing.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -36,16 +36,16 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
            invoices = invoiceRepository.findByCustomer_IdOrderByIssueDateDesc(customer.getId());
        }
        
-       return invoices.stream().map(this::mapToInvoiceDTO).collect(Collectors.toList());
+       return invoices.stream().map(this::mapToInvoiceDTO).toList();
    }
 
    public InvoiceDTO getInvoiceDetail(String email, Long invoiceId) {
        Customer customer = getCustomerByEmail(email);
        Invoice invoice = invoiceRepository.findById(invoiceId)
-               .orElseThrow(() -> new RuntimeException("Invoice not found"));
+               .orElseThrow(() -> CustomException.notFound("Invoice not found"));
        
        if (!invoice.getCustomer().getId().equals(customer.getId())) {
-           throw new RuntimeException("Unauthorized");
+           throw CustomException.forbidden("Unauthorized");
        }
        
        return mapToInvoiceDTO(invoice);
@@ -54,10 +54,10 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
    public byte[] generateInvoicePdf(String email, Long invoiceId) {
        Customer customer = getCustomerByEmail(email);
        Invoice invoice = invoiceRepository.findById(invoiceId)
-               .orElseThrow(() -> new RuntimeException("Invoice not found"));
+               .orElseThrow(() -> CustomException.notFound("Invoice not found"));
        
        if (!invoice.getCustomer().getId().equals(customer.getId())) {
-           throw new RuntimeException("Unauthorized");
+           throw CustomException.forbidden("Unauthorized");
        }
        
        return invoicePdfService.generatePdf(invoice);
@@ -67,26 +67,26 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
        Customer customer = getCustomerByEmail(email);
        return paymentRepository.findById(customer.getId()).stream()
                .map(this::mapToPaymentDTO)
-               .collect(Collectors.toList());
+               .toList();
    }
 
    public List<CreditNoteDTO> getCreditNotes(String email) {
        Customer customer = getCustomerByEmail(email);
        return creditNoteRepository.findById(customer.getId()).stream()
                .map(this::mapToCreditNoteDTO)
-               .collect(Collectors.toList());
+               .toList();
    }
 
    @Transactional
    public CouponDTO applyCoupon(String email, String code) {
        Customer customer = getCustomerByEmail(email);
        Coupon coupon = couponRepository.findByCodeAndStatus(code, Status.ACTIVE)
-               .orElseThrow(() -> new RuntimeException("Invalid or expired coupon"));
+               .orElseThrow(() -> CustomException.badRequest("Invalid or expired coupon"));
        
        Subscription subscription = subscriptionRepository.findByCustomer_IdAndStatusIn(
                customer.getId(), List.of(Status.ACTIVE, Status.TRIALING)).stream()
                .findFirst()
-               .orElseThrow(() -> new RuntimeException("No active subscription"));
+               .orElseThrow(() -> CustomException.badRequest("No active subscription"));
 
        // Deactivate any currently active coupon on this subscription to enforce one active coupon at a time
        java.util.Optional<SubscriptionCoupon> activeCouponOpt = subscriptionCouponRepository
@@ -94,7 +94,7 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
        if (activeCouponOpt.isPresent()) {
            SubscriptionCoupon activeSc = activeCouponOpt.get();
            if (activeSc.getCoupon().getId().equals(coupon.getId())) {
-               throw new RuntimeException("Coupon already active on this subscription");
+               throw CustomException.conflict("Coupon already active on this subscription");
            }
            activeSc.setStatus(Status.CANCELED);
            subscriptionCouponRepository.save(activeSc);
@@ -117,21 +117,21 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
 
     public CouponDTO validateCoupon(String code) {
         Coupon coupon = couponRepository.findByCodeAndStatus(code, Status.ACTIVE)
-                .orElseThrow(() -> new RuntimeException("Invalid or expired coupon"));
+                .orElseThrow(() -> CustomException.badRequest("Invalid or expired coupon"));
 
         java.time.LocalDate today = java.time.LocalDate.now();
 
         // Check date validity
         if (coupon.getValidFrom() != null && today.isBefore(coupon.getValidFrom())) {
-            throw new RuntimeException("Coupon is not yet valid");
+            throw CustomException.badRequest("Coupon is not yet valid");
         }
         if (coupon.getValidTo() != null && today.isAfter(coupon.getValidTo())) {
-            throw new RuntimeException("Coupon has expired");
+            throw CustomException.badRequest("Coupon has expired");
         }
 
         // Check max redemptions
         if (coupon.getMaxRedemptions() != null && coupon.getRedeemedCount() >= coupon.getMaxRedemptions()) {
-            throw new RuntimeException("Coupon has reached maximum redemptions");
+            throw CustomException.badRequest("Coupon has reached maximum redemptions");
         }
 
         return mapToCouponDTO(coupon);
@@ -145,14 +145,14 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
                 .filter(c -> c.getValidTo() == null || !today.isAfter(c.getValidTo()))
                 .filter(c -> c.getMaxRedemptions() == null || c.getRedeemedCount() < c.getMaxRedemptions())
                 .map(this::mapToCouponDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
    private Customer getCustomerByEmail(String email) {
        User user = userRepository.findByEmail(email)
-               .orElseThrow(() -> new RuntimeException("User not found"));
+               .orElseThrow(() -> CustomException.notFound("User not found"));
        return customerRepository.findByUser_Id(user.getId())
-               .orElseThrow(() -> new RuntimeException("Customer not found"));
+               .orElseThrow(() -> CustomException.notFound("Customer not found"));
    }
 
    private InvoiceDTO mapToInvoiceDTO(Invoice invoice) {
@@ -172,7 +172,7 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
        dto.setCurrency(invoice.getCurrency());
        
        List<InvoiceLineItem> items = invoiceLineItemRepository.findByInvoice_Id(invoice.getId());
-       dto.setLineItems(items.stream().map(this::mapToLineItemDTO).collect(Collectors.toList()));
+       dto.setLineItems(items.stream().map(this::mapToLineItemDTO).toList());
        
        return dto;
    }

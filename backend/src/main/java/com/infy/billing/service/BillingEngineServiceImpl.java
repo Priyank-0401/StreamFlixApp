@@ -102,17 +102,17 @@ public class BillingEngineServiceImpl implements BillingEngineService {
 		if (subscription.getPaymentMethodId() == null) {
 			subscription.setStatus(Status.PAST_DUE);
 			subscriptionRepository.save(subscription);
-			throw new RuntimeException("Payment method missing");
+			throw CustomException.badRequest("Payment method missing");
 		}
 		PaymentMethod paymentMethod = paymentMethodRepository
 				.findById(subscription.getPaymentMethodId())
-				.orElseThrow(() -> new RuntimeException("Payment method not found"));
+				.orElseThrow(() -> CustomException.notFound("Payment method not found"));
 		if (paymentMethod.getStatus() != Status.ACTIVE ||
 				paymentMethod.getGatewayToken() == null ||
 				paymentMethod.getGatewayToken().isBlank()) {
 			subscription.setStatus(Status.PAST_DUE);
 			subscriptionRepository.save(subscription);
-			throw new RuntimeException("Invalid payment method");
+			throw CustomException.badRequest("Invalid payment method");
 		}
 		return paymentMethod;
 	}
@@ -140,7 +140,7 @@ public class BillingEngineServiceImpl implements BillingEngineService {
 	private void addPlanLine(Invoice invoice, Subscription subscription) {
 		Long amount = subscription.getPlan().getDefaultPriceMinor();
 		if (amount == null || amount <= 0) {
-			throw new RuntimeException("Invalid plan amount");
+			throw CustomException.badRequest("Invalid plan amount");
 		}
 		InvoiceLineItem line = new InvoiceLineItem();
 		line.setInvoice(invoice);
@@ -220,23 +220,11 @@ public class BillingEngineServiceImpl implements BillingEngineService {
 		long credits = 0L;
 		for (InvoiceLineItem line : lines) {
 			switch (line.getLineType()) {
-			case PLAN:
-			case ADDON:
-			case METERED:
-			case PRORATION:
-				subtotal += line.getAmountMinor();
-				break;
-			case DISCOUNT:
-				discount += Math.abs(line.getAmountMinor());
-				break;
-			case TAX:
-				tax += line.getAmountMinor();
-				break;
-			case CREDIT:
-				credits += Math.abs(line.getAmountMinor());
-				break;
-			default:
-				break;
+				case PLAN, ADDON, METERED, PRORATION -> subtotal += line.getAmountMinor();
+				case DISCOUNT -> discount += Math.abs(line.getAmountMinor());
+				case TAX -> tax += line.getAmountMinor();
+				case CREDIT -> credits += Math.abs(line.getAmountMinor());
+				default -> {}
 			}
 		}
 		long total = subtotal - discount - credits + tax;
@@ -324,7 +312,7 @@ public class BillingEngineServiceImpl implements BillingEngineService {
 			end = start.plusYears(1).minusDays(1);
 			break;
 		default:
-			throw new RuntimeException("Unsupported billing period");
+			throw CustomException.badRequest("Unsupported billing period");
 		}
 		subscription.setCurrentPeriodStart(start);
 		subscription.setCurrentPeriodEnd(end);

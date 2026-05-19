@@ -189,7 +189,7 @@ public class BillingRetryServiceImpl
 			end = start.plusYears(1).minusDays(1);
 			break;
 		default:
-			throw new RuntimeException(
+			throw CustomException.badRequest(
 					"Unsupported billing period");
 		}
 		subscription.setCurrentPeriodStart(start);
