@@ -102,6 +102,7 @@ export const SubscriptionCheckoutPage: React.FC = () => {
   const handleSubscribe = async () => {
     const errors: Record<string, string> = {};
     if (!cardholderName) errors.cardholderName = 'Cardholder name is required';
+    else if (!/^[a-zA-Z\s]+$/.test(cardholderName)) errors.cardholderName = 'Cardholder name must contain only letters and spaces';
     if (!cardNumber) errors.cardNumber = 'Card number is required';
     if (!expiryMonth) errors.expiryMonth = 'Expiry month is required';
     if (!expiryYear) errors.expiryYear = 'Expiry year is required';

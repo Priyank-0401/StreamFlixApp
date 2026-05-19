@@ -17,6 +17,7 @@ public class PaymentMethodRequest {
     private String cardNumber;
     
     @Size(max = 100, message = "{payment.cardholder.invalid}")
+    @Pattern(regexp = "^[a-zA-Z\\s]+$", message = "Cardholder name must contain only letters and spaces")
     private String cardholderName;
     
     @Pattern(regexp = "^(0[1-9]|1[0-2])$", message = "{payment.expiry.month.invalid}")

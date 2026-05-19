@@ -27,6 +27,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+
 /**
  * Maps to the USER table in the schema.
  * Implements UserDetails so Spring Security can use it directly.
@@ -45,6 +48,8 @@ public class User implements UserDetails {
    @Column(name = "user_id")
    private Long id;
 
+   @NotBlank(message = "Full name is required")
+   @Pattern(regexp = "^[a-zA-Z\\s]+$", message = "Name must contain only letters and spaces")
    @Column(name = "full_name", nullable = false, length = 100)
    private String fullName;
 

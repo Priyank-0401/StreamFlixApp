@@ -8,6 +8,7 @@ import lombok.Data;
 @Data
 public class CustomerRegisterRequest {
    @NotBlank(message = "{user.name.required}")
+   @Pattern(regexp = "^[a-zA-Z\\s]+$", message = "Name must contain only letters and spaces")
    private String fullName;
 
    @NotBlank(message = "{user.email.required}")

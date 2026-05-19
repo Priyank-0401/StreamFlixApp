@@ -17,6 +17,11 @@ export const CustomerSignupForm: React.FC<{ onSwitchToLogin: () => void }> = ({ 
     e.preventDefault();
     setError('');
     
+    if (!/^[a-zA-Z\s]+$/.test(fullName)) {
+      setFieldErrors({ fullName: 'Name must contain only letters and spaces' });
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;

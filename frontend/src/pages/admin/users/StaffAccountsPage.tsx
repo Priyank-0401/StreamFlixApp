@@ -49,6 +49,10 @@ export const StaffAccountsPage: React.FC = () => {
   const openCreate = () => { setForm(emptyForm); setModalOpen(true); };
 
   const handleSave = async () => {
+    if (!/^[a-zA-Z\s]+$/.test(form.fullName)) {
+      alert("Name must contain only letters and spaces");
+      return;
+    }
     setSaving(true);
     try {
       await createStaff(form);

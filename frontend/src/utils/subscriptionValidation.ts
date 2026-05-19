@@ -36,6 +36,7 @@ export const validatePaymentMethod = (name: string, value: string, paymentType: 
       case 'cardholderName':
         if (!value) return 'Cardholder name is required';
         if (value.length > 100) return 'Cardholder name must be less than 100 characters';
+        if (!/^[a-zA-Z\s]+$/.test(value)) return 'Cardholder name must contain only letters and spaces';
         break;
       case 'expiryMonth':
         if (!/^(0[1-9]|1[0-2])$/.test(value)) return 'Expiry month must be 01-12';
