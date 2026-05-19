@@ -360,4 +360,170 @@ class BillingEngineServiceImplTest {
 		verify(invoiceRepository, never()).save(any());
 		verify(paymentRepository, never()).save(any());
 	}
+
+	@Test
+	void testProcessRenewals_AddonWithNullAddon() throws Exception {
+		SubscriptionItem item = new SubscriptionItem();
+		item.setAddOn(null);
+
+		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
+				.thenReturn(new ArrayList<>(Arrays.asList(subscription)));
+		when(subscriptionRepository.findByTrialEndDateAndStatus(any(), any()))
+				.thenReturn(new ArrayList<>());
+		when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+		when(invoiceRepository.existsBySubscriptionAndBillingReasonAndIssueDate(any(), any(), any()))
+				.thenReturn(false);
+		when(subscriptionItemRepository.findBySubscription_Id(1L)).thenReturn(Arrays.asList(item));
+
+		Invoice invoice = Invoice.builder().id(1L).totalMinor(1000L).build();
+		doReturn(invoice).when(invoiceRepository).save(any(Invoice.class));
+		when(invoiceLineItemRepository.findByInvoice_Id(anyLong())).thenReturn(new ArrayList<>());
+		when(mockPaymentGateway.charge(anyString(), anyLong(), anyString())).thenReturn("gateway_ref");
+
+		billingEngineService.processRenewals();
+
+		verify(invoiceLineItemRepository, times(1)).save(any(InvoiceLineItem.class));
+	}
+
+	@Test
+	void testProcessRenewals_AddonWithZeroPrice() throws Exception {
+		AddOn addon = AddOn.builder().id(1L).name("Free").priceMinor(0L).build();
+		SubscriptionItem item = new SubscriptionItem();
+		item.setAddOn(addon);
+		item.setQuantity(1);
+
+		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
+				.thenReturn(new ArrayList<>(Arrays.asList(subscription)));
+		when(subscriptionRepository.findByTrialEndDateAndStatus(any(), any()))
+				.thenReturn(new ArrayList<>());
+		when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+		when(invoiceRepository.existsBySubscriptionAndBillingReasonAndIssueDate(any(), any(), any()))
+				.thenReturn(false);
+		when(subscriptionItemRepository.findBySubscription_Id(1L)).thenReturn(Arrays.asList(item));
+
+		Invoice invoice = Invoice.builder().id(1L).totalMinor(1000L).build();
+		doReturn(invoice).when(invoiceRepository).save(any(Invoice.class));
+		when(invoiceLineItemRepository.findByInvoice_Id(anyLong())).thenReturn(new ArrayList<>());
+		when(mockPaymentGateway.charge(anyString(), anyLong(), anyString())).thenReturn("gateway_ref");
+
+		billingEngineService.processRenewals();
+
+		verify(invoiceLineItemRepository, times(1)).save(any(InvoiceLineItem.class));
+	}
+
+	@Test
+	void testProcessRenewals_AddonWithNullQuantity() throws Exception {
+		AddOn addon = AddOn.builder().id(1L).name("Premium").priceMinor(500L).build();
+		SubscriptionItem item = new SubscriptionItem();
+		item.setAddOn(addon);
+		item.setQuantity(null);
+
+		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
+				.thenReturn(new ArrayList<>(Arrays.asList(subscription)));
+		when(subscriptionRepository.findByTrialEndDateAndStatus(any(), any()))
+				.thenReturn(new ArrayList<>());
+		when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+		when(invoiceRepository.existsBySubscriptionAndBillingReasonAndIssueDate(any(), any(), any()))
+				.thenReturn(false);
+		when(subscriptionItemRepository.findBySubscription_Id(1L)).thenReturn(Arrays.asList(item));
+
+		Invoice invoice = Invoice.builder().id(1L).totalMinor(1500L).build();
+		doReturn(invoice).when(invoiceRepository).save(any(Invoice.class));
+		when(invoiceLineItemRepository.findByInvoice_Id(anyLong())).thenReturn(new ArrayList<>());
+		when(mockPaymentGateway.charge(anyString(), anyLong(), anyString())).thenReturn("gateway_ref");
+
+		billingEngineService.processRenewals();
+
+		verify(invoiceLineItemRepository, times(2)).save(any(InvoiceLineItem.class));
+	}
+
+	@Test
+	void testProcessRenewals_RecalculateWithCreditProrationMetered() throws Exception {
+		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
+				.thenReturn(new ArrayList<>(Arrays.asList(subscription)));
+		when(subscriptionRepository.findByTrialEndDateAndStatus(any(), any()))
+				.thenReturn(new ArrayList<>());
+		when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+		when(invoiceRepository.existsBySubscriptionAndBillingReasonAndIssueDate(any(), any(), any()))
+				.thenReturn(false);
+		when(subscriptionItemRepository.findBySubscription_Id(1L)).thenReturn(Collections.emptyList());
+
+		Invoice invoice = Invoice.builder().id(1L).totalMinor(1000L).currency("USD").build();
+		doReturn(invoice).when(invoiceRepository).save(any(Invoice.class));
+		when(paymentRepository.save(any(Payment.class))).thenAnswer(i -> i.getArgument(0));
+
+		InvoiceLineItem planLine = new InvoiceLineItem();
+		planLine.setAmountMinor(1000L);
+		planLine.setLineType(InvoiceLineItem.LineType.PLAN);
+
+		InvoiceLineItem prorationLine = new InvoiceLineItem();
+		prorationLine.setAmountMinor(500L);
+		prorationLine.setLineType(InvoiceLineItem.LineType.PRORATION);
+
+		InvoiceLineItem meteredLine = new InvoiceLineItem();
+		meteredLine.setAmountMinor(200L);
+		meteredLine.setLineType(InvoiceLineItem.LineType.METERED);
+
+		InvoiceLineItem creditLine = new InvoiceLineItem();
+		creditLine.setAmountMinor(-300L);
+		creditLine.setLineType(InvoiceLineItem.LineType.CREDIT);
+
+		when(invoiceLineItemRepository.findByInvoice_Id(anyLong()))
+				.thenReturn(Arrays.asList(planLine, prorationLine, meteredLine, creditLine));
+		when(mockPaymentGateway.charge(anyString(), anyLong(), anyString())).thenReturn("gateway_ref");
+
+		billingEngineService.processRenewals();
+
+		verify(invoiceRepository, atLeast(2)).save(any(Invoice.class));
+	}
+
+	@Test
+	void testProcessRenewals_NegativeTotal_ClampedToZero() throws Exception {
+		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
+				.thenReturn(new ArrayList<>(Arrays.asList(subscription)));
+		when(subscriptionRepository.findByTrialEndDateAndStatus(any(), any()))
+				.thenReturn(new ArrayList<>());
+		when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+		when(invoiceRepository.existsBySubscriptionAndBillingReasonAndIssueDate(any(), any(), any()))
+				.thenReturn(false);
+		when(subscriptionItemRepository.findBySubscription_Id(1L)).thenReturn(Collections.emptyList());
+
+		Invoice invoice = Invoice.builder().id(1L).totalMinor(0L).currency("USD").build();
+		doReturn(invoice).when(invoiceRepository).save(any(Invoice.class));
+		when(paymentRepository.save(any(Payment.class))).thenAnswer(i -> i.getArgument(0));
+
+		InvoiceLineItem planLine = new InvoiceLineItem();
+		planLine.setAmountMinor(100L);
+		planLine.setLineType(InvoiceLineItem.LineType.PLAN);
+
+		InvoiceLineItem discountLine = new InvoiceLineItem();
+		discountLine.setAmountMinor(-500L);
+		discountLine.setLineType(InvoiceLineItem.LineType.DISCOUNT);
+
+		when(invoiceLineItemRepository.findByInvoice_Id(anyLong()))
+				.thenReturn(Arrays.asList(planLine, discountLine));
+
+		billingEngineService.processRenewals();
+
+		verify(mockPaymentGateway, never()).charge(anyString(), anyLong(), anyString());
+	}
+
+	@Test
+	void testProcessRenewals_InvalidPlanAmount() {
+		plan.setDefaultPriceMinor(0L);
+		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
+				.thenReturn(new ArrayList<>(Arrays.asList(subscription)));
+		when(subscriptionRepository.findByTrialEndDateAndStatus(any(), any()))
+				.thenReturn(new ArrayList<>());
+		when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+		when(invoiceRepository.existsBySubscriptionAndBillingReasonAndIssueDate(any(), any(), any()))
+				.thenReturn(false);
+
+		Invoice invoice = Invoice.builder().id(1L).totalMinor(0L).build();
+		doReturn(invoice).when(invoiceRepository).save(any(Invoice.class));
+
+		billingEngineService.processRenewals();
+
+		verify(mockPaymentGateway, never()).charge(anyString(), anyLong(), anyString());
+	}
 }

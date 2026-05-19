@@ -209,4 +209,34 @@ class NotificationServiceImplTest {
         verify(notificationRepository, never()).save(any(Notification.class));
     }
 
+    @Test
+    void testMarkAllAsRead() {
+        Notification n1 = Notification.builder().notificationId(1L).status(NotificationStatus.SENT).build();
+        Notification n2 = Notification.builder().notificationId(2L).status(NotificationStatus.SENT).build();
+        when(notificationRepository.findByCustomerIdAndStatusOrderByCreatedAtDesc(1L, NotificationStatus.SENT))
+                .thenReturn(Arrays.asList(n1, n2));
+
+        notificationService.markAllAsRead(1L);
+
+        assertEquals(NotificationStatus.READ, n1.getStatus());
+        assertEquals(NotificationStatus.READ, n2.getStatus());
+        verify(notificationRepository, times(1)).saveAll(anyList());
+    }
+
+    @Test
+    void testMarkAsRead_NotFound() {
+        when(notificationRepository.findById(999L)).thenReturn(Optional.empty());
+        assertThrows(RuntimeException.class, () -> notificationService.markAsRead(999L));
+    }
+
+    @Test
+    void testGenerateRenewalReminders_NoMatchDate() {
+        // Subscription with period end that doesn't match 1/3/7 days
+        subscription.setCurrentPeriodEnd(LocalDate.now().plusDays(10));
+        when(subscriptionRepository.findByStatus(Status.ACTIVE)).thenReturn(Arrays.asList(subscription));
+
+        notificationService.generateRenewalReminders();
+
+        verify(notificationRepository, never()).save(any(Notification.class));
+    }
 }

@@ -469,15 +469,116 @@ class SubscriptionFlowServiceImplTest {
                 assertFalse(resp.isCustomer());
         }
 
-        @Test
-        void testCheckCustomerStatus_NoSubscription() {
-                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
-                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
-                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
-                                .thenReturn(Collections.emptyList());
+    @Test
+    void testCheckCustomerStatus_NoSubscription() {
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+        when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+                .thenReturn(Collections.emptyList());
 
-                CustomerStatusResponse resp = subscriptionFlowService.checkCustomerStatus("test@test.com");
-                assertFalse(resp.isCustomer());
-                assertFalse(resp.isHasDraftSubscription());
-        }
+        CustomerStatusResponse resp = subscriptionFlowService.checkCustomerStatus("test@test.com");
+        assertFalse(resp.isCustomer());
+        assertFalse(resp.isHasDraftSubscription());
+    }
+
+    @Test
+    void testCompleteSubscription_CouponValidFromInFuture() {
+        Coupon coupon = Coupon.builder().id(1L).code("FUTURE").name("Future")
+                .type(CouponType.PERCENT).amount(10L).status(Status.ACTIVE)
+                .validFrom(LocalDate.now().plusDays(1)).redeemedCount(0).build();
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(planRepository.findById(1L)).thenReturn(Optional.of(plan));
+        when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+        when(priceBookEntryRepository.findByPlan_IdAndRegionAndCurrency(any(), any(), any()))
+                .thenReturn(Optional.empty());
+        when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                .thenReturn(Optional.empty());
+        when(couponRepository.findByCodeAndStatus("FUTURE", Status.ACTIVE)).thenReturn(Optional.of(coupon));
+
+        SubscriptionCompletionRequest req = new SubscriptionCompletionRequest();
+        req.setPlanId(1L);
+        req.setPaymentMethodId(1L);
+        req.setBillingPeriod(BillingPeriod.MONTHLY);
+        req.setCouponCode("FUTURE");
+
+        SubscriptionResponse resp = subscriptionFlowService.completeSubscription(1L, req);
+        assertNotNull(resp);
+        verify(couponRepository, never()).save(coupon);
+    }
+
+    @Test
+    void testCompleteSubscription_CouponMaxRedemptionsReached() {
+        Coupon coupon = Coupon.builder().id(1L).code("MAXED").name("Maxed")
+                .type(CouponType.PERCENT).amount(10L).status(Status.ACTIVE)
+                .maxRedemptions(5).redeemedCount(5).build();
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(planRepository.findById(1L)).thenReturn(Optional.of(plan));
+        when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+        when(priceBookEntryRepository.findByPlan_IdAndRegionAndCurrency(any(), any(), any()))
+                .thenReturn(Optional.empty());
+        when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                .thenReturn(Optional.empty());
+        when(couponRepository.findByCodeAndStatus("MAXED", Status.ACTIVE)).thenReturn(Optional.of(coupon));
+
+        SubscriptionCompletionRequest req = new SubscriptionCompletionRequest();
+        req.setPlanId(1L);
+        req.setPaymentMethodId(1L);
+        req.setBillingPeriod(BillingPeriod.MONTHLY);
+        req.setCouponCode("MAXED");
+
+        SubscriptionResponse resp = subscriptionFlowService.completeSubscription(1L, req);
+        assertNotNull(resp);
+        verify(couponRepository, never()).save(coupon);
+    }
+
+    @Test
+    void testCompleteSubscription_CouponDiscountExceedsPrice() {
+        // Plan default price is 1000L.
+        Coupon coupon = Coupon.builder().id(1L).code("OVER").name("Over Discount")
+                .type(CouponType.FIXED).amount(2000L).status(Status.ACTIVE)
+                .redeemedCount(0).build();
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(planRepository.findById(1L)).thenReturn(Optional.of(plan));
+        when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+        when(priceBookEntryRepository.findByPlan_IdAndRegionAndCurrency(any(), any(), any()))
+                .thenReturn(Optional.empty());
+        when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                .thenReturn(Optional.empty());
+        when(couponRepository.findByCodeAndStatus("OVER", Status.ACTIVE)).thenReturn(Optional.of(coupon));
+
+        SubscriptionCompletionRequest req = new SubscriptionCompletionRequest();
+        req.setPlanId(1L);
+        req.setPaymentMethodId(1L);
+        req.setBillingPeriod(BillingPeriod.MONTHLY);
+        req.setCouponCode("OVER");
+
+        SubscriptionResponse resp = subscriptionFlowService.completeSubscription(1L, req);
+        assertNotNull(resp);
+        assertEquals(0L, resp.getTotalAmountMinor()); // total should be 0, not negative
+        verify(couponRepository).save(coupon);
+    }
+
+    @Test
+    void testCompleteSubscription_ExclusiveTaxWithRate() {
+        TaxRate tr = new TaxRate();
+        tr.setRatePercent(new BigDecimal("10"));
+
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(planRepository.findById(1L)).thenReturn(Optional.of(plan)); // Plan is EXCLUSIVE tax mode, 1000L
+        when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
+        when(priceBookEntryRepository.findByPlan_IdAndRegionAndCurrency(any(), any(), any()))
+                .thenReturn(Optional.empty());
+        when(taxRateRepository.findByRegionAndEffectiveToIsNullOrFuture(any(), any()))
+                .thenReturn(Optional.of(tr));
+
+        SubscriptionCompletionRequest req = new SubscriptionCompletionRequest();
+        req.setPlanId(1L);
+        req.setPaymentMethodId(1L);
+        req.setBillingPeriod(BillingPeriod.MONTHLY);
+
+        SubscriptionResponse resp = subscriptionFlowService.completeSubscription(1L, req);
+        assertNotNull(resp);
+        // Total = 1000 + 10% tax = 1100
+        assertEquals(1100L, resp.getTotalAmountMinor());
+    }
 }

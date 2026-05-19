@@ -190,4 +190,49 @@ class CustomerServiceImplTest {
         assertNotNull(plans);
         assertTrue(plans.isEmpty());
     }
+
+    @Test
+    void testGetAllActivePlans() {
+        when(planRepository.findByStatus(Status.ACTIVE)).thenReturn(Arrays.asList(plan));
+
+        List<PlanDTO> plans = customerService.getAllActivePlans();
+
+        assertEquals(1, plans.size());
+        assertEquals("Basic", plans.get(0).getName());
+    }
+
+    @Test
+    void testGetAvailablePlans_WithEffectiveTo() {
+        plan.setEffectiveTo(LocalDate.now().plusDays(30));
+        when(planRepository.findByStatus(Status.ACTIVE)).thenReturn(Arrays.asList(plan));
+
+        List<PlanDTO> plans = customerService.getAvailablePlans();
+
+        assertEquals(1, plans.size());
+        assertNotNull(plans.get(0).getEffectiveTo());
+    }
+
+    @Test
+    void testGetAvailableAddOns_MismatchedBillingPeriod() {
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+
+        Subscription sub = Subscription.builder().id(1L).plan(plan).build(); // MONTHLY plan
+        when(subscriptionRepository.findByCustomer_IdAndStatusIn(anyLong(), anyList()))
+                .thenReturn(Arrays.asList(sub));
+
+        AddOn yearlyAddOn = AddOn.builder()
+                .id(1L)
+                .name("Yearly Storage")
+                .billingPeriod(BillingPeriod.YEARLY)
+                .status(Status.ACTIVE)
+                .build();
+        
+        when(addOnRepository.findByStatus(Status.ACTIVE)).thenReturn(Arrays.asList(yearlyAddOn));
+
+        List<AddOnDTO> addOns = customerService.getAvailableAddOns("test@test.com");
+
+        // YEARLY addon should be filtered out for MONTHLY subscription
+        assertEquals(0, addOns.size());
+    }
 }

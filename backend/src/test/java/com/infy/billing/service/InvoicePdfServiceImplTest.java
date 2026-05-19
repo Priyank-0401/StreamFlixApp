@@ -148,4 +148,56 @@ class InvoicePdfServiceImplTest {
         byte[] pdfUnknown = invoicePdfService.generatePdf(invoice);
         assertNotNull(pdfUnknown);
     }
+
+    @Test
+    void testGeneratePdf_NullCustomerAndSubscription() {
+        invoice.setCustomer(null);
+        invoice.setSubscription(null);
+        invoice.setBillingReason(null);
+        when(lineItemRepository.findByInvoice_Id(1L)).thenReturn(Arrays.asList());
+
+        byte[] pdf = invoicePdfService.generatePdf(invoice);
+
+        assertNotNull(pdf);
+        assertTrue(pdf.length > 0);
+    }
+
+    @Test
+    void testGeneratePdf_NullLineItemTypeAndNullAmount() {
+        InvoiceLineItem item = new InvoiceLineItem();
+        item.setId(1L);
+        item.setDescription("Item nulls");
+        item.setQuantity(1);
+        item.setUnitPriceMinor(1000L);
+        item.setAmountMinor(null);
+        item.setLineType(null);
+
+        when(lineItemRepository.findByInvoice_Id(1L)).thenReturn(Arrays.asList(item));
+        when(paymentRepository.findByInvoice_Id(1L)).thenReturn(Arrays.asList());
+
+        byte[] pdf = invoicePdfService.generatePdf(invoice);
+
+        assertNotNull(pdf);
+        assertTrue(pdf.length > 0);
+    }
+
+    @Test
+    void testGeneratePdf_CanceledStatus() {
+        invoice.setStatus(Status.CANCELED);
+        when(lineItemRepository.findByInvoice_Id(1L)).thenReturn(Arrays.asList());
+
+        byte[] pdf = invoicePdfService.generatePdf(invoice);
+
+        assertNotNull(pdf);
+        assertTrue(pdf.length > 0);
+    }
+
+    @Test
+    void testGeneratePdf_ThrowsException() {
+        // LineItem repository throwing an exception to trigger catch block
+        when(lineItemRepository.findByInvoice_Id(1L)).thenThrow(new RuntimeException("DB Error"));
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> invoicePdfService.generatePdf(invoice));
+        assertEquals("Failed to generate invoice PDF", ex.getMessage());
+    }
 }

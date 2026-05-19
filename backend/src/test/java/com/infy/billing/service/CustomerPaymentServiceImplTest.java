@@ -242,4 +242,90 @@ class CustomerPaymentServiceImplTest {
 
         assertThrows(RuntimeException.class, () -> customerPaymentService.deletePaymentMethod("test@test.com", 1L));
     }
+
+    @Test
+    void testAddPaymentMethod_Card_Visa() {
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+        when(paymentMethodRepository.findByCustomer_Id(1L)).thenReturn(Arrays.asList());
+        when(paymentMethodRepository.save(any(PaymentMethod.class))).thenAnswer(i -> i.getArgument(0));
+
+        AddPaymentMethodRequest request = new AddPaymentMethodRequest();
+        request.setPaymentType(PaymentType.CARD);
+        request.setCardNumber("4111111111111111");
+        request.setExpiryMonth(12);
+        request.setExpiryYear(2030);
+        request.setIsDefault(true);
+
+        PaymentMethodDTO dto = customerPaymentService.addPaymentMethod("test@test.com", request);
+
+        assertNotNull(dto);
+        assertEquals("VISA", dto.getCardBrand());
+    }
+
+    @Test
+    void testAddPaymentMethod_Card_Mastercard() {
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+        when(paymentMethodRepository.findByCustomer_Id(1L)).thenReturn(Arrays.asList());
+        when(paymentMethodRepository.save(any(PaymentMethod.class))).thenAnswer(i -> i.getArgument(0));
+
+        AddPaymentMethodRequest request = new AddPaymentMethodRequest();
+        request.setPaymentType(PaymentType.CARD);
+        request.setCardNumber("5111111111111111");
+        request.setExpiryMonth(12);
+        request.setExpiryYear(2030);
+        request.setIsDefault(true);
+
+        PaymentMethodDTO dto = customerPaymentService.addPaymentMethod("test@test.com", request);
+
+        assertNotNull(dto);
+        assertEquals("MASTERCARD", dto.getCardBrand());
+    }
+
+    @Test
+    void testAddPaymentMethod_Card_Amex() {
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+        when(paymentMethodRepository.findByCustomer_Id(1L)).thenReturn(Arrays.asList());
+        when(paymentMethodRepository.save(any(PaymentMethod.class))).thenAnswer(i -> i.getArgument(0));
+
+        AddPaymentMethodRequest request = new AddPaymentMethodRequest();
+        request.setPaymentType(PaymentType.CARD);
+        request.setCardNumber("341111111111111");
+        request.setExpiryMonth(12);
+        request.setExpiryYear(2030);
+        request.setIsDefault(true);
+
+        PaymentMethodDTO dto = customerPaymentService.addPaymentMethod("test@test.com", request);
+
+        assertNotNull(dto);
+        assertEquals("AMEX", dto.getCardBrand());
+    }
+
+    @Test
+    void testAddPaymentMethod_NotDefault_WithExisting() {
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+        
+        PaymentMethod existingMethod = new PaymentMethod();
+        existingMethod.setId(2L);
+        existingMethod.setIsDefault(true);
+        
+        when(paymentMethodRepository.findByCustomer_Id(1L)).thenReturn(Arrays.asList(existingMethod));
+        when(paymentMethodRepository.save(any(PaymentMethod.class))).thenAnswer(i -> i.getArgument(0));
+
+        AddPaymentMethodRequest request = new AddPaymentMethodRequest();
+        request.setPaymentType(PaymentType.CARD);
+        request.setCardNumber("1234567890124321");
+        request.setExpiryMonth(12);
+        request.setExpiryYear(2030);
+        request.setIsDefault(false);
+
+        PaymentMethodDTO dto = customerPaymentService.addPaymentMethod("test@test.com", request);
+
+        assertNotNull(dto);
+        assertFalse(dto.getIsDefault()); // The newly added method should NOT be default
+        verify(paymentMethodRepository, never()).save(existingMethod); // Existing method should not be updated
+    }
 }

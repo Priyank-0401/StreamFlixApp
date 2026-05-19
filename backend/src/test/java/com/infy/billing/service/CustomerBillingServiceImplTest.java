@@ -87,11 +87,36 @@ class CustomerBillingServiceImplTest {
     // ==================== GET INVOICE DETAIL ====================
     @Test
     void testGetInvoiceDetail_Success() {
+        invoice.setDueDate(LocalDate.now().plusDays(15));
+        InvoiceLineItem item1 = new InvoiceLineItem();
+        item1.setId(1L);
+        item1.setDescription("Item 1");
+        item1.setQuantity(1);
+        item1.setUnitPriceMinor(100L);
+        item1.setAmountMinor(100L);
+        item1.setPeriodStart(LocalDate.now());
+        item1.setPeriodEnd(LocalDate.now().plusDays(30));
+
+        InvoiceLineItem item2 = new InvoiceLineItem();
+        item2.setId(2L);
+        item2.setDescription("Item 2");
+        item2.setQuantity(1);
+        item2.setUnitPriceMinor(100L);
+        item2.setAmountMinor(100L);
+        item2.setPeriodStart(null);
+        item2.setPeriodEnd(null);
+
         when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
         when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
         when(invoiceRepository.findById(1L)).thenReturn(Optional.of(invoice));
+        when(invoiceLineItemRepository.findByInvoice_Id(1L)).thenReturn(Arrays.asList(item1, item2));
+
         InvoiceDTO dto = customerBillingService.getInvoiceDetail("test@test.com", 1L);
         assertEquals("INV-1", dto.getInvoiceNumber());
+        assertEquals(LocalDate.now().plusDays(15).toString(), dto.getDueDate());
+        assertEquals(2, dto.getLineItems().size());
+        assertEquals(LocalDate.now().toString(), dto.getLineItems().get(0).getPeriodStart());
+        assertNull(dto.getLineItems().get(1).getPeriodStart());
     }
 
     @Test
@@ -326,5 +351,82 @@ class CustomerBillingServiceImplTest {
     void testGetInvoices_UserNotFound() {
         when(userRepository.findByEmail("unknown@test.com")).thenReturn(Optional.empty());
         assertThrows(RuntimeException.class, () -> customerBillingService.getInvoices("unknown@test.com", null, null, null));
+    }
+
+    @Test
+    void testGetInvoices_CustomerNotFound() {
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.empty());
+        assertThrows(RuntimeException.class, () -> customerBillingService.getInvoices("test@test.com", null, null, null));
+    }
+
+    @Test
+    void testGetPayments_InvoiceNotFound() {
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+
+        Payment payment = new Payment();
+        payment.setId(1L);
+        payment.setInvoice(invoice);
+        payment.setAmountMinor(1000L);
+        payment.setCurrency("INR");
+        payment.setStatus(Status.SUCCESS);
+        payment.setAttemptNo(1);
+        payment.setCreatedAt(LocalDateTime.now());
+        when(paymentRepository.findById(1L)).thenReturn(Optional.of(payment));
+        when(invoiceRepository.findById(1L)).thenReturn(Optional.empty()); // Invoice not found!
+
+        List<PaymentDTO> result = customerBillingService.getPayments("test@test.com");
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("N/A", result.get(0).getInvoiceNumber());
+    }
+
+    @Test
+    void testGetCreditNotes_InvoiceNotFound() {
+        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+
+        CreditNote cn = new CreditNote();
+        cn.setId(1L);
+        cn.setInvoice(invoice);
+        cn.setCreditNoteNumber("CN-1");
+        cn.setReason("Refund");
+        cn.setAmountMinor(500L);
+        cn.setStatus(Status.ISSUED);
+        cn.setCreatedAt(LocalDateTime.now());
+        when(creditNoteRepository.findById(1L)).thenReturn(Optional.of(cn));
+        when(invoiceRepository.findById(1L)).thenReturn(Optional.empty()); // Invoice not found!
+
+        List<CreditNoteDTO> result = customerBillingService.getCreditNotes("test@test.com");
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("N/A", result.get(0).getInvoiceNumber());
+    }
+
+    @Test
+    void testValidateCoupon_AllNullFields() {
+        Coupon nullCoupon = Coupon.builder()
+                .id(99L).code("NULLFIELDS").name("Null Coupon").type(CouponType.PERCENT)
+                .amount(10L).status(Status.ACTIVE).validFrom(LocalDate.now().minusDays(1)).validTo(null)
+                .maxRedemptions(null).redeemedCount(0).build();
+        when(couponRepository.findByCodeAndStatus("NULLFIELDS", Status.ACTIVE)).thenReturn(Optional.of(nullCoupon));
+
+        CouponDTO dto = customerBillingService.validateCoupon("NULLFIELDS");
+        assertEquals("NULLFIELDS", dto.getCode());
+        assertNull(dto.getValidTo());
+    }
+
+    @Test
+    void testGetAvailableCoupons_AllNullFields() {
+        Coupon nullCoupon = Coupon.builder()
+                .id(99L).code("NULLFIELDS").name("Null Coupon").type(CouponType.PERCENT)
+                .amount(10L).status(Status.ACTIVE).validFrom(LocalDate.now().minusDays(1)).validTo(null)
+                .maxRedemptions(null).redeemedCount(0).build();
+        when(couponRepository.findAll()).thenReturn(Arrays.asList(nullCoupon));
+
+        List<CouponDTO> result = customerBillingService.getAvailableCoupons();
+        assertEquals(1, result.size());
+        assertEquals("NULLFIELDS", result.get(0).getCode());
     }
 }

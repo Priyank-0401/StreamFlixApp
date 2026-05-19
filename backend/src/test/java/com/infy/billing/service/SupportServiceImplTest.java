@@ -273,4 +273,267 @@ class SupportServiceImplTest {
 
         verify(notificationRepository, times(1)).save(any(Notification.class));
     }
+
+    @Test
+    void testGetCustomerDetails_CreditNoteInvoiceNotFound() {
+        when(customerRepository.findById(1L)).thenReturn(Optional.of(customer));
+        when(subscriptionRepository.findByCustomer_Id(1L)).thenReturn(Arrays.asList(subscription));
+        
+        Invoice invoice = Invoice.builder()
+                .id(1L)
+                .invoiceNumber("INV-001")
+                .subscription(subscription)
+                .status(Status.ACTIVE)
+                .billingReason(com.infy.billing.enums.BillingReason.SUBSCRIPTION_CYCLE)
+                .build();
+        
+        when(invoiceRepository.findByCustomer_IdOrderByIssueDateDesc(1L)).thenReturn(Arrays.asList(invoice));
+        when(usageRecordRepository.findBySubscription_Customer_Id(1L)).thenReturn(Arrays.asList());
+
+        com.infy.billing.entity.CreditNote creditNote = new com.infy.billing.entity.CreditNote();
+        creditNote.setId(1L);
+        creditNote.setCreditNoteNumber("CN-001");
+        creditNote.setInvoice(invoice);
+        creditNote.setReason("Test refund");
+        creditNote.setAmountMinor(1000L);
+        creditNote.setStatus(Status.ACTIVE);
+        creditNote.setCreatedAt(java.time.LocalDateTime.now());
+
+        when(creditNoteRepository.findByInvoice_Customer_Id(1L)).thenReturn(Arrays.asList(creditNote));
+        // Return empty for invoice repository lookup
+        when(invoiceRepository.findById(1L)).thenReturn(Optional.empty());
+
+        CustomerDetailResponse response = supportService.getCustomerDetails(1L);
+
+        assertNotNull(response);
+        assertEquals(1, response.getCreditNotes().size());
+        assertEquals("N/A", response.getCreditNotes().get(0).getInvoiceNumber());
+    }
+
+    @Test
+    void testApproveCancellationRequest_NotPending() {
+        CancellationRequest request = new CancellationRequest();
+        request.setId(1L);
+        request.setStatus(CancellationRequestStatus.APPROVED);
+
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+
+        when(cancellationRequestRepository.findById(1L)).thenReturn(Optional.of(request));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> supportService.approveCancellationRequest(1L, "agent@test.com", input));
+        assertEquals("Cancellation request is not pending", ex.getMessage());
+    }
+
+    @Test
+    void testApproveCancellationRequest_AgentNotFound() {
+        CancellationRequest request = new CancellationRequest();
+        request.setId(1L);
+        request.setStatus(CancellationRequestStatus.PENDING);
+
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+
+        when(cancellationRequestRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(userRepository.findByEmail("agent@test.com")).thenReturn(Optional.empty());
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> supportService.approveCancellationRequest(1L, "agent@test.com", input));
+        assertEquals("Agent not found", ex.getMessage());
+    }
+
+    @Test
+    void testApproveCancellationRequest_AtPeriodEnd() {
+        CancellationRequest request = new CancellationRequest();
+        request.setId(1L);
+        request.setSubscription(subscription);
+        request.setStatus(CancellationRequestStatus.PENDING);
+        request.setAtPeriodEnd(true);
+
+        User agent = User.builder().id(2L).email("agent@test.com").build();
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+        input.setAgentNotes("Approved period end");
+
+        when(cancellationRequestRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(userRepository.findByEmail("agent@test.com")).thenReturn(Optional.of(agent));
+        
+        CancellationResponse cancelResponse = new CancellationResponse(false, 0L, "USD", null, null, "Scheduled cancellation");
+        when(customerSubscriptionService.cancelSubscription("john@test.com", true)).thenReturn(cancelResponse);
+
+        CancellationResponse response = supportService.approveCancellationRequest(1L, "agent@test.com", input);
+
+        assertNotNull(response);
+        assertFalse(response.isRefundIssued());
+        assertEquals(CancellationRequestStatus.APPROVED, request.getStatus());
+        verify(notificationRepository, times(1)).save(any(Notification.class));
+    }
+
+    @Test
+    void testApproveCancellationRequest_ImmediateNoRefund() {
+        CancellationRequest request = new CancellationRequest();
+        request.setId(1L);
+        request.setSubscription(subscription);
+        request.setStatus(CancellationRequestStatus.PENDING);
+        request.setAtPeriodEnd(false);
+
+        User agent = User.builder().id(2L).email("agent@test.com").build();
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+
+        when(cancellationRequestRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(userRepository.findByEmail("agent@test.com")).thenReturn(Optional.of(agent));
+        
+        CancellationResponse cancelResponse = new CancellationResponse(false, 0L, "USD", null, null, "Canceled immediately, no refund");
+        when(customerSubscriptionService.cancelSubscription("john@test.com", false)).thenReturn(cancelResponse);
+
+        CancellationResponse response = supportService.approveCancellationRequest(1L, "agent@test.com", input);
+
+        assertNotNull(response);
+        assertFalse(response.isRefundIssued());
+        verify(notificationRepository, times(1)).save(any(Notification.class));
+    }
+
+    @Test
+    void testApproveCancellationRequest_InvalidCurrencyCatchBlock() {
+        CancellationRequest request = new CancellationRequest();
+        request.setId(1L);
+        request.setSubscription(subscription);
+        request.setStatus(CancellationRequestStatus.PENDING);
+        request.setAtPeriodEnd(false);
+
+        User agent = User.builder().id(2L).email("agent@test.com").build();
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+
+        when(cancellationRequestRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(userRepository.findByEmail("agent@test.com")).thenReturn(Optional.of(agent));
+        
+        // "XYZ" triggers catch block for currency symbol lookup
+        CancellationResponse cancelResponse = new CancellationResponse(true, 500L, "XYZ", "ref123", "CN-001", "Refund processed");
+        when(customerSubscriptionService.cancelSubscription("john@test.com", false)).thenReturn(cancelResponse);
+
+        CancellationResponse response = supportService.approveCancellationRequest(1L, "agent@test.com", input);
+
+        assertNotNull(response);
+        assertTrue(response.isRefundIssued());
+        assertEquals("XYZ", response.getCurrency());
+        verify(notificationRepository, times(1)).save(any(Notification.class));
+    }
+
+    @Test
+    void testRejectCancellationRequest_NotPending() {
+        CancellationRequest request = new CancellationRequest();
+        request.setId(1L);
+        request.setStatus(CancellationRequestStatus.APPROVED);
+
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+
+        when(cancellationRequestRepository.findById(1L)).thenReturn(Optional.of(request));
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> supportService.rejectCancellationRequest(1L, "agent@test.com", input));
+        assertEquals("Cancellation request is not pending", ex.getMessage());
+    }
+
+    @Test
+    void testRejectCancellationRequest_AgentNotFound() {
+        CancellationRequest request = new CancellationRequest();
+        request.setId(1L);
+        request.setStatus(CancellationRequestStatus.PENDING);
+
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+
+        when(cancellationRequestRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(userRepository.findByEmail("agent@test.com")).thenReturn(Optional.empty());
+
+        RuntimeException ex = assertThrows(RuntimeException.class,
+                () -> supportService.rejectCancellationRequest(1L, "agent@test.com", input));
+        assertEquals("Agent not found", ex.getMessage());
+    }
+
+    @Test
+    void testRejectCancellationRequest_EmptyNotes() {
+        CancellationRequest request = new CancellationRequest();
+        request.setId(1L);
+        request.setSubscription(subscription);
+        request.setStatus(CancellationRequestStatus.PENDING);
+
+        User agent = User.builder().id(2L).email("agent@test.com").build();
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+        input.setAgentNotes(""); // empty notes trigger default notification message
+
+        when(cancellationRequestRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(userRepository.findByEmail("agent@test.com")).thenReturn(Optional.of(agent));
+
+        supportService.rejectCancellationRequest(1L, "agent@test.com", input);
+
+        assertEquals(CancellationRequestStatus.REJECTED, request.getStatus());
+        verify(notificationRepository, times(1)).save(any(Notification.class));
+    }
+
+    @Test
+    void testApproveCancellationRequest_WithRefundValidCurrency() {
+        CancellationRequest request = new CancellationRequest();
+        request.setId(1L);
+        request.setSubscription(subscription);
+        request.setStatus(CancellationRequestStatus.PENDING);
+        request.setAtPeriodEnd(false);
+
+        User agent = User.builder().id(2L).email("agent@test.com").build();
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+        input.setAgentNotes("Approved with refund");
+
+        when(cancellationRequestRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(userRepository.findByEmail("agent@test.com")).thenReturn(Optional.of(agent));
+        
+        // Valid currency "USD" — should succeed in Currency.getInstance
+        CancellationResponse cancelResponse = new CancellationResponse(true, 1500L, "USD", "ref_123", "CN-002", "Refund processed");
+        when(customerSubscriptionService.cancelSubscription("john@test.com", false)).thenReturn(cancelResponse);
+
+        CancellationResponse response = supportService.approveCancellationRequest(1L, "agent@test.com", input);
+
+        assertNotNull(response);
+        assertTrue(response.isRefundIssued());
+        assertEquals(1500L, response.getRefundAmountMinor());
+        verify(notificationRepository, times(1)).save(any(Notification.class));
+    }
+
+    @Test
+    void testRejectCancellationRequest_WithNotes() {
+        CancellationRequest request = new CancellationRequest();
+        request.setId(1L);
+        request.setSubscription(subscription);
+        request.setStatus(CancellationRequestStatus.PENDING);
+
+        User agent = User.builder().id(2L).email("agent@test.com").build();
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+        input.setAgentNotes("Customer retention offer applied");
+
+        when(cancellationRequestRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(userRepository.findByEmail("agent@test.com")).thenReturn(Optional.of(agent));
+
+        supportService.rejectCancellationRequest(1L, "agent@test.com", input);
+
+        assertEquals(CancellationRequestStatus.REJECTED, request.getStatus());
+        assertEquals("Customer retention offer applied", request.getAgentNotes());
+        verify(notificationRepository, times(1)).save(any(Notification.class));
+    }
+
+    @Test
+    void testRejectCancellationRequest_NullNotes() {
+        CancellationRequest request = new CancellationRequest();
+        request.setId(1L);
+        request.setSubscription(subscription);
+        request.setStatus(CancellationRequestStatus.PENDING);
+
+        User agent = User.builder().id(2L).email("agent@test.com").build();
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+        input.setAgentNotes(null); // null notes trigger default notification message
+
+        when(cancellationRequestRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(userRepository.findByEmail("agent@test.com")).thenReturn(Optional.of(agent));
+
+        supportService.rejectCancellationRequest(1L, "agent@test.com", input);
+
+        assertEquals(CancellationRequestStatus.REJECTED, request.getStatus());
+        verify(notificationRepository, times(1)).save(any(Notification.class));
+    }
 }
+
