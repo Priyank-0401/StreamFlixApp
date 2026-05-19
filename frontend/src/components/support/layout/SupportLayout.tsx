@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Activity,
   AlertTriangle,
+  AlertCircle,
 } from 'lucide-react';
 import '../../../styles/admin.css';
 
@@ -19,6 +20,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { section: 'Main', label: 'Customer Lookup', path: '/support', icon: <Users size={18} /> },
+  { section: 'Billing', label: 'Cancellation Requests', path: '/support/cancellation-requests', icon: <AlertCircle size={18} /> },
   { section: 'System', label: 'Audit Logs', path: '/support/audit-logs', icon: <ClipboardList size={18} /> },
   { section: 'System', label: 'System Status', path: '/support/status', icon: <Activity size={18} /> },
   { section: 'Billing', label: 'Past Due Subs', path: '/support/past-due', icon: <AlertTriangle size={18} /> },
@@ -26,6 +28,7 @@ const navItems: NavItem[] = [
 
 const pageTitles: Record<string, string> = {
   '/support': 'Customer Lookup',
+  '/support/cancellation-requests': 'Cancellation Requests',
   '/support/audit-logs': 'Audit Logs',
   '/support/status': 'System Status',
   '/support/past-due': 'Past Due Subscriptions',

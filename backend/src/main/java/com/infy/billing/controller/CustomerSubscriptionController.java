@@ -40,12 +40,22 @@ public class CustomerSubscriptionController {
        return ResponseEntity.ok(subscriptionService.upgradeSubscription(user.getEmail(), request));
    }
 
-    @DeleteMapping("/subscription")
-    public ResponseEntity<CancellationResponse> cancelSubscription(
+    @PostMapping("/subscription/cancel-request")
+    public ResponseEntity<CancellationRequestDTO> createCancellationRequest(
             @AuthenticationPrincipal User user,
-            @RequestParam(defaultValue = "true") boolean atPeriodEnd) {
-        CancellationResponse response = subscriptionService.cancelSubscription(user.getEmail(), atPeriodEnd);
-        return ResponseEntity.ok(response);
+            @RequestBody CancellationRequestInput request) {
+        return ResponseEntity.ok(subscriptionService.createCancellationRequest(user.getEmail(), request));
+    }
+
+    @PostMapping("/subscription/cancel-request/withdraw")
+    public ResponseEntity<CancellationRequestDTO> withdrawCancellationRequest(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(subscriptionService.withdrawCancellationRequest(user.getEmail()));
+    }
+
+    @GetMapping("/subscription/cancel-request")
+    public ResponseEntity<CancellationRequestDTO> getPendingCancellationRequest(@AuthenticationPrincipal User user) {
+        CancellationRequestDTO req = subscriptionService.getPendingCancellationRequest(user.getEmail());
+        return req != null ? ResponseEntity.ok(req) : ResponseEntity.noContent().build();
     }
 
    @PutMapping("/subscription/pause")

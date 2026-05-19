@@ -24,9 +24,18 @@ import com.infy.billing.repository.UsageRecordRepository;
 import com.infy.billing.repository.AuditLogRepository;
 import com.infy.billing.repository.BillingJobRepository;
 import com.infy.billing.repository.DunningRetryLogRepository;
+import com.infy.billing.repository.CancellationRequestRepository;
+import com.infy.billing.repository.UserRepository;
+import com.infy.billing.entity.Notification;
+import com.infy.billing.repository.NotificationRepository;
+import com.infy.billing.dto.customer.CancellationRequestDTO;
+import com.infy.billing.dto.customer.CancellationResponse;
+import com.infy.billing.request.ProcessCancellationRequestInput;
+import com.infy.billing.enums.CancellationRequestStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -42,6 +51,10 @@ public class SupportServiceImpl implements SupportService {
      private final BillingJobRepository billingJobRepository;
      private final DunningRetryLogRepository dunningRetryLogRepository;
      private final CreditNoteRepository creditNoteRepository;
+     private final CancellationRequestRepository cancellationRequestRepository;
+     private final UserRepository userRepository;
+     private final CustomerSubscriptionService customerSubscriptionService;
+     private final NotificationRepository notificationRepository;
  
      @Override
      public List<CustomerSearchResponse> searchCustomers(String query) {
@@ -185,5 +198,121 @@ public class SupportServiceImpl implements SupportService {
                 .stream()
                 .map(this::mapToSubscriptionDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<CancellationRequestDTO> getPendingCancellationRequests() {
+        return cancellationRequestRepository.findByStatus(CancellationRequestStatus.PENDING)
+                .stream()
+                .map(this::mapToCancellationRequestDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public CancellationResponse approveCancellationRequest(Long requestId, String agentEmail, ProcessCancellationRequestInput input) {
+        com.infy.billing.entity.CancellationRequest request = cancellationRequestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Cancellation request not found"));
+
+        if (request.getStatus() != CancellationRequestStatus.PENDING) {
+            throw new RuntimeException("Cancellation request is not pending");
+        }
+
+        User agent = userRepository.findByEmail(agentEmail)
+                .orElseThrow(() -> new RuntimeException("Agent not found"));
+
+        request.setStatus(CancellationRequestStatus.APPROVED);
+        request.setProcessedBy(agent);
+        request.setProcessedAt(LocalDateTime.now());
+        request.setAgentNotes(input.getAgentNotes());
+        cancellationRequestRepository.save(request);
+
+        // Perform actual cancellation
+        String customerEmail = request.getSubscription().getCustomer().getUser().getEmail();
+        CancellationResponse response = customerSubscriptionService.cancelSubscription(customerEmail, request.getAtPeriodEnd());
+
+        // Create notification
+        String subject = "Subscription Cancellation Approved";
+        String body;
+        if (request.getAtPeriodEnd()) {
+            body = "Your subscription cancellation request has been approved. Your subscription will remain active until the end of the current billing period on " + request.getSubscription().getCurrentPeriodEnd() + ".";
+        } else {
+            body = "Your subscription has been canceled immediately.";
+            if (response.isRefundIssued()) {
+                double refundAmt = response.getRefundAmountMinor() / 100.0;
+                String symbol = "USD".equalsIgnoreCase(response.getCurrency()) ? "$" : "GBP".equalsIgnoreCase(response.getCurrency()) ? "£" : "₹";
+                body += String.format(" A refund of %s%.2f has been processed to your payment method.", symbol, refundAmt);
+            } else {
+                body += " No refund was applicable.";
+            }
+        }
+
+        Notification notification = Notification.builder()
+                .customer(request.getSubscription().getCustomer())
+                .type("CANCELLATION_APPROVED")
+                .subject(subject)
+                .body(body)
+                .channel(com.infy.billing.enums.Channel.EMAIL)
+                .status(com.infy.billing.enums.NotificationStatus.SENT)
+                .scheduledAt(LocalDateTime.now())
+                .sentAt(LocalDateTime.now())
+                .build();
+        notificationRepository.save(notification);
+
+        return response;
+    }
+
+    @Override
+    public void rejectCancellationRequest(Long requestId, String agentEmail, ProcessCancellationRequestInput input) {
+        com.infy.billing.entity.CancellationRequest request = cancellationRequestRepository.findById(requestId)
+                .orElseThrow(() -> new RuntimeException("Cancellation request not found"));
+
+        if (request.getStatus() != CancellationRequestStatus.PENDING) {
+            throw new RuntimeException("Cancellation request is not pending");
+        }
+
+        User agent = userRepository.findByEmail(agentEmail)
+                .orElseThrow(() -> new RuntimeException("Agent not found"));
+
+        request.setStatus(CancellationRequestStatus.REJECTED);
+        request.setProcessedBy(agent);
+        request.setProcessedAt(LocalDateTime.now());
+        request.setAgentNotes(input.getAgentNotes());
+        cancellationRequestRepository.save(request);
+
+        // Create notification
+        String subject = "Cancellation Request Declined";
+        String body = "Your subscription cancellation request has been declined by support. " + 
+                      (input.getAgentNotes() != null && !input.getAgentNotes().isBlank() 
+                       ? "Agent notes: " + input.getAgentNotes() 
+                       : "Please contact support for more details.");
+
+        Notification notification = Notification.builder()
+                .customer(request.getSubscription().getCustomer())
+                .type("CANCELLATION_REJECTED")
+                .subject(subject)
+                .body(body)
+                .channel(com.infy.billing.enums.Channel.EMAIL)
+                .status(com.infy.billing.enums.NotificationStatus.SENT)
+                .scheduledAt(LocalDateTime.now())
+                .sentAt(LocalDateTime.now())
+                .build();
+        notificationRepository.save(notification);
+    }
+
+    private CancellationRequestDTO mapToCancellationRequestDTO(com.infy.billing.entity.CancellationRequest request) {
+        CancellationRequestDTO dto = new CancellationRequestDTO();
+        dto.setRequestId(request.getId());
+        dto.setSubscriptionId(request.getSubscription().getId());
+        dto.setPlanName(request.getSubscription().getPlan().getName());
+        dto.setCustomerEmail(request.getSubscription().getCustomer().getUser().getEmail());
+        dto.setCustomerName(request.getSubscription().getCustomer().getUser().getFullName());
+        dto.setReason(request.getReason());
+        dto.setStatus(request.getStatus());
+        dto.setAtPeriodEnd(request.getAtPeriodEnd());
+        dto.setCreatedAt(request.getCreatedAt() != null ? request.getCreatedAt().toString() : null);
+        dto.setProcessedByEmail(request.getProcessedBy() != null ? request.getProcessedBy().getEmail() : null);
+        dto.setProcessedAt(request.getProcessedAt() != null ? request.getProcessedAt().toString() : null);
+        dto.setAgentNotes(request.getAgentNotes());
+        return dto;
     }
 }

@@ -364,7 +364,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         
         Optional<Subscription> dashboardEligibleSub = subscriptionRepository
                 .findByCustomer_IdAndStatusIn(customer.getId(),
-                        java.util.List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED, Status.ON_HOLD))
+                        java.util.List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED, Status.ON_HOLD, Status.CANCELED))
                 .stream().findAny();
 
         Optional<Subscription> draftSub = subscriptionRepository

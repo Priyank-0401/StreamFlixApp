@@ -51,6 +51,7 @@ import { SupportDashboardPage } from './pages/support/SupportDashboardPage';
 import { AuditLogsPage } from './pages/support/AuditLogsPage';
 import { SystemStatusPage } from './pages/support/SystemStatusPage';
 import { PastDueSubscriptionsPage } from './pages/support/PastDueSubscriptionsPage';
+import { CancellationRequestsPage } from './pages/support/CancellationRequestsPage';
 
 
 function App() {
@@ -163,6 +164,7 @@ function App() {
             }
           >
             <Route index element={<SupportDashboardPage />} />
+            <Route path="cancellation-requests" element={<CancellationRequestsPage />} />
             <Route path="audit-logs" element={<AuditLogsPage />} />
             <Route path="status" element={<SystemStatusPage />} />
             <Route path="past-due" element={<PastDueSubscriptionsPage />} />

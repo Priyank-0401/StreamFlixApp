@@ -228,6 +228,16 @@ export const LandingPage: React.FC = () => {
               const isFeatured = plan.name.includes('Premium');
               const baseName = plan.name.replace(' Monthly', '').replace(' Yearly', '');
 
+              const planLink = isAuthenticated
+                ? (user?.role === 'ADMIN'
+                    ? '/admin'
+                    : user?.role === 'FINANCE'
+                      ? '/finance'
+                      : isCustomer
+                        ? '/dashboard/subscription'
+                        : `/subscribe?planId=${plan.planId}&step=1`)
+                : `/register?planId=${plan.planId}`;
+
               return (
                 <div key={plan.planId} className={`sf-plan-card ${isFeatured ? 'featured' : ''}`}>
                   {isPopular && <div className="sf-plan-badge" style={{ backgroundColor: '#4B5563' }}>Popular</div>}
@@ -244,7 +254,7 @@ export const LandingPage: React.FC = () => {
                       <li key={idx}><Check size={16} /> {feat}</li>
                     ))}
                   </ul>
-                  <Link to={`/register?planId=${plan.planId}`} className="sf-plan-btn">Choose {baseName}</Link>
+                  <Link to={planLink} className="sf-plan-btn">Choose {baseName}</Link>
                 </div>
               );
             })

@@ -443,7 +443,7 @@ public class SubscriptionFlowServiceImplTest {
                 when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
                 when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L),
                                 eq(List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED,
-                                                Status.ON_HOLD))))
+                                                Status.ON_HOLD, Status.CANCELED))))
                                 .thenReturn(List.of(activeSub));
                 when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), eq(List.of(Status.DRAFT))))
                                 .thenReturn(Collections.emptyList());
@@ -459,7 +459,7 @@ public class SubscriptionFlowServiceImplTest {
                 when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
                 when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L),
                                 eq(List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED,
-                                                Status.ON_HOLD))))
+                                                Status.ON_HOLD, Status.CANCELED))))
                                 .thenReturn(Collections.emptyList());
                 when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), eq(List.of(Status.DRAFT))))
                                 .thenReturn(List.of(draftSub));

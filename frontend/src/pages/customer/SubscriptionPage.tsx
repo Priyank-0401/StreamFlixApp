@@ -32,6 +32,12 @@ export const SubscriptionPage: React.FC = () => {
   const [refundInfo, setRefundInfo] = useState<CustomerService.CancellationResponse | null>(null);
   const [pauseDate, setPauseDate] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Cancellation Request State
+  const [pendingCancelRequest, setPendingCancelRequest] = useState<CustomerService.CancellationRequest | null>(null);
+  const [showCancelRequestModal, setShowCancelRequestModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(true);
   
   // Confirm Dialog State
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -41,6 +47,7 @@ export const SubscriptionPage: React.FC = () => {
     onConfirm: () => void;
     isDanger?: boolean;
     confirmLabel?: string;
+    cancelLabel?: string;
   }>({
     isOpen: false,
     title: '',
@@ -52,20 +59,33 @@ export const SubscriptionPage: React.FC = () => {
     setConfirmDialog(prev => ({ ...prev, isOpen: false }));
   };
 
+  const showAlert = (title: string, message: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title,
+      message,
+      confirmLabel: 'OK',
+      cancelLabel: '', // hides the cancel button
+      onConfirm: closeConfirmDialog,
+    });
+  };
+
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
-      const [sub, plans, addons] = await Promise.all([
+      const [sub, plans, addons, cancelReq] = await Promise.all([
         CustomerService.getCurrentSubscription(),
         CustomerService.getAvailablePlans(),
-        CustomerService.getAvailableAddOns()
+        CustomerService.getAvailableAddOns(),
+        CustomerService.getPendingCancellationRequest()
       ]);
       setSubscription(sub);
       setAvailablePlans(plans);
       setAvailableAddOns(addons);
+      setPendingCancelRequest(cancelReq);
     } catch (error) {
       console.error('Failed to load subscription data:', error);
     } finally {
@@ -89,40 +109,68 @@ export const SubscriptionPage: React.FC = () => {
       setShowUpgradeModal(false);
     } catch (error) {
       console.error('handleUpgrade error:', error);
-      alert('Failed to upgrade plan. Please try again.');
+      showAlert('Error', 'Failed to upgrade plan. Please try again.');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleCancel = (atPeriodEnd: boolean) => {
-    const title = atPeriodEnd ? 'Cancel at Period End' : 'Cancel Immediately';
-    const message = atPeriodEnd 
-      ? 'Are you sure you want to cancel? You can continue using your subscription until the end of the current billing period.' 
-      : 'Are you sure you want to cancel immediately? Your subscription will end right away.';
-    
+    setCancelAtPeriodEnd(atPeriodEnd);
+    setCancelReason('');
+    setShowCancelRequestModal(true);
+  };
+
+  const handleSubmitCancelRequest = async () => {
+    if (!cancelReason.trim()) {
+      showAlert('Validation Error', 'Please provide a reason for cancellation.');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await CustomerService.submitCancellationRequest(cancelReason, cancelAtPeriodEnd);
+      setShowCancelRequestModal(false);
+      setConfirmDialog({
+        isOpen: true,
+        title: 'Request Submitted',
+        message: 'Cancellation request submitted to support for approval.',
+        confirmLabel: 'OK',
+        cancelLabel: '',
+        onConfirm: () => {
+          closeConfirmDialog();
+          loadData();
+        }
+      });
+    } catch (error) {
+      showAlert('Error', 'Failed to submit cancellation request.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleWithdrawCancellation = () => {
     setConfirmDialog({
       isOpen: true,
-      title,
-      message,
-      isDanger: true,
-      confirmLabel: 'Cancel Subscription',
+      title: 'Withdraw Cancellation Request',
+      message: 'Are you sure you want to withdraw your pending cancellation request?',
       onConfirm: async () => {
         closeConfirmDialog();
         setActionLoading(true);
         try {
-          const response = await CustomerService.cancelSubscription({ atPeriodEnd });
-          if (!atPeriodEnd && response.refundIssued) {
-            setRefundInfo(response);
-            setShowRefundModal(true);
-          } else if (!atPeriodEnd) {
-            await refreshUserStatus();
-            navigate('/');
-          } else {
-            await loadData();
-          }
+          await CustomerService.withdrawCancellationRequest();
+          setConfirmDialog({
+            isOpen: true,
+            title: 'Request Withdrawn',
+            message: 'Cancellation request successfully withdrawn.',
+            confirmLabel: 'OK',
+            cancelLabel: '',
+            onConfirm: () => {
+              closeConfirmDialog();
+              loadData();
+            }
+          });
         } catch (error) {
-          alert('Failed to cancel subscription.');
+          showAlert('Error', 'Failed to withdraw cancellation request.');
         } finally {
           setActionLoading(false);
         }
@@ -139,7 +187,7 @@ export const SubscriptionPage: React.FC = () => {
 
   const handlePause = async () => {
     if (!pauseDate) {
-      alert('Please select a resume date');
+      showAlert('Validation Error', 'Please select a resume date');
       return;
     }
     setActionLoading(true);
@@ -148,7 +196,7 @@ export const SubscriptionPage: React.FC = () => {
       await loadData();
       setShowPauseModal(false);
     } catch (error) {
-      alert('Failed to pause subscription.');
+      showAlert('Error', 'Failed to pause subscription.');
     } finally {
       setActionLoading(false);
     }
@@ -160,7 +208,7 @@ export const SubscriptionPage: React.FC = () => {
       await CustomerService.resumeSubscription();
       await loadData();
     } catch (error) {
-      alert('Failed to resume subscription.');
+      showAlert('Error', 'Failed to resume subscription.');
     } finally {
       setActionLoading(false);
     }
@@ -172,7 +220,7 @@ export const SubscriptionPage: React.FC = () => {
       await CustomerService.addAddOn(addonId);
       await loadData();
     } catch (error) {
-      alert('Failed to add add-on.');
+      showAlert('Error', 'Failed to add add-on.');
     } finally {
       setActionLoading(false);
     }
@@ -192,7 +240,7 @@ export const SubscriptionPage: React.FC = () => {
           await CustomerService.removeAddOn(addonId);
           await loadData();
         } catch (error) {
-          alert('Failed to remove add-on.');
+          showAlert('Error', 'Failed to remove add-on.');
         } finally {
           setActionLoading(false);
         }
@@ -346,6 +394,28 @@ export const SubscriptionPage: React.FC = () => {
           </div>
         )}
 
+        {pendingCancelRequest && (
+          <div className="alert-warning" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={20} />
+              <div>
+                <p style={{ margin: 0, fontWeight: 'bold' }}>Subscription Cancellation Pending Support Approval</p>
+                <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8' }}>
+                  Requested {pendingCancelRequest.atPeriodEnd ? 'at Period End' : 'Immediately'} for reason: "{pendingCancelRequest.reason}"
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleWithdrawCancellation}
+              className="btn-secondary"
+              style={{ padding: '6px 12px', fontSize: '13px' }}
+              disabled={actionLoading}
+            >
+              Withdraw Request
+            </button>
+          </div>
+        )}
+
         {/* Action Buttons */}
         <div className="subscription-actions">
           {!subscription.cancelAtPeriodEnd && (
@@ -356,7 +426,7 @@ export const SubscriptionPage: React.FC = () => {
                 setShowUpgradeModal(true);
               }}
               className="btn-primary"
-              disabled={actionLoading}
+              disabled={actionLoading || !!pendingCancelRequest}
             >
               <TrendingUp size={18} /> Change Plan
             </button>
@@ -366,7 +436,7 @@ export const SubscriptionPage: React.FC = () => {
             <button
               onClick={() => setShowPauseModal(true)}
               className="btn-secondary"
-              disabled={actionLoading}
+              disabled={actionLoading || !!pendingCancelRequest}
             >
               <Pause size={18} /> Pause
             </button>
@@ -376,7 +446,7 @@ export const SubscriptionPage: React.FC = () => {
             <button
               onClick={handleResume}
               className="btn-success"
-              disabled={actionLoading}
+              disabled={actionLoading || !!pendingCancelRequest}
             >
               <Play size={18} /> Resume
             </button>
@@ -387,14 +457,14 @@ export const SubscriptionPage: React.FC = () => {
               <button
                 onClick={() => handleCancel(true)}
                 className="btn-danger-outline"
-                disabled={actionLoading}
+                disabled={actionLoading || !!pendingCancelRequest}
               >
                 Cancel at Period End
               </button>
               <button
                 onClick={() => handleCancel(false)}
                 className="btn-danger"
-                disabled={actionLoading}
+                disabled={actionLoading || !!pendingCancelRequest}
                 style={{ marginLeft: '12px' }}
               >
                 Cancel Immediately
@@ -423,7 +493,7 @@ export const SubscriptionPage: React.FC = () => {
                 <button
                   onClick={() => handleRemoveAddOn(addon.addonId)}
                   className="btn-icon-danger"
-                  disabled={actionLoading}
+                  disabled={actionLoading || !!pendingCancelRequest}
                   title="Remove add-on"
                 >
                   <Trash2 size={18} />
@@ -461,7 +531,7 @@ export const SubscriptionPage: React.FC = () => {
                   <button
                     onClick={() => handleAddAddOn(addon.addOnId)}
                     className="btn-icon-add"
-                    disabled={actionLoading}
+                    disabled={actionLoading || !!pendingCancelRequest}
                     title="Add add-on"
                   >
                     <Plus size={20} />
@@ -596,38 +666,38 @@ export const SubscriptionPage: React.FC = () => {
             <div style={{ textAlign: 'center', padding: '1rem 0' }}>
               <div style={{
                 width: 64, height: 64, borderRadius: '50%',
-                background: 'linear-gradient(135deg, #22c55e20, #22c55e10)',
+                background: '#f0fdf4',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 1rem', border: '2px solid #22c55e30'
+                margin: '0 auto 1rem', border: '2px solid #bbf7d0'
               }}>
                 <Check size={32} style={{ color: '#22c55e' }} />
               </div>
-              <p style={{ color: '#e2e8f0', fontSize: '16px', marginBottom: '0.5rem' }}>
+              <p style={{ color: '#1e293b', fontSize: '16px', marginBottom: '0.5rem', fontWeight: 600 }}>
                 Your subscription has been canceled.
               </p>
-              <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '1.5rem' }}>
+              <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '1.5rem' }}>
                 A refund has been processed to your original payment method.
               </p>
               <div style={{
-                background: '#1e293b', borderRadius: '12px', padding: '1rem',
-                border: '1px solid #334155', textAlign: 'left'
+                background: '#f8fafc', borderRadius: '12px', padding: '1rem',
+                border: '1px solid #e2e8f0', textAlign: 'left'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <span style={{ color: '#94a3b8', fontSize: '13px' }}>Refund Amount</span>
+                  <span style={{ color: '#64748b', fontSize: '13px' }}>Refund Amount</span>
                   <span style={{ color: '#22c55e', fontWeight: 600, fontSize: '15px' }}>
                     {formatAmount(refundInfo.refundAmountMinor, refundInfo.currency)}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                  <span style={{ color: '#94a3b8', fontSize: '13px' }}>Transaction ID</span>
-                  <span style={{ color: '#cbd5e1', fontSize: '13px', fontFamily: 'monospace' }}>
+                  <span style={{ color: '#64748b', fontSize: '13px' }}>Transaction ID</span>
+                  <span style={{ color: '#334155', fontSize: '13px', fontFamily: 'monospace' }}>
                     {refundInfo.refundGatewayRef}
                   </span>
                 </div>
                 {refundInfo.creditNoteNumber && (
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#94a3b8', fontSize: '13px' }}>Credit Note</span>
-                    <span style={{ color: '#cbd5e1', fontSize: '13px', fontFamily: 'monospace' }}>
+                    <span style={{ color: '#64748b', fontSize: '13px' }}>Credit Note</span>
+                    <span style={{ color: '#334155', fontSize: '13px', fontFamily: 'monospace' }}>
                       {refundInfo.creditNoteNumber}
                     </span>
                   </div>
@@ -646,6 +716,57 @@ export const SubscriptionPage: React.FC = () => {
         </div>
       )}
 
+      {/* Cancellation Request Modal */}
+      {showCancelRequestModal && (
+        <div className="modal-overlay" onClick={() => setShowCancelRequestModal(false)}>
+          <div className="modal modal-small" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Request Subscription Cancellation</h3>
+              <button 
+                onClick={() => setShowCancelRequestModal(false)} 
+                className="modal-close"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <p className="modal-description" style={{ color: '#64748b', marginBottom: '1.25rem', fontSize: '14px' }}>
+              Please let us know why you would like to cancel your subscription. Your request will be sent to our support team for review.
+            </p>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', color: '#475569', marginBottom: '8px', fontSize: '13px', fontWeight: 500 }}>
+                Reason for cancellation
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="E.g., Too expensive, no longer needed, moving to another service..."
+                className="date-input"
+                style={{
+                  width: '100%',
+                  height: '100px',
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  color: '#1e293b',
+                  padding: '10px',
+                  fontSize: '14px',
+                  resize: 'none',
+                  outline: 'none',
+                }}
+              />
+            </div>
+            <div className="modal-actions" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowCancelRequestModal(false)} className="btn-secondary">
+                Cancel
+              </button>
+              <button onClick={handleSubmitCancelRequest} className="btn-danger" disabled={actionLoading}>
+                {actionLoading ? 'Submitting...' : 'Submit Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Shared Confirm Dialog */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
@@ -655,6 +776,7 @@ export const SubscriptionPage: React.FC = () => {
         onCancel={closeConfirmDialog}
         isDanger={confirmDialog.isDanger}
         confirmLabel={confirmDialog.confirmLabel}
+        cancelLabel={confirmDialog.cancelLabel}
       />
     </div>
   );

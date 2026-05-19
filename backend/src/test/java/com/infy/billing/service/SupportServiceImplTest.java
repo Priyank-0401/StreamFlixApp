@@ -36,6 +36,15 @@ import com.infy.billing.repository.CreditNoteRepository;
 import com.infy.billing.repository.AuditLogRepository;
 import com.infy.billing.repository.BillingJobRepository;
 import com.infy.billing.repository.DunningRetryLogRepository;
+import com.infy.billing.repository.CancellationRequestRepository;
+import com.infy.billing.repository.UserRepository;
+import com.infy.billing.repository.NotificationRepository;
+import com.infy.billing.entity.CancellationRequest;
+import com.infy.billing.entity.Notification;
+import com.infy.billing.enums.CancellationRequestStatus;
+import com.infy.billing.dto.customer.CancellationRequestDTO;
+import com.infy.billing.dto.customer.CancellationResponse;
+import com.infy.billing.request.ProcessCancellationRequestInput;
 
 @ExtendWith(MockitoExtension.class)
 public class SupportServiceImplTest {
@@ -56,6 +65,14 @@ public class SupportServiceImplTest {
     private BillingJobRepository billingJobRepository;
     @Mock
     private DunningRetryLogRepository dunningRetryLogRepository;
+    @Mock
+    private CancellationRequestRepository cancellationRequestRepository;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private CustomerSubscriptionService customerSubscriptionService;
+    @Mock
+    private NotificationRepository notificationRepository;
 
     @InjectMocks
     private SupportServiceImpl supportService;
@@ -183,5 +200,77 @@ public class SupportServiceImplTest {
 
         assertEquals(1, dtos.size());
         assertEquals("Premium", dtos.get(0).getPlanName());
+    }
+
+    @Test
+    void testGetPendingCancellationRequests() {
+        CancellationRequest request = new CancellationRequest();
+        request.setId(1L);
+        request.setSubscription(subscription);
+        request.setStatus(CancellationRequestStatus.PENDING);
+        request.setReason("Too expensive");
+        request.setAtPeriodEnd(true);
+
+        when(cancellationRequestRepository.findByStatus(CancellationRequestStatus.PENDING))
+                .thenReturn(Arrays.asList(request));
+
+        List<CancellationRequestDTO> result = supportService.getPendingCancellationRequests();
+
+        assertEquals(1, result.size());
+        assertEquals("Too expensive", result.get(0).getReason());
+        assertTrue(result.get(0).getAtPeriodEnd());
+    }
+
+    @Test
+    void testApproveCancellationRequest_Immediate() {
+        CancellationRequest request = new CancellationRequest();
+        request.setId(1L);
+        request.setSubscription(subscription);
+        request.setStatus(CancellationRequestStatus.PENDING);
+        request.setAtPeriodEnd(false);
+
+        User agent = User.builder().id(2L).email("agent@test.com").build();
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+        input.setAgentNotes("Approved immediate cancellation");
+
+        when(cancellationRequestRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(userRepository.findByEmail("agent@test.com")).thenReturn(Optional.of(agent));
+        
+        CancellationResponse cancelResponse = new CancellationResponse(true, 500L, "USD", "ref123", "CN-001", "Refund processed");
+        when(customerSubscriptionService.cancelSubscription("john@test.com", false)).thenReturn(cancelResponse);
+
+        CancellationResponse response = supportService.approveCancellationRequest(1L, "agent@test.com", input);
+
+        assertNotNull(response);
+        assertTrue(response.isRefundIssued());
+        assertEquals(500L, response.getRefundAmountMinor());
+        assertEquals(CancellationRequestStatus.APPROVED, request.getStatus());
+        assertEquals(agent, request.getProcessedBy());
+        assertEquals("Approved immediate cancellation", request.getAgentNotes());
+        
+        verify(notificationRepository, times(1)).save(any(Notification.class));
+    }
+
+    @Test
+    void testRejectCancellationRequest() {
+        CancellationRequest request = new CancellationRequest();
+        request.setId(1L);
+        request.setSubscription(subscription);
+        request.setStatus(CancellationRequestStatus.PENDING);
+
+        User agent = User.builder().id(2L).email("agent@test.com").build();
+        ProcessCancellationRequestInput input = new ProcessCancellationRequestInput();
+        input.setAgentNotes("Rejected request");
+
+        when(cancellationRequestRepository.findById(1L)).thenReturn(Optional.of(request));
+        when(userRepository.findByEmail("agent@test.com")).thenReturn(Optional.of(agent));
+
+        supportService.rejectCancellationRequest(1L, "agent@test.com", input);
+
+        assertEquals(CancellationRequestStatus.REJECTED, request.getStatus());
+        assertEquals(agent, request.getProcessedBy());
+        assertEquals("Rejected request", request.getAgentNotes());
+
+        verify(notificationRepository, times(1)).save(any(Notification.class));
     }
 }

@@ -42,6 +42,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
    private final TaxRateRepository taxRateRepository;
    private final CreditNoteRepository creditNoteRepository;
    private final SubscriptionFlowService subscriptionFlowService;
+   private final CancellationRequestRepository cancellationRequestRepository;
 
    public SubscriptionDTO getCurrentSubscription(String email) {
       Customer customer = getCustomerByEmail(email);
@@ -959,5 +960,65 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       }
       BigDecimal rate = taxRateOpt.get().getRatePercent();
       return "Tax (" + rate.stripTrailingZeros().toPlainString() + "%)";
+   }
+
+   @Override
+   public CancellationRequestDTO createCancellationRequest(String email, CancellationRequestInput input) {
+      Customer customer = getCustomerByEmail(email);
+      Subscription subscription = getActiveSubscription(customer.getId());
+
+      Optional<CancellationRequest> existing = cancellationRequestRepository
+            .findBySubscription_Customer_IdAndStatus(customer.getId(), CancellationRequestStatus.PENDING);
+      if (existing.isPresent()) {
+         throw new RuntimeException("There is already a pending cancellation request for this customer");
+      }
+
+      CancellationRequest request = CancellationRequest.builder()
+            .subscription(subscription)
+            .reason(input.getReason())
+            .status(CancellationRequestStatus.PENDING)
+            .atPeriodEnd(input.isAtPeriodEnd())
+            .build();
+
+      CancellationRequest saved = cancellationRequestRepository.save(request);
+      return mapToCancellationRequestDTO(saved);
+   }
+
+   @Override
+   public CancellationRequestDTO withdrawCancellationRequest(String email) {
+      Customer customer = getCustomerByEmail(email);
+      CancellationRequest request = cancellationRequestRepository
+            .findBySubscription_Customer_IdAndStatus(customer.getId(), CancellationRequestStatus.PENDING)
+            .orElseThrow(() -> new RuntimeException("No pending cancellation request found"));
+
+      request.setStatus(CancellationRequestStatus.WITHDRAWN);
+      CancellationRequest saved = cancellationRequestRepository.save(request);
+      return mapToCancellationRequestDTO(saved);
+   }
+
+   @Override
+   public CancellationRequestDTO getPendingCancellationRequest(String email) {
+      Customer customer = getCustomerByEmail(email);
+      return cancellationRequestRepository
+            .findBySubscription_Customer_IdAndStatus(customer.getId(), CancellationRequestStatus.PENDING)
+            .map(this::mapToCancellationRequestDTO)
+            .orElse(null);
+   }
+
+   private CancellationRequestDTO mapToCancellationRequestDTO(CancellationRequest request) {
+      CancellationRequestDTO dto = new CancellationRequestDTO();
+      dto.setRequestId(request.getId());
+      dto.setSubscriptionId(request.getSubscription().getId());
+      dto.setPlanName(request.getSubscription().getPlan().getName());
+      dto.setCustomerEmail(request.getSubscription().getCustomer().getUser().getEmail());
+      dto.setCustomerName(request.getSubscription().getCustomer().getUser().getFullName());
+      dto.setReason(request.getReason());
+      dto.setStatus(request.getStatus());
+      dto.setAtPeriodEnd(request.getAtPeriodEnd());
+      dto.setCreatedAt(request.getCreatedAt() != null ? request.getCreatedAt().toString() : null);
+      dto.setProcessedByEmail(request.getProcessedBy() != null ? request.getProcessedBy().getEmail() : null);
+      dto.setProcessedAt(request.getProcessedAt() != null ? request.getProcessedAt().toString() : null);
+      dto.setAgentNotes(request.getAgentNotes());
+      return dto;
    }
 }

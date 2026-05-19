@@ -13,4 +13,7 @@ public interface CustomerSubscriptionService {
    SubscriptionDTO addAddOn(String email, Long addonId);
    SubscriptionDTO removeAddOn(String email, Long addonId);
    List<UsageRecordDTO> getMeteredUsage(String email, String startDate, String endDate);
+   CancellationRequestDTO createCancellationRequest(String email, CancellationRequestInput input);
+   CancellationRequestDTO withdrawCancellationRequest(String email);
+   CancellationRequestDTO getPendingCancellationRequest(String email);
 }

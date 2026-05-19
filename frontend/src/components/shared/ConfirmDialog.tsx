@@ -54,9 +54,11 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         </div>
         
         <div className="confirm-dialog-footer">
-          <button className="btn-dialog-cancel" onClick={onCancel}>
-            {cancelLabel}
-          </button>
+          {cancelLabel && (
+            <button className="btn-dialog-cancel" onClick={onCancel}>
+              {cancelLabel}
+            </button>
+          )}
           <button 
             className={`btn-dialog-confirm ${isDanger ? 'danger' : ''}`} 
             onClick={onConfirm}

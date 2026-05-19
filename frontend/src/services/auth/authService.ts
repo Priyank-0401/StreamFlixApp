@@ -52,6 +52,7 @@ export const fetchWithSession = async (endpoint: string, options: RequestInit = 
       // If the backend sent our beautiful ErrorInfo JSON object, extract just the message!
       const errorJson = JSON.parse(errorText);
       const customError: any = new Error(errorJson.message || 'Authentication API error');
+      customError.status = response.status;
       
       // If GlobalExceptionHandler attached field-level constraints, pass them forward
       if (errorJson.validationErrors) {
@@ -61,7 +62,9 @@ export const fetchWithSession = async (endpoint: string, options: RequestInit = 
     } catch(e) {
       // If it isn't JSON, just throw the raw error message so we still catch it
       if (e instanceof SyntaxError) {
-        throw new Error(errorText || 'Authentication API error');
+        const rawError: any = new Error(errorText || 'Authentication API error');
+        rawError.status = response.status;
+        throw rawError;
       }
       throw e;
     }

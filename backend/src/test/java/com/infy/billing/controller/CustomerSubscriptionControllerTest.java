@@ -2,8 +2,9 @@ package com.infy.billing.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.infy.billing.dto.customer.SubscriptionDTO;
-import com.infy.billing.dto.customer.CancellationResponse;
 import com.infy.billing.dto.customer.UsageRecordDTO;
+import com.infy.billing.dto.customer.CancellationRequestDTO;
+import com.infy.billing.request.CancellationRequestInput;
 import com.infy.billing.entity.User;
 import com.infy.billing.enums.UserRole;
 import com.infy.billing.enums.Status;
@@ -127,18 +128,58 @@ public class CustomerSubscriptionControllerTest {
     }
 
     @Test
-    void testCancelSubscription() throws Exception {
-        CancellationResponse response = new CancellationResponse(true, 1000L, "USD", "REF-123", "CN-123", "Success");
-        when(subscriptionService.cancelSubscription(anyString(), anyBoolean())).thenReturn(response);
+    void testCreateCancellationRequest() throws Exception {
+        CancellationRequestInput input = new CancellationRequestInput();
+        input.setReason("Too expensive");
+        input.setAtPeriodEnd(false);
+        
+        CancellationRequestDTO dto = new CancellationRequestDTO();
+        dto.setRequestId(1L);
+        dto.setReason("Too expensive");
+        dto.setAtPeriodEnd(false);
 
-        mockMvc.perform(delete("/api/customer/subscription")
-                        .param("atPeriodEnd", "false")
+        when(subscriptionService.createCancellationRequest(anyString(), any(CancellationRequestInput.class))).thenReturn(dto);
+
+        mockMvc.perform(post("/api/customer/subscription/cancel-request")
+                        .with(authentication(auth))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(input)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.requestId").value(1))
+                .andExpect(jsonPath("$.reason").value("Too expensive"));
+
+        verify(subscriptionService, times(1)).createCancellationRequest(eq("test@test.com"), any(CancellationRequestInput.class));
+    }
+
+    @Test
+    void testWithdrawCancellationRequest() throws Exception {
+        CancellationRequestDTO dto = new CancellationRequestDTO();
+        dto.setRequestId(1L);
+        when(subscriptionService.withdrawCancellationRequest(anyString())).thenReturn(dto);
+
+        mockMvc.perform(post("/api/customer/subscription/cancel-request/withdraw")
                         .with(authentication(auth))
                         .with(csrf()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.refundIssued").value(true));
+                .andExpect(jsonPath("$.requestId").value(1));
 
-        verify(subscriptionService, times(1)).cancelSubscription("test@test.com", false);
+        verify(subscriptionService, times(1)).withdrawCancellationRequest("test@test.com");
+    }
+
+    @Test
+    void testGetPendingCancellationRequest() throws Exception {
+        CancellationRequestDTO dto = new CancellationRequestDTO();
+        dto.setRequestId(1L);
+        
+        when(subscriptionService.getPendingCancellationRequest(anyString())).thenReturn(dto);
+
+        mockMvc.perform(get("/api/customer/subscription/cancel-request")
+                        .with(authentication(auth)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.requestId").value(1));
+
+        verify(subscriptionService, times(1)).getPendingCancellationRequest("test@test.com");
     }
 
     @Test

@@ -636,4 +636,3 @@
             (1, 15, NULL, 1, '2026-05-17 10:00:00', NULL, 'SCHEDULED', NULL);
 
             SET FOREIGN_KEY_CHECKS = 1;
-            -- END OF SEED DATA

@@ -530,6 +530,23 @@ CREATE TABLE revenue_snapshot (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 24. CANCELLATION_REQUEST
+
+CREATE TABLE cancellation_request (
+    request_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    subscription_id BIGINT NOT NULL,
+    reason VARCHAR(255) NULL,
+    status ENUM('PENDING', 'APPROVED', 'REJECTED', 'WITHDRAWN') NOT NULL DEFAULT 'PENDING',
+    at_period_end BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    processed_by BIGINT NULL,
+    processed_at TIMESTAMP NULL,
+    agent_notes VARCHAR(255) NULL,
+    FOREIGN KEY (subscription_id) REFERENCES subscription (subscription_id),
+    FOREIGN KEY (processed_by) REFERENCES user (user_id)
+);
+
 -- =============================================
 
 -- SEED DATA (run once at deployment)

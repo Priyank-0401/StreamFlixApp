@@ -11,6 +11,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import com.infy.billing.dto.customer.CancellationRequestDTO;
+import com.infy.billing.dto.customer.CancellationResponse;
+import com.infy.billing.request.ProcessCancellationRequestInput;
+import com.infy.billing.entity.User;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+
 import java.util.List;
 
 @RestController
@@ -49,5 +55,27 @@ public class SupportController {
     @GetMapping("/subscriptions/past-due")
     public ResponseEntity<List<com.infy.billing.dto.customer.SubscriptionDTO>> getPastDueSubscriptions() {
         return ResponseEntity.ok(supportService.getPastDueSubscriptions());
+    }
+
+    @GetMapping("/cancellation-requests")
+    public ResponseEntity<List<CancellationRequestDTO>> getPendingCancellationRequests() {
+        return ResponseEntity.ok(supportService.getPendingCancellationRequests());
+    }
+
+    @PostMapping("/cancellation-requests/{id}/approve")
+    public ResponseEntity<CancellationResponse> approveCancellationRequest(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User agent,
+            @RequestBody ProcessCancellationRequestInput input) {
+        return ResponseEntity.ok(supportService.approveCancellationRequest(id, agent.getEmail(), input));
+    }
+
+    @PostMapping("/cancellation-requests/{id}/reject")
+    public ResponseEntity<Void> rejectCancellationRequest(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User agent,
+            @RequestBody ProcessCancellationRequestInput input) {
+        supportService.rejectCancellationRequest(id, agent.getEmail(), input);
+        return ResponseEntity.noContent().build();
     }
 }

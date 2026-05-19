@@ -205,6 +205,21 @@ export interface CancellationResponse {
   message: string;
 }
 
+export interface CancellationRequest {
+  requestId: number;
+  subscriptionId: number;
+  planName: string;
+  customerEmail: string;
+  customerName: string;
+  reason: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'WITHDRAWN';
+  atPeriodEnd: boolean;
+  createdAt: string;
+  processedByEmail: string | null;
+  processedAt: string | null;
+  agentNotes: string | null;
+}
+
 // ==================== PROFILE ====================
 
 export const getCustomerProfile = async (): Promise<CustomerProfile> => {
@@ -240,10 +255,13 @@ export const getAvailableAddOns = async (): Promise<AddOn[]> => {
 // ==================== SUBSCRIPTION ====================
 
 export const getCurrentSubscription = async (): Promise<Subscription | null> => {
-  const response = await fetchWithSession(`${API_BASE}/subscription`);
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error('Failed to fetch subscription');
-  return response.json();
+  try {
+    const response = await fetchWithSession(`${API_BASE}/subscription`);
+    return response.json();
+  } catch (error: any) {
+    if (error.status === 404) return null;
+    throw error;
+  }
 };
 
 export const createSubscription = async (data: {
@@ -283,6 +301,37 @@ export const cancelSubscription = async (params?: { atPeriodEnd?: boolean }): Pr
   });
   if (!response.ok) throw new Error('Failed to cancel subscription');
   return response.json();
+};
+
+export const submitCancellationRequest = async (reason: string, atPeriodEnd: boolean): Promise<CancellationRequest> => {
+  const response = await fetchWithSession(`${API_BASE}/subscription/cancel-request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason, atPeriodEnd }),
+  });
+  if (!response.ok) throw new Error('Failed to submit cancellation request');
+  return response.json();
+};
+
+export const withdrawCancellationRequest = async (): Promise<CancellationRequest> => {
+  const response = await fetchWithSession(`${API_BASE}/subscription/cancel-request/withdraw`, {
+    method: 'POST',
+  });
+  if (!response.ok) throw new Error('Failed to withdraw cancellation request');
+  return response.json();
+};
+
+export const getPendingCancellationRequest = async (): Promise<CancellationRequest | null> => {
+  try {
+    const response = await fetchWithSession(`${API_BASE}/subscription/cancel-request`);
+    if (response.status === 204 || response.status === 404) return null;
+    const text = await response.text();
+    if (!text) return null;
+    return JSON.parse(text);
+  } catch (error: any) {
+    if (error.status === 404 || error.status === 204) return null;
+    throw error;
+  }
 };
 
 export const pauseSubscription = async (data: { pausedTo: string }): Promise<Subscription> => {

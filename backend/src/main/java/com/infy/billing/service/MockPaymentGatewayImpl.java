@@ -74,6 +74,11 @@ public class MockPaymentGatewayImpl implements MockPaymentGateway {
             }
         }
 
+        // Bypass random failure for tokens containing "success" or "valid"
+        if (lower.contains("success") || lower.contains("valid")) {
+            return false;
+        }
+
         // Random failure for non-test cards/UPIs
         if (DEFAULT_RANDOM_FAILURE_RATE > 0.0 && random.nextDouble() < DEFAULT_RANDOM_FAILURE_RATE) {
             return true;

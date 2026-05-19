@@ -1,5 +1,5 @@
 import { fetchWithSession } from '../auth/authService';
-import type { CustomerProfile, Subscription, Invoice, UsageRecord, Notification, CreditNote } from '../customer/customerService';
+import type { CustomerProfile, Subscription, Invoice, UsageRecord, Notification, CreditNote, CancellationRequest } from '../customer/customerService';
 
 const API_BASE = '/support';
 
@@ -96,4 +96,29 @@ export const getPastDueSubscriptions = async (): Promise<Subscription[]> => {
   const response = await fetchWithSession(`${API_BASE}/subscriptions/past-due`);
   if (!response.ok) throw new Error('Failed to fetch past due subscriptions');
   return response.json();
+};
+
+export const getPendingCancellationRequests = async (): Promise<CancellationRequest[]> => {
+  const response = await fetchWithSession(`${API_BASE}/cancellation-requests`);
+  if (!response.ok) throw new Error('Failed to fetch pending cancellation requests');
+  return response.json();
+};
+
+export const approveCancellationRequest = async (requestId: number, agentNotes: string): Promise<any> => {
+  const response = await fetchWithSession(`${API_BASE}/cancellation-requests/${requestId}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agentNotes }),
+  });
+  if (!response.ok) throw new Error('Failed to approve cancellation request');
+  return response.json();
+};
+
+export const rejectCancellationRequest = async (requestId: number, agentNotes: string): Promise<void> => {
+  const response = await fetchWithSession(`${API_BASE}/cancellation-requests/${requestId}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ agentNotes }),
+  });
+  if (!response.ok) throw new Error('Failed to reject cancellation request');
 };
