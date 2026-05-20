@@ -38,7 +38,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -64,7 +63,7 @@ public class SupportServiceImpl implements SupportService {
                  .findByUser_FullNameContainingIgnoreCaseOrUser_EmailContainingIgnoreCase(query, query);
          return customers.stream()
                  .map(this::mapToSearchResponse)
-                 .collect(Collectors.toList());
+                 .toList();
      }
  
      @Override
@@ -77,22 +76,22 @@ public class SupportServiceImpl implements SupportService {
          List<Subscription> subscriptions = subscriptionRepository.findByCustomer_Id(customerId);
          List<SubscriptionDTO> subscriptionDTOs = subscriptions.stream()
                  .map(this::mapToSubscriptionDTO)
-                 .collect(Collectors.toList());
+                 .toList();
  
          List<Invoice> invoices = invoiceRepository.findByCustomer_IdOrderByIssueDateDesc(customerId);
          List<InvoiceDTO> invoiceDTOs = invoices.stream()
                  .map(this::mapToInvoiceDTO)
-                 .collect(Collectors.toList());
+                 .toList();
  
          List<UsageRecord> usageRecords = usageRecordRepository.findBySubscription_Customer_Id(customerId);
          List<UsageRecordDTO> usageRecordDTOs = usageRecords.stream()
                  .map(this::mapToUsageRecordDTO)
-                 .collect(Collectors.toList());
+                 .toList();
  
          List<com.infy.billing.entity.CreditNote> creditNotes = creditNoteRepository.findByInvoice_Customer_Id(customerId);
          List<CreditNoteDTO> creditNoteDTOs = creditNotes.stream()
                  .map(this::mapToCreditNoteDTO)
-                 .collect(Collectors.toList());
+                 .toList();
  
          return new CustomerDetailResponse(profileDTO, subscriptionDTOs, invoiceDTOs, usageRecordDTOs, creditNoteDTOs);
      }
@@ -199,7 +198,7 @@ public class SupportServiceImpl implements SupportService {
         return subscriptionRepository.findByStatusIn(List.of(Status.PAST_DUE, Status.ON_HOLD))
                 .stream()
                 .map(this::mapToSubscriptionDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -207,7 +206,7 @@ public class SupportServiceImpl implements SupportService {
         return cancellationRequestRepository.findByStatus(CancellationRequestStatus.PENDING)
                 .stream()
                 .map(this::mapToCancellationRequestDTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -230,12 +229,12 @@ public class SupportServiceImpl implements SupportService {
 
         // Perform actual cancellation
         String customerEmail = request.getSubscription().getCustomer().getUser().getEmail();
-        CancellationResponse response = customerSubscriptionService.cancelSubscription(customerEmail, request.getAtPeriodEnd());
+        CancellationResponse response = customerSubscriptionService.cancelSubscription(customerEmail, Boolean.TRUE.equals(request.getAtPeriodEnd()));
 
         // Create notification
         String subject = "Subscription Cancellation Approved";
         String body;
-        if (request.getAtPeriodEnd()) {
+        if (Boolean.TRUE.equals(request.getAtPeriodEnd())) {
             body = "Your subscription cancellation request has been approved. Your subscription will remain active until the end of the current billing period on " + request.getSubscription().getCurrentPeriodEnd() + ".";
         } else {
             body = "Your subscription has been canceled immediately.";

@@ -52,30 +52,26 @@ public class NotificationServiceImpl implements NotificationService {
 		List<Subscription> subscriptions = subscriptionRepository.findByStatus(Status.ACTIVE);
 		logger.debug(">>> ACTIVE SUBS={}", subscriptions.size());
 		for (Subscription subscription : subscriptions) {
-			if (subscription.getCurrentPeriodEnd() == null) {
-				continue;
-			}
-			if (subscription.getCustomer() == null) {
-				continue;
-			}
-			LocalDate renewalDate = subscription.getCurrentPeriodEnd();
-			if (renewalDate.equals(sevenDaysLater)) {
-				createNotification(subscription,
-						"UPCOMING_RENEWAL_AND_PAYMENT_7_DAYS",
-						RENEWAL_REMINDER_SUBJECT,
-						"Your subscription will automatically renew and payment will be processed in 7 days.");
-			}
-			if (renewalDate.equals(threeDaysLater)) {
-				createNotification(subscription,
-						"UPCOMING_RENEWAL_AND_PAYMENT_3_DAYS",
-						RENEWAL_REMINDER_SUBJECT,
-						"Your subscription will automatically renew and payment will be processed in 3 days.");
-			}
-			if (renewalDate.equals(oneDayLater)) {
-				createNotification(subscription,
-						"UPCOMING_RENEWAL_AND_PAYMENT_1_DAY",
-						RENEWAL_REMINDER_SUBJECT,
-						"Your subscription will automatically renew and payment will be processed in 1 day.");
+			if (subscription.getCurrentPeriodEnd() != null && subscription.getCustomer() != null) {
+				LocalDate renewalDate = subscription.getCurrentPeriodEnd();
+				if (renewalDate.equals(sevenDaysLater)) {
+					createNotification(subscription,
+							"UPCOMING_RENEWAL_AND_PAYMENT_7_DAYS",
+							RENEWAL_REMINDER_SUBJECT,
+							"Your subscription will automatically renew and payment will be processed in 7 days.");
+				}
+				if (renewalDate.equals(threeDaysLater)) {
+					createNotification(subscription,
+							"UPCOMING_RENEWAL_AND_PAYMENT_3_DAYS",
+							RENEWAL_REMINDER_SUBJECT,
+							"Your subscription will automatically renew and payment will be processed in 3 days.");
+				}
+				if (renewalDate.equals(oneDayLater)) {
+					createNotification(subscription,
+							"UPCOMING_RENEWAL_AND_PAYMENT_1_DAY",
+							RENEWAL_REMINDER_SUBJECT,
+							"Your subscription will automatically renew and payment will be processed in 1 day.");
+				}
 			}
 		}
 	}

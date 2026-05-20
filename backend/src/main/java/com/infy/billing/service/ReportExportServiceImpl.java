@@ -296,7 +296,7 @@ public class ReportExportServiceImpl implements ReportExportService {
         for (String header : headers) {
             PdfPCell cell = new PdfPCell(new Phrase(header, TABLE_HEADER_FONT));
             cell.setBackgroundColor(HEADER_BG);
-            cell.setBorder(PdfPCell.BOTTOM);
+            cell.setBorder(Rectangle.BOTTOM);
             cell.setBorderColor(BORDER_COLOR);
             cell.setBorderWidth(1.5f);
             cell.setPadding(8);
@@ -313,7 +313,7 @@ public class ReportExportServiceImpl implements ReportExportService {
 
     private void addTableCell(PdfPTable table, String text, boolean bold, int alignment) {
         PdfPCell cell = new PdfPCell(new Phrase(text, bold ? TABLE_CELL_BOLD_FONT : TABLE_CELL_FONT));
-        cell.setBorder(PdfPCell.BOTTOM);
+        cell.setBorder(Rectangle.BOTTOM);
         cell.setBorderColor(BORDER_COLOR);
         cell.setPadding(8);
         cell.setHorizontalAlignment(alignment);
@@ -324,7 +324,7 @@ public class ReportExportServiceImpl implements ReportExportService {
         PdfPCell emptyCell = new PdfPCell(new Phrase(message, TABLE_CELL_FONT));
         emptyCell.setColspan(colspan);
         emptyCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-        emptyCell.setBorder(PdfPCell.BOTTOM);
+        emptyCell.setBorder(Rectangle.BOTTOM);
         emptyCell.setBorderColor(BORDER_COLOR);
         emptyCell.setPadding(16);
         table.addCell(emptyCell);
@@ -333,7 +333,7 @@ public class ReportExportServiceImpl implements ReportExportService {
     private PdfPCell createKpiCard(String label, String value) {
         PdfPCell cell = new PdfPCell();
         cell.setBackgroundColor(HEADER_BG);
-        cell.setBorder(PdfPCell.BOX);
+        cell.setBorder(Rectangle.BOX);
         cell.setBorderColor(BORDER_COLOR);
         cell.setBorderWidth(1.2f);
         cell.setPadding(12);

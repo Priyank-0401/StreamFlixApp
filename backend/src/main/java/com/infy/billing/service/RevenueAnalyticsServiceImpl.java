@@ -28,6 +28,8 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     private final PriceBookEntryRepository priceBookEntryRepository;
     private final InvoiceLineItemRepository invoiceLineItemRepository;
 
+    private static final DateTimeFormatter YEAR_MONTH_FMT = DateTimeFormatter.ofPattern("yyyy-MM");
+
     // ─── Currency → INR conversion ───────────────────────────────────────────
     // Seed data: INR customers (country=IN), USD customers (country=US), GBP
     // customers (country=GB)
@@ -165,7 +167,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     // ─── Churn rate from raw subscription data ────────────────────────────────
 
     private double computeRawChurnRate(List<Subscription> activeSubs, List<Subscription> canceledSubs) {
-        long totalCount = activeSubs.size() + canceledSubs.size();
+        long totalCount = (long) activeSubs.size() + canceledSubs.size();
         if (totalCount == 0)
             return 0.0;
         return (canceledSubs.size() / (double) totalCount) * 100.0;
@@ -303,10 +305,9 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     }
 
     private List<MonthlyTrendDTO> buildMrrTrend(List<RevenueSnapshot> snapshots) {
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM");
         return snapshots.stream()
                 .map(snap -> MonthlyTrendDTO.builder()
-                        .month(snap.getSnapshotDate().format(fmt))
+                        .month(snap.getSnapshotDate().format(YEAR_MONTH_FMT))
                         .year(snap.getSnapshotDate().getYear())
                         .valueMinor(snap.getMrrMinor())
                         .build())
@@ -315,10 +316,9 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
 
     private List<MonthlyTrendDTO> buildArpuTrend(List<RevenueSnapshot> snapshots) {
         // Seed data: revenue_snapshot has arpu_minor column directly
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM");
         return snapshots.stream()
                 .map(snap -> MonthlyTrendDTO.builder()
-                        .month(snap.getSnapshotDate().format(fmt))
+                        .month(snap.getSnapshotDate().format(YEAR_MONTH_FMT))
                         .year(snap.getSnapshotDate().getYear())
                         .valueMinor(snap.getArpuMinor()) // arpu_minor from snapshot
                         .build())
@@ -326,10 +326,9 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     }
 
     private List<MonthlyChurnDTO> buildChurnTrend(List<RevenueSnapshot> snapshots) {
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM");
         return snapshots.stream()
                 .map(snap -> MonthlyChurnDTO.builder()
-                        .month(snap.getSnapshotDate().format(fmt))
+                        .month(snap.getSnapshotDate().format(YEAR_MONTH_FMT))
                         .year(snap.getSnapshotDate().getYear())
                         .netChurnPercent(snap.getNetChurnPercent())
                         .build())
@@ -436,7 +435,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
 
         List<MonthlyTrendDTO> arrTrend = snapshots.stream()
                 .map(snap -> MonthlyTrendDTO.builder()
-                        .month(snap.getSnapshotDate().format(DateTimeFormatter.ofPattern("yyyy-MM")))
+                        .month(snap.getSnapshotDate().format(YEAR_MONTH_FMT))
                         .year(snap.getSnapshotDate().getYear())
                         .valueMinor(snap.getArrMinor())
                         .build())
@@ -490,64 +489,70 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     }
 
     private double calculateRevenueChurnPercent(List<RevenueSnapshot> snapshots, List<Subscription> activeSubs, List<Subscription> canceledSubs) {
-        double revenueChurnPercent = 0.0;
-        int latestIndex = -1;
-        LocalDate today = LocalDate.now();
-        for (RevenueSnapshot snap : snapshots) {
-            if (snap.getSnapshotDate().isAfter(today)
-                    && (snap.getChurnedCustomers() > 0 || snap.getNewCustomers() > 0)) {
-                    today = snap.getSnapshotDate();
-            }
-        }
-        for (int i = snapshots.size() - 1; i >= 0; i--) {
-            if (!snapshots.get(i).getSnapshotDate().isAfter(today)) {
-                latestIndex = i;
-                break;
-            }
-        }
-        if (latestIndex == -1 && !snapshots.isEmpty()) {
-            latestIndex = 0;
-        }
-
-        List<Subscription> allSubscriptions = subscriptionRepository.findAll();
+        int latestIndex = findLatestIndex(snapshots);
+        double revenueChurnPercent;
 
         if (latestIndex >= 1) {
-            long mrrStart = snapshots.get(latestIndex - 1).getMrrMinor();
-            LocalDate latestSnapDate = snapshots.get(latestIndex).getSnapshotDate();
-            LocalDate prevSnapDate = snapshots.get(latestIndex - 1).getSnapshotDate();
-            
-            long canceledMrrMinorInPeriod = allSubscriptions.stream()
-                .filter(s -> s.getCanceledAt() != null 
-                    && !s.getCanceledAt().toLocalDate().isBefore(prevSnapDate.plusDays(1)) 
-                    && !s.getCanceledAt().toLocalDate().isAfter(latestSnapDate))
-                .mapToLong(this::getMonthlyINRMinor)
-                .sum();
-                
-            if (mrrStart > 0) {
-                revenueChurnPercent = (canceledMrrMinorInPeriod / (double) mrrStart) * 100.0;
-            }
+            revenueChurnPercent = calculateChurnForIndex(snapshots, latestIndex);
         } else if (latestIndex == 0 && !snapshots.isEmpty()) {
-            long mrrStart = snapshots.get(0).getMrrMinor();
-            long canceledMrrMinorInPeriod = allSubscriptions.stream()
-                .filter(s -> s.getCanceledAt() != null 
-                    && !s.getCanceledAt().toLocalDate().isBefore(LocalDate.of(2026, 1, 1)) 
-                    && !s.getCanceledAt().toLocalDate().isAfter(snapshots.get(0).getSnapshotDate()))
-                .mapToLong(this::getMonthlyINRMinor)
-                .sum();
-            if (mrrStart > 0) {
-                revenueChurnPercent = (canceledMrrMinorInPeriod / (double) mrrStart) * 100.0;
-            }
+            revenueChurnPercent = calculateChurnForFirstSnapshot(snapshots.get(0));
         } else {
-            long activeMrr = computeMrrMinor(activeSubs);
-            long canceledMrr = canceledSubs.stream().mapToLong(this::getMonthlyINRMinor).sum();
-            long totalMrr = activeMrr + canceledMrr;
-            if (totalMrr > 0) {
-                revenueChurnPercent = (canceledMrr / (double) totalMrr) * 100.0;
-            }
+            revenueChurnPercent = calculateFallbackChurn(activeSubs, canceledSubs);
         }
 
         // Round to 3 decimal places to match customer churn rate format (e.g. 4.348)
         return Math.round(revenueChurnPercent * 1000.0) / 1000.0;
+    }
+
+    private int findLatestIndex(List<RevenueSnapshot> snapshots) {
+        LocalDate today = LocalDate.now();
+        for (RevenueSnapshot snap : snapshots) {
+            if (snap.getSnapshotDate().isAfter(today)
+                    && (snap.getChurnedCustomers() > 0 || snap.getNewCustomers() > 0)) {
+                today = snap.getSnapshotDate();
+            }
+        }
+        for (int i = snapshots.size() - 1; i >= 0; i--) {
+            if (!snapshots.get(i).getSnapshotDate().isAfter(today)) {
+                return i;
+            }
+        }
+        return snapshots.isEmpty() ? -1 : 0;
+    }
+
+    private double calculateChurnForIndex(List<RevenueSnapshot> snapshots, int latestIndex) {
+        long mrrStart = snapshots.get(latestIndex - 1).getMrrMinor();
+        LocalDate latestSnapDate = snapshots.get(latestIndex).getSnapshotDate();
+        LocalDate prevSnapDate = snapshots.get(latestIndex - 1).getSnapshotDate();
+        List<Subscription> allSubscriptions = subscriptionRepository.findAll();
+
+        long canceledMrrMinorInPeriod = allSubscriptions.stream()
+            .filter(s -> s.getCanceledAt() != null
+                && !s.getCanceledAt().toLocalDate().isBefore(prevSnapDate.plusDays(1))
+                && !s.getCanceledAt().toLocalDate().isAfter(latestSnapDate))
+            .mapToLong(this::getMonthlyINRMinor)
+            .sum();
+
+        return mrrStart > 0 ? (canceledMrrMinorInPeriod / (double) mrrStart) * 100.0 : 0.0;
+    }
+
+    private double calculateChurnForFirstSnapshot(RevenueSnapshot firstSnapshot) {
+        long mrrStart = firstSnapshot.getMrrMinor();
+        List<Subscription> allSubscriptions = subscriptionRepository.findAll();
+        long canceledMrrMinorInPeriod = allSubscriptions.stream()
+            .filter(s -> s.getCanceledAt() != null
+                && !s.getCanceledAt().toLocalDate().isBefore(LocalDate.of(2026, 1, 1))
+                && !s.getCanceledAt().toLocalDate().isAfter(firstSnapshot.getSnapshotDate()))
+            .mapToLong(this::getMonthlyINRMinor)
+            .sum();
+        return mrrStart > 0 ? (canceledMrrMinorInPeriod / (double) mrrStart) * 100.0 : 0.0;
+    }
+
+    private double calculateFallbackChurn(List<Subscription> activeSubs, List<Subscription> canceledSubs) {
+        long activeMrr = computeMrrMinor(activeSubs);
+        long canceledMrr = canceledSubs.stream().mapToLong(this::getMonthlyINRMinor).sum();
+        long totalMrr = activeMrr + canceledMrr;
+        return totalMrr > 0 ? (canceledMrr / (double) totalMrr) * 100.0 : 0.0;
     }
 
     // ═════════════════════════════════════════════════════════════════════════

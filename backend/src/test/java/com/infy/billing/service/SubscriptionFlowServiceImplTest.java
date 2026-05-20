@@ -105,8 +105,9 @@ class SubscriptionFlowServiceImplTest {
         @Test
         void testRegisterCustomerDetails_UserNotFound() {
                 when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.empty());
+                CustomerRegistrationRequest req = new CustomerRegistrationRequest();
                 assertThrows(RuntimeException.class, () -> subscriptionFlowService
-                                .registerCustomerDetails("test@test.com", new CustomerRegistrationRequest()));
+                                .registerCustomerDetails("test@test.com", req));
         }
 
         // ==================== CREATE PAYMENT METHOD ====================
@@ -172,15 +173,17 @@ class SubscriptionFlowServiceImplTest {
 
         @Test
         void testCreatePaymentMethod_NullCustomerId() {
+                PaymentMethodRequest req = new PaymentMethodRequest();
                 assertThrows(RuntimeException.class,
-                                () -> subscriptionFlowService.createPaymentMethod(null, new PaymentMethodRequest()));
+                                () -> subscriptionFlowService.createPaymentMethod(null, req));
         }
 
         @Test
         void testCreatePaymentMethod_CustomerNotFound() {
                 when(customerRepository.findById(1L)).thenReturn(Optional.empty());
+                PaymentMethodRequest req = new PaymentMethodRequest();
                 assertThrows(RuntimeException.class,
-                                () -> subscriptionFlowService.createPaymentMethod(1L, new PaymentMethodRequest()));
+                                () -> subscriptionFlowService.createPaymentMethod(1L, req));
         }
 
         // ==================== COMPLETE SUBSCRIPTION ====================
@@ -443,11 +446,11 @@ class SubscriptionFlowServiceImplTest {
                 Subscription activeSub = Subscription.builder().id(1L).status(Status.ACTIVE).build();
                 when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
                 when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
-                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L),
-                                eq(List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED,
-                                                Status.ON_HOLD, Status.CANCELED))))
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(1L,
+                                List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED,
+                                                Status.ON_HOLD, Status.CANCELED)))
                                 .thenReturn(List.of(activeSub));
-                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), eq(List.of(Status.DRAFT))))
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(1L, List.of(Status.DRAFT)))
                                 .thenReturn(Collections.emptyList());
 
                 CustomerStatusResponse resp = subscriptionFlowService.checkCustomerStatus("test@test.com");
@@ -459,11 +462,11 @@ class SubscriptionFlowServiceImplTest {
                 Subscription draftSub = Subscription.builder().id(1L).status(Status.DRAFT).build();
                 when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
                 when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
-                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L),
-                                eq(List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED,
-                                                Status.ON_HOLD, Status.CANCELED))))
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(1L,
+                                List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED,
+                                                Status.ON_HOLD, Status.CANCELED)))
                                 .thenReturn(Collections.emptyList());
-                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), eq(List.of(Status.DRAFT))))
+                when(subscriptionRepository.findByCustomer_IdAndStatusIn(1L, List.of(Status.DRAFT)))
                                 .thenReturn(List.of(draftSub));
 
                 CustomerStatusResponse resp = subscriptionFlowService.checkCustomerStatus("test@test.com");
@@ -475,7 +478,7 @@ class SubscriptionFlowServiceImplTest {
     void testCheckCustomerStatus_NoSubscription() {
         when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
         when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
-        when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+        when(subscriptionRepository.findByCustomer_IdAndStatusIn(1L, Collections.emptyList()))
                 .thenReturn(Collections.emptyList());
 
         CustomerStatusResponse resp = subscriptionFlowService.checkCustomerStatus("test@test.com");
