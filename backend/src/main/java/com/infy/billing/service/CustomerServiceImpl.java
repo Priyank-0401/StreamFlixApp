@@ -56,11 +56,7 @@ public class CustomerServiceImpl implements CustomerService {
    }
 
    public List<PlanDTO> getAllActivePlans() {
-	   // Return all active plans without filtering by effectiveTo
-	   List<Plan> plans = planRepository.findByStatus(Status.ACTIVE);
-	   return plans.stream()
-               .map(this::mapToPlanDTO)
-               .toList();
+       return getAvailablePlans();
    }
 
     public List<AddOnDTO> getAvailableAddOns(String email) {

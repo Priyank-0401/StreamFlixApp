@@ -54,6 +54,8 @@ class AdminDashboardServiceImplTest {
     private UserRepository userRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private AuditLoggingService auditLoggingService;
 
     @InjectMocks
     private AdminDashboardServiceImpl adminDashboardService;

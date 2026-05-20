@@ -13,7 +13,7 @@ public class PaymentMethodRequest {
     private PaymentType paymentType;
     
     // Card fields
-    @Pattern(regexp = "^[0-9]{16}$", message = "{payment.card.invalid}")
+    @Pattern(regexp = "^\\d{16}$", message = "{payment.card.invalid}")
     private String cardNumber;
     
     @Size(max = 100, message = "{payment.cardholder.invalid}")
@@ -23,10 +23,10 @@ public class PaymentMethodRequest {
     @Pattern(regexp = "^(0[1-9]|1[0-2])$", message = "{payment.expiry.month.invalid}")
     private String expiryMonth;
     
-    @Pattern(regexp = "^[0-9]{4}$", message = "{payment.expiry.year.invalid}")
+    @Pattern(regexp = "^\\d{4}$", message = "{payment.expiry.year.invalid}")
     private String expiryYear;
     
-    @Pattern(regexp = "^[0-9]{3,4}$", message = "{payment.cvv.invalid}")
+    @Pattern(regexp = "^\\d{3,4}$", message = "{payment.cvv.invalid}")
     private String cvv;
     
     // UPI fields

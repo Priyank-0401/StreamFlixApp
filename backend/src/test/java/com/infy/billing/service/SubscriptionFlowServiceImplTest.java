@@ -52,6 +52,8 @@ class SubscriptionFlowServiceImplTest {
         private InvoiceLineItemRepository invoiceLineItemRepository;
         @Mock
         private MockPaymentGateway mockPaymentGateway;
+        @Mock
+        private AuditLoggingService auditLoggingService;
 
         @InjectMocks
         private SubscriptionFlowServiceImpl subscriptionFlowService;

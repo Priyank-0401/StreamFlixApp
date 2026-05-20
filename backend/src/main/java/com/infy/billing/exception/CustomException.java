@@ -25,6 +25,10 @@ public class CustomException extends RuntimeException {
         return new CustomException(message, HttpStatus.NOT_FOUND, "NOT_FOUND");
     }
 
+    public static CustomException internalServerError(String message) {
+        return new CustomException(message, HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR");
+    }
+
     public static CustomException conflict(String message) {
         return new CustomException(message, HttpStatus.CONFLICT, "CONFLICT");
     }

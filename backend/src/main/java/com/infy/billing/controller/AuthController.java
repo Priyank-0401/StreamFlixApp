@@ -53,7 +53,7 @@ public class AuthController {
    // --- SESSION CHECK ENDPOINT ---
    // React calls this on page refresh to see if the JSESSIONID cookie is still valid
    @GetMapping("/auth/me")
-   public ResponseEntity<?> getMe(Authentication authentication, HttpServletRequest request) {
+   public ResponseEntity<Object> getMe(Authentication authentication, HttpServletRequest request) {
        if (authentication == null) {
            return ResponseEntity.status(401).body(NOT_AUTHENTICATED_MSG);
        }

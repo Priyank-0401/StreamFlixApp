@@ -3,7 +3,8 @@ package com.infy.billing.service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.infy.billing.dto.customer.NotificationResponse;
@@ -23,6 +24,9 @@ import lombok.RequiredArgsConstructor;
 
 public class NotificationServiceImpl implements NotificationService {
 
+	private static final Logger logger = LoggerFactory.getLogger(NotificationServiceImpl.class);
+	private static final String RENEWAL_REMINDER_SUBJECT = "Upcoming Subscription Renewal & Payment Reminder";
+
 	private final NotificationRepository notificationRepository;
 
 	private final SubscriptionRepository subscriptionRepository;
@@ -34,19 +38,19 @@ public class NotificationServiceImpl implements NotificationService {
 	public List<NotificationResponse> getCustomerNotifications(Long customerId) {
 		List<Notification> notifications = notificationRepository.findByCustomerIdAndStatusOrderByCreatedAtDesc(
 				customerId, com.infy.billing.enums.NotificationStatus.SENT);
-		return notifications.stream().map(this::mapToResponse).collect(Collectors.toList());
+		return notifications.stream().map(this::mapToResponse).toList();
 	}
 
 	@Override
 
 	public void generateRenewalReminders() {
 		LocalDate today = LocalDate.now();
-		System.out.println(">>> TODAY=" + today);
+		logger.debug(">>> TODAY={}", today);
 		LocalDate sevenDaysLater = today.plusDays(7);
 		LocalDate threeDaysLater = today.plusDays(3);
 		LocalDate oneDayLater = today.plusDays(1);
 		List<Subscription> subscriptions = subscriptionRepository.findByStatus(Status.ACTIVE);
-		System.out.println(">>> ACTIVE SUBS=" + subscriptions.size());
+		logger.debug(">>> ACTIVE SUBS={}", subscriptions.size());
 		for (Subscription subscription : subscriptions) {
 			if (subscription.getCurrentPeriodEnd() == null) {
 				continue;
@@ -58,19 +62,19 @@ public class NotificationServiceImpl implements NotificationService {
 			if (renewalDate.equals(sevenDaysLater)) {
 				createNotification(subscription,
 						"UPCOMING_RENEWAL_AND_PAYMENT_7_DAYS",
-						"Upcoming Subscription Renewal & Payment Reminder",
+						RENEWAL_REMINDER_SUBJECT,
 						"Your subscription will automatically renew and payment will be processed in 7 days.");
 			}
 			if (renewalDate.equals(threeDaysLater)) {
 				createNotification(subscription,
 						"UPCOMING_RENEWAL_AND_PAYMENT_3_DAYS",
-						"Upcoming Subscription Renewal & Payment Reminder",
+						RENEWAL_REMINDER_SUBJECT,
 						"Your subscription will automatically renew and payment will be processed in 3 days.");
 			}
 			if (renewalDate.equals(oneDayLater)) {
 				createNotification(subscription,
 						"UPCOMING_RENEWAL_AND_PAYMENT_1_DAY",
-						"Upcoming Subscription Renewal & Payment Reminder",
+						RENEWAL_REMINDER_SUBJECT,
 						"Your subscription will automatically renew and payment will be processed in 1 day.");
 			}
 		}

@@ -28,7 +28,8 @@ class CustomerSupportServiceImplTest {
 
     @Test
     void testSendSupportMessage() {
-        // Just verify it doesn't throw exception
-        customerSupportService.sendSupportMessage("test@test.com", new com.infy.billing.dto.customer.SupportMessageDTO());
+        // Verify it doesn't throw exception
+        assertDoesNotThrow(() ->
+            customerSupportService.sendSupportMessage("test@test.com", new com.infy.billing.dto.customer.SupportMessageDTO()));
     }
 }

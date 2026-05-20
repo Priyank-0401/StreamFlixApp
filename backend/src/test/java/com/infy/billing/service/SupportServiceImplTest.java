@@ -73,6 +73,8 @@ class SupportServiceImplTest {
     private CustomerSubscriptionService customerSubscriptionService;
     @Mock
     private NotificationRepository notificationRepository;
+    @Mock
+    private AuditLoggingService auditLoggingService;
 
     @InjectMocks
     private SupportServiceImpl supportService;

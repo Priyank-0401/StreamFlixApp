@@ -89,6 +89,8 @@ class CustomerSubscriptionServiceImplTest {
         private SubscriptionFlowService subscriptionFlowService;
         @Mock
         private CancellationRequestRepository cancellationRequestRepository;
+        @Mock
+        private AuditLoggingService auditLoggingService;
 
         @InjectMocks
         private CustomerSubscriptionServiceImpl customerSubscriptionService;
@@ -1387,21 +1389,21 @@ class CustomerSubscriptionServiceImplTest {
                 when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
                                 .thenReturn(Arrays.asList(subscription));
 
-                UsageRecord record = new UsageRecord();
-                record.setId(101L);
+                UsageRecord usageRecord = new UsageRecord();
+                usageRecord.setId(101L);
                 MeteredComponent comp = new MeteredComponent();
                 comp.setId(5L);
                 comp.setName("Storage");
                 comp.setUnitName("GB");
-                record.setComponent(comp);
-                record.setQuantity(20L);
-                record.setRecordedAt(LocalDateTime.now());
-                record.setBillingPeriodStart(LocalDate.now());
-                record.setBillingPeriodEnd(LocalDate.now().plusMonths(1));
+                usageRecord.setComponent(comp);
+                usageRecord.setQuantity(20L);
+                usageRecord.setRecordedAt(LocalDateTime.now());
+                usageRecord.setBillingPeriodStart(LocalDate.now());
+                usageRecord.setBillingPeriodEnd(LocalDate.now().plusMonths(1));
 
                 when(meteredComponentRepository.findById(5L)).thenReturn(Optional.of(comp));
                 when(usageRecordRepository.findBySubscription_IdAndBillingPeriodStartGreaterThanEqualAndBillingPeriodEndLessThanEqual(
-                                anyLong(), any(), any())).thenReturn(Arrays.asList(record));
+                                anyLong(), any(), any())).thenReturn(Arrays.asList(usageRecord));
 
                 List<UsageRecordDTO> list = customerSubscriptionService.getMeteredUsage("test@test.com", null, null);
 
@@ -1832,19 +1834,19 @@ class CustomerSubscriptionServiceImplTest {
                 when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
                                 .thenReturn(Arrays.asList(subscription));
 
-                UsageRecord record = new UsageRecord();
-                record.setId(101L);
+                UsageRecord usageRecord = new UsageRecord();
+                usageRecord.setId(101L);
                 MeteredComponent comp = new MeteredComponent();
                 comp.setId(999L);
-                record.setComponent(comp);
-                record.setQuantity(20L);
-                record.setRecordedAt(LocalDateTime.of(2026, 5, 20, 12, 0));
-                record.setBillingPeriodStart(LocalDate.of(2026, 5, 1));
-                record.setBillingPeriodEnd(LocalDate.of(2026, 6, 1));
+                usageRecord.setComponent(comp);
+                usageRecord.setQuantity(20L);
+                usageRecord.setRecordedAt(LocalDateTime.of(2026, 5, 20, 12, 0));
+                usageRecord.setBillingPeriodStart(LocalDate.of(2026, 5, 1));
+                usageRecord.setBillingPeriodEnd(LocalDate.of(2026, 6, 1));
 
                 when(meteredComponentRepository.findById(999L)).thenReturn(Optional.empty());
                 when(usageRecordRepository.findBySubscription_IdAndBillingPeriodStartGreaterThanEqualAndBillingPeriodEndLessThanEqual(
-                                anyLong(), any(), any())).thenReturn(Arrays.asList(record));
+                                anyLong(), any(), any())).thenReturn(Arrays.asList(usageRecord));
 
                 List<UsageRecordDTO> list = customerSubscriptionService.getMeteredUsage("test@test.com", null, null);
 

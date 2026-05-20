@@ -19,13 +19,16 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionService {
 
    private static final String NO_GATEWAY_TOKEN_MSG = "Payment method has no gateway token";
+   private static final String STARTS_AFTER_TRIAL = " (Starts after trial)";
+   private static final String ADDON_PREFIX = "Add-on: ";
+   private static final String UNKNOWN = "Unknown";
+   private static final String DATE_FORMAT_PATTERN = "yyyyMMdd-HHmmss";
 
    private final SubscriptionRepository subscriptionRepository;
    private final SubscriptionItemRepository subscriptionItemRepository;
@@ -64,8 +67,8 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
    public SubscriptionDTO createSubscription(String email, CreateSubscriptionRequest request) {
       Customer customer = getCustomerByEmail(email);
 
-      if (subscriptionRepository.findByCustomer_IdAndStatusIn(customer.getId(),
-            List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE)).size() > 0) {
+      if (!subscriptionRepository.findByCustomer_IdAndStatusIn(customer.getId(),
+            List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE)).isEmpty()) {
          throw CustomException.conflict("Customer already has an active subscription");
       }
 
@@ -104,153 +107,162 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
             .findBySubscription_IdAndStatus(subscription.getId(), Status.ACTIVE);
       List<SubscriptionItem> items = subscriptionItemRepository.findBySubscription_Id(subscription.getId());
 
-      // During trial: adjust trial end date and update any open trial invoice
       if (isTrialing) {
-         LocalDate today = LocalDate.now();
-         long daysUsed = ChronoUnit.DAYS.between(subscription.getStartDate(), today);
-         if (daysUsed < 0)
-            daysUsed = 0;
+         return upgradeTrialingSubscription(customer, subscription, oldPlan, newPlan, items, scOpt);
+      } else {
+         return upgradeActiveSubscription(email, customer, subscription, oldPlan, newPlan, items, scOpt);
+      }
+   }
 
-         long newTrialDays = Math.max(0, newPlan.getTrialDays() - daysUsed);
-         LocalDate newTrialEndDate = today.plusDays(newTrialDays);
+   private SubscriptionDTO upgradeTrialingSubscription(
+         Customer customer, Subscription subscription, Plan oldPlan, Plan newPlan,
+         List<SubscriptionItem> items, Optional<SubscriptionCoupon> scOpt) {
+      LocalDate today = LocalDate.now();
+      long daysUsed = ChronoUnit.DAYS.between(subscription.getStartDate(), today);
+      if (daysUsed < 0)
+         daysUsed = 0;
 
-         subscription.setPlan(newPlan);
-         subscription.setTrialEndDate(newTrialEndDate);
-         if (newTrialDays == 0) {
-            subscription.setStatus(Status.ACTIVE);
-         }
+      long newTrialDays = Math.max(0, newPlan.getTrialDays() - daysUsed);
+      LocalDate newTrialEndDate = today.plusDays(newTrialDays);
 
-         if (newPlan.getBillingPeriod() == BillingPeriod.MONTHLY) {
-            subscription.setCurrentPeriodStart(newTrialEndDate);
-            subscription.setCurrentPeriodEnd(newTrialEndDate.plusMonths(1));
-         } else {
-            subscription.setCurrentPeriodStart(newTrialEndDate);
-            subscription.setCurrentPeriodEnd(newTrialEndDate.plusYears(1));
-         }
-         subscription.setUpdatedAt(LocalDateTime.now());
-         subscriptionRepository.save(subscription);
-
-         // Update the plan subscription item
-         SubscriptionItem planItem = subscriptionItemRepository.findBySubscription_IdAndItemType(
-               subscription.getId(), ItemType.PLAN);
-
-         if (planItem == null) {
-            planItem = new SubscriptionItem();
-            planItem.setSubscription(subscription);
-            planItem.setItemType(ItemType.PLAN);
-            planItem.setQuantity(1);
-            planItem.setTaxMode(newPlan.getTaxMode());
-         }
-
-         planItem.setPlan(newPlan);
-         planItem.setUnitPriceMinor(newPlan.getDefaultPriceMinor());
-         subscriptionItemRepository.save(planItem);
-
-         // Update the OPEN trial invoice to show the new plan + tax + coupon + addons
-         Optional<Invoice> openInvoiceOpt = invoiceRepository.findBySubscription_IdAndStatus(subscription.getId(),
-               Status.OPEN);
-         if (openInvoiceOpt.isPresent()) {
-            Invoice invoice = openInvoiceOpt.get();
-
-            // Delete old line items
-            List<InvoiceLineItem> oldLines = invoiceLineItemRepository.findByInvoice_Id(invoice.getId());
-            invoiceLineItemRepository.deleteAll(oldLines);
-            invoiceLineItemRepository.flush();
-
-            // Compute fresh pricing
-            long priceMinor = newPlan.getDefaultPriceMinor();
-            long discountMinor = 0L;
-            Coupon coupon = null;
-            if (scOpt.isPresent()) {
-               coupon = scOpt.get().getCoupon();
-               if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
-                  discountMinor = priceMinor * coupon.getAmount() / 100;
-               } else {
-                  if (coupon.getCurrency() == null || coupon.getCurrency().equals(customer.getCurrency())) {
-                     discountMinor = coupon.getAmount();
-                  } else {
-                     discountMinor = 0L;
-                  }
-               }
-            }
-
-            long addonTotal = items.stream()
-                  .filter(i -> i.getItemType() == ItemType.ADDON)
-                  .mapToLong(i -> i.getUnitPriceMinor() * i.getQuantity())
-                  .sum();
-
-            long subtotal = priceMinor + addonTotal - discountMinor;
-            if (subtotal < 0)
-               subtotal = 0;
-            long taxMinor = calculateTaxMinor(subtotal, customer.getCountry(), newPlan.getTaxMode());
-            long totalMinor = (newPlan.getTaxMode() == TaxMode.INCLUSIVE) ? subtotal : subtotal + taxMinor;
-            long subtotalMinor = (newPlan.getTaxMode() == TaxMode.INCLUSIVE) ? subtotal - taxMinor : subtotal;
-
-            // Update invoice headers
-            invoice.setSubtotalMinor(subtotalMinor);
-            invoice.setDiscountMinor(discountMinor);
-            invoice.setTaxMinor(taxMinor);
-            invoice.setTotalMinor(totalMinor);
-            invoice.setBalanceMinor(totalMinor);
-            invoice.setDueDate(newTrialEndDate);
-            invoiceRepository.save(invoice);
-
-            // Save fresh Plan Line item
-            InvoiceLineItem planLine = new InvoiceLineItem();
-            planLine.setInvoice(invoice);
-            planLine.setDescription(
-                  newPlan.getName() + " Subscription" + (newTrialDays > 0 ? " (Starts after trial)" : ""));
-            planLine.setLineType(InvoiceLineItem.LineType.PLAN);
-            planLine.setQuantity(1);
-            planLine.setUnitPriceMinor(priceMinor);
-            planLine.setAmountMinor(priceMinor);
-            invoiceLineItemRepository.save(planLine);
-
-            // Save Addon Lines
-            for (SubscriptionItem item : items) {
-               if (item.getItemType() == ItemType.ADDON) {
-                  InvoiceLineItem addonLine = new InvoiceLineItem();
-                  addonLine.setInvoice(invoice);
-                  addonLine.setDescription("Add-on: " + item.getAddOn().getName() + " (Starts after trial)");
-                  addonLine.setLineType(InvoiceLineItem.LineType.ADDON);
-                  addonLine.setQuantity(item.getQuantity());
-                  addonLine.setUnitPriceMinor(item.getUnitPriceMinor());
-                  addonLine.setAmountMinor(item.getUnitPriceMinor() * item.getQuantity());
-                  invoiceLineItemRepository.save(addonLine);
-               }
-            }
-
-            // Save Discount Line
-            if (discountMinor > 0 && coupon != null) {
-               InvoiceLineItem discountLine = new InvoiceLineItem();
-               discountLine.setInvoice(invoice);
-               discountLine.setDescription("Coupon: " + coupon.getCode() + " (" + coupon.getName() + ")");
-               discountLine.setLineType(InvoiceLineItem.LineType.DISCOUNT);
-               discountLine.setQuantity(1);
-               discountLine.setUnitPriceMinor(-discountMinor);
-               discountLine.setAmountMinor(-discountMinor);
-               invoiceLineItemRepository.save(discountLine);
-            }
-
-            // Save Tax Line
-            if (taxMinor > 0) {
-               InvoiceLineItem taxLine = new InvoiceLineItem();
-               taxLine.setInvoice(invoice);
-               taxLine.setDescription(getTaxDescription(customer.getCountry()));
-               taxLine.setLineType(InvoiceLineItem.LineType.TAX);
-               taxLine.setQuantity(1);
-               taxLine.setUnitPriceMinor(taxMinor);
-               taxLine.setAmountMinor(taxMinor);
-               invoiceLineItemRepository.save(taxLine);
-            }
-         }
-
-         auditLoggingService.logAction("UPGRADE_SUBSCRIPTION", "Subscription", subscription.getId(), oldPlan, newPlan);
-         return mapToSubscriptionDTO(subscription);
+      subscription.setPlan(newPlan);
+      subscription.setTrialEndDate(newTrialEndDate);
+      if (newTrialDays == 0) {
+         subscription.setStatus(Status.ACTIVE);
       }
 
-      // Active subscription: calculate proration and reset billing period starting
-      // today
+      if (newPlan.getBillingPeriod() == BillingPeriod.MONTHLY) {
+         subscription.setCurrentPeriodStart(newTrialEndDate);
+         subscription.setCurrentPeriodEnd(newTrialEndDate.plusMonths(1));
+      } else {
+         subscription.setCurrentPeriodStart(newTrialEndDate);
+         subscription.setCurrentPeriodEnd(newTrialEndDate.plusYears(1));
+      }
+      subscription.setUpdatedAt(LocalDateTime.now());
+      subscriptionRepository.save(subscription);
+
+      // Update the plan subscription item
+      SubscriptionItem planItem = subscriptionItemRepository.findBySubscription_IdAndItemType(
+            subscription.getId(), ItemType.PLAN);
+
+      if (planItem == null) {
+         planItem = new SubscriptionItem();
+         planItem.setSubscription(subscription);
+         planItem.setItemType(ItemType.PLAN);
+         planItem.setQuantity(1);
+         planItem.setTaxMode(newPlan.getTaxMode());
+      }
+
+      planItem.setPlan(newPlan);
+      planItem.setUnitPriceMinor(newPlan.getDefaultPriceMinor());
+      subscriptionItemRepository.save(planItem);
+
+      // Update the OPEN trial invoice to show the new plan + tax + coupon + addons
+      Optional<Invoice> openInvoiceOpt = invoiceRepository.findBySubscription_IdAndStatus(subscription.getId(),
+            Status.OPEN);
+      if (openInvoiceOpt.isPresent()) {
+         Invoice invoice = openInvoiceOpt.get();
+
+         // Delete old line items
+         List<InvoiceLineItem> oldLines = invoiceLineItemRepository.findByInvoice_Id(invoice.getId());
+         invoiceLineItemRepository.deleteAll(oldLines);
+         invoiceLineItemRepository.flush();
+
+         // Compute fresh pricing
+         long priceMinor = newPlan.getDefaultPriceMinor();
+         long discountMinor = 0L;
+         Coupon coupon = null;
+         if (scOpt.isPresent()) {
+            coupon = scOpt.get().getCoupon();
+            if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
+               discountMinor = priceMinor * coupon.getAmount() / 100;
+            } else {
+               if (coupon.getCurrency() == null || coupon.getCurrency().equals(customer.getCurrency())) {
+                  discountMinor = coupon.getAmount();
+               } else {
+                  discountMinor = 0L;
+               }
+            }
+         }
+
+         long addonTotal = items.stream()
+               .filter(i -> i.getItemType() == ItemType.ADDON)
+               .mapToLong(i -> i.getUnitPriceMinor() * i.getQuantity())
+               .sum();
+
+         long subtotal = priceMinor + addonTotal - discountMinor;
+         if (subtotal < 0)
+            subtotal = 0;
+         long taxMinor = calculateTaxMinor(subtotal, customer.getCountry(), newPlan.getTaxMode());
+         long totalMinor = (newPlan.getTaxMode() == TaxMode.INCLUSIVE) ? subtotal : subtotal + taxMinor;
+         long subtotalMinor = (newPlan.getTaxMode() == TaxMode.INCLUSIVE) ? subtotal - taxMinor : subtotal;
+
+         // Update invoice headers
+         invoice.setSubtotalMinor(subtotalMinor);
+         invoice.setDiscountMinor(discountMinor);
+         invoice.setTaxMinor(taxMinor);
+         invoice.setTotalMinor(totalMinor);
+         invoice.setBalanceMinor(totalMinor);
+         invoice.setDueDate(newTrialEndDate);
+         invoiceRepository.save(invoice);
+
+         // Save fresh Plan Line item
+         InvoiceLineItem planLine = new InvoiceLineItem();
+         planLine.setInvoice(invoice);
+         planLine.setDescription(
+               newPlan.getName() + " Subscription" + (newTrialDays > 0 ? STARTS_AFTER_TRIAL : ""));
+         planLine.setLineType(InvoiceLineItem.LineType.PLAN);
+         planLine.setQuantity(1);
+         planLine.setUnitPriceMinor(priceMinor);
+         planLine.setAmountMinor(priceMinor);
+         invoiceLineItemRepository.save(planLine);
+
+         // Save Addon Lines
+         for (SubscriptionItem item : items) {
+            if (item.getItemType() == ItemType.ADDON) {
+               InvoiceLineItem addonLine = new InvoiceLineItem();
+               addonLine.setInvoice(invoice);
+               addonLine.setDescription(ADDON_PREFIX + item.getAddOn().getName() + STARTS_AFTER_TRIAL);
+               addonLine.setLineType(InvoiceLineItem.LineType.ADDON);
+               addonLine.setQuantity(item.getQuantity());
+               addonLine.setUnitPriceMinor(item.getUnitPriceMinor());
+               addonLine.setAmountMinor(item.getUnitPriceMinor() * item.getQuantity());
+               invoiceLineItemRepository.save(addonLine);
+            }
+         }
+
+         // Save Discount Line
+         if (discountMinor > 0 && coupon != null) {
+            InvoiceLineItem discountLine = new InvoiceLineItem();
+            discountLine.setInvoice(invoice);
+            discountLine.setDescription("Coupon: " + coupon.getCode() + " (" + coupon.getName() + ")");
+            discountLine.setLineType(InvoiceLineItem.LineType.DISCOUNT);
+            discountLine.setQuantity(1);
+            discountLine.setUnitPriceMinor(-discountMinor);
+            discountLine.setAmountMinor(-discountMinor);
+            invoiceLineItemRepository.save(discountLine);
+         }
+
+         // Save Tax Line
+         if (taxMinor > 0) {
+            InvoiceLineItem taxLine = new InvoiceLineItem();
+            taxLine.setInvoice(invoice);
+            taxLine.setDescription(getTaxDescription(customer.getCountry()));
+            taxLine.setLineType(InvoiceLineItem.LineType.TAX);
+            taxLine.setQuantity(1);
+            taxLine.setUnitPriceMinor(taxMinor);
+            taxLine.setAmountMinor(taxMinor);
+            invoiceLineItemRepository.save(taxLine);
+         }
+      }
+
+      auditLoggingService.logAction("UPGRADE_SUBSCRIPTION", "Subscription", subscription.getId(), oldPlan, newPlan);
+      return mapToSubscriptionDTO(subscription);
+   }
+
+   private SubscriptionDTO upgradeActiveSubscription(
+         String email, Customer customer, Subscription subscription, Plan oldPlan, Plan newPlan,
+         List<SubscriptionItem> items, Optional<SubscriptionCoupon> scOpt) {
       LocalDate today = LocalDate.now();
       LocalDate periodStart = subscription.getCurrentPeriodStart();
       LocalDate periodEnd = subscription.getCurrentPeriodEnd();
@@ -266,18 +278,18 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       // Old Plan calculations
       long oldPriceMinor = oldPlan.getDefaultPriceMinor();
       long oldDiscountMinor = 0L;
-       if (scOpt.isPresent()) {
-          Coupon coupon = scOpt.get().getCoupon();
-          if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
-             oldDiscountMinor = oldPriceMinor * coupon.getAmount() / 100;
-          } else {
-             if (coupon.getCurrency() == null || coupon.getCurrency().equals(customer.getCurrency())) {
-                oldDiscountMinor = coupon.getAmount();
-             } else {
-                oldDiscountMinor = 0L;
-             }
-          }
-       }
+      if (scOpt.isPresent()) {
+         Coupon coupon = scOpt.get().getCoupon();
+         if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
+            oldDiscountMinor = oldPriceMinor * coupon.getAmount() / 100;
+         } else {
+            if (coupon.getCurrency() == null || coupon.getCurrency().equals(customer.getCurrency())) {
+               oldDiscountMinor = coupon.getAmount();
+            } else {
+               oldDiscountMinor = 0L;
+            }
+         }
+      }
       long oldAddonTotal = items.stream()
             .filter(i -> i.getItemType() == ItemType.ADDON)
             .mapToLong(i -> i.getUnitPriceMinor() * i.getQuantity())
@@ -296,18 +308,18 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       long newPriceMinor = newPlan.getDefaultPriceMinor();
       long newDiscountMinor = 0L;
       Coupon activeCoupon = null;
-       if (scOpt.isPresent()) {
-          activeCoupon = scOpt.get().getCoupon();
-          if (activeCoupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
-             newDiscountMinor = newPriceMinor * activeCoupon.getAmount() / 100;
-          } else {
-             if (activeCoupon.getCurrency() == null || activeCoupon.getCurrency().equals(customer.getCurrency())) {
-                newDiscountMinor = activeCoupon.getAmount();
-             } else {
-                newDiscountMinor = 0L;
-             }
-          }
-       }
+      if (scOpt.isPresent()) {
+         activeCoupon = scOpt.get().getCoupon();
+         if (activeCoupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
+            newDiscountMinor = newPriceMinor * activeCoupon.getAmount() / 100;
+         } else {
+            if (activeCoupon.getCurrency() == null || activeCoupon.getCurrency().equals(customer.getCurrency())) {
+               newDiscountMinor = activeCoupon.getAmount();
+            } else {
+               newDiscountMinor = 0L;
+            }
+         }
+      }
       long newAddonTotal = items.stream()
             .filter(i -> i.getItemType() == ItemType.ADDON)
             .mapToLong(i -> i.getUnitPriceMinor() * i.getQuantity())
@@ -328,16 +340,16 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
             : (newPriceMinor + newAddonTotal - unusedCredit);
 
       Invoice invoice = Invoice.builder()
-              .customer(customer)
-              .subscription(subscription)
-              .invoiceNumber("INV-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")))
-              .billingReason(BillingReason.SUBSCRIPTION_UPDATE)
-              .issueDate(today)
-              .subtotalMinor(headerSubtotal)
-              .taxMinor(newTaxMinor)
-              .currency(customer.getCurrency())
-              .idempotencyKey(UUID.randomUUID().toString())
-              .build();
+            .customer(customer)
+            .subscription(subscription)
+            .invoiceNumber("INV-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern(DATE_FORMAT_PATTERN)))
+            .billingReason(BillingReason.SUBSCRIPTION_UPDATE)
+            .issueDate(today)
+            .subtotalMinor(headerSubtotal)
+            .taxMinor(newTaxMinor)
+            .currency(customer.getCurrency())
+            .idempotencyKey(UUID.randomUUID().toString())
+            .build();
 
       if (prorationAmount > 0) {
          // Upgrade: charge the difference
@@ -364,7 +376,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          // Create credit note for audit trail
          CreditNote creditNote = new CreditNote();
          creditNote
-               .setCreditNoteNumber("CN-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
+               .setCreditNoteNumber("CN-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern(DATE_FORMAT_PATTERN)));
          creditNote.setInvoice(invoice);
          creditNote.setReason("Proration credit from plan downgrade: " + oldPlan.getName() + " → " + newPlan.getName());
          creditNote.setAmountMinor(creditAmount);
@@ -422,7 +434,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          if (item.getItemType() == ItemType.ADDON) {
             InvoiceLineItem addonLine = new InvoiceLineItem();
             addonLine.setInvoice(invoice);
-            addonLine.setDescription("Add-on: " + item.getAddOn().getName());
+            addonLine.setDescription(ADDON_PREFIX + item.getAddOn().getName());
             addonLine.setLineType(InvoiceLineItem.LineType.ADDON);
             addonLine.setQuantity(item.getQuantity());
             addonLine.setUnitPriceMinor(item.getUnitPriceMinor());
@@ -569,7 +581,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
        // Create credit note for audit trail
        CreditNote creditNote = new CreditNote();
-       String cnNumber = "CN-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+       String cnNumber = "CN-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern(DATE_FORMAT_PATTERN));
        creditNote.setCreditNoteNumber(cnNumber);
        creditNote.setInvoice(lastPaidInvoice);
        creditNote.setAmountMinor(refundAmountMinor);
@@ -713,7 +725,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          Invoice invoice = Invoice.builder()
                  .customer(customer)
                  .subscription(subscription)
-                 .invoiceNumber("INV-ADDON-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")))
+                 .invoiceNumber("INV-ADDON-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern(DATE_FORMAT_PATTERN)))
                  .status(Status.PAID)
                  .billingReason(BillingReason.SUBSCRIPTION_UPDATE)
                  .issueDate(today)
@@ -731,7 +743,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          // Line items
          InvoiceLineItem addonLine = new InvoiceLineItem();
          addonLine.setInvoice(invoice);
-         addonLine.setDescription("Add-on: " + addOn.getName() + " (prorated)");
+         addonLine.setDescription(ADDON_PREFIX + addOn.getName() + " (prorated)");
          addonLine.setLineType(InvoiceLineItem.LineType.ADDON);
          addonLine.setQuantity(1);
          addonLine.setUnitPriceMinor(proratedAmount);
@@ -828,7 +840,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
             .findBySubscription_IdAndBillingPeriodStartGreaterThanEqualAndBillingPeriodEndLessThanEqual(
                   subscription.getId(), start, end);
 
-      return usage.stream().map(this::mapToUsageRecordDTO).collect(Collectors.toList());
+      return usage.stream().map(this::mapToUsageRecordDTO).toList();
    }
 
    // ==================== HELPER METHODS ====================
@@ -879,12 +891,12 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       dto.setAddOns(items.stream()
             .filter(i -> i.getItemType() == ItemType.ADDON)
             .map(this::mapToSubscriptionAddOnDTO)
-            .collect(Collectors.toList()));
+            .toList());
 
       dto.setMeteredUsage(items.stream()
             .filter(i -> i.getItemType() == ItemType.METERED)
             .map(this::mapToMeteredUsageDTO)
-            .collect(Collectors.toList()));
+            .toList());
 
       // Calculate discount if any
       Long discountMinor = 0L;
@@ -927,7 +939,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       dto.setItemId(item.getId());
       dto.setAddonId(item.getAddOn().getId());
       AddOn addOn = addOnRepository.findById(item.getAddOn().getId()).orElse(null);
-      dto.setAddonName(addOn != null ? addOn.getName() : "Unknown");
+      dto.setAddonName(addOn != null ? addOn.getName() : UNKNOWN);
       dto.setUnitPriceMinor(item.getUnitPriceMinor());
       dto.setQuantity(item.getQuantity());
       return dto;
@@ -937,7 +949,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       MeteredUsageDTO dto = new MeteredUsageDTO();
       dto.setComponentId(item.getComponent().getId());
       MeteredComponent comp = meteredComponentRepository.findById(item.getComponent().getId()).orElse(null);
-      dto.setComponentName(comp != null ? comp.getName() : "Unknown");
+      dto.setComponentName(comp != null ? comp.getName() : UNKNOWN);
       dto.setUnitName(comp != null ? comp.getUnitName() : "unit");
       dto.setPricePerUnitMinor(comp != null ? comp.getPricePerUnitMinor() : 0);
       dto.setFreeTierQuantity(comp != null ? comp.getFreeTierQuantity() : 0);
@@ -954,7 +966,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       dto.setUsageId(usage.getId());
       dto.setComponentId(usage.getComponent().getId());
       MeteredComponent comp = meteredComponentRepository.findById(usage.getComponent().getId()).orElse(null);
-      dto.setComponentName(comp != null ? comp.getName() : "Unknown");
+      dto.setComponentName(comp != null ? comp.getName() : UNKNOWN);
       dto.setQuantity(usage.getQuantity());
       dto.setUnitName(comp != null ? comp.getUnitName() : "unit");
       dto.setRecordedAt(usage.getRecordedAt().toString());
@@ -1001,7 +1013,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       Optional<CancellationRequest> existing = cancellationRequestRepository
             .findBySubscription_Customer_IdAndStatus(customer.getId(), CancellationRequestStatus.PENDING);
       if (existing.isPresent()) {
-         throw new RuntimeException("There is already a pending cancellation request for this customer");
+         throw CustomException.conflict("There is already a pending cancellation request for this customer");
       }
 
       CancellationRequest request = CancellationRequest.builder()
@@ -1020,7 +1032,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       Customer customer = getCustomerByEmail(email);
       CancellationRequest request = cancellationRequestRepository
             .findBySubscription_Customer_IdAndStatus(customer.getId(), CancellationRequestStatus.PENDING)
-            .orElseThrow(() -> new RuntimeException("No pending cancellation request found"));
+            .orElseThrow(() -> CustomException.notFound("No pending cancellation request found"));
 
       request.setStatus(CancellationRequestStatus.WITHDRAWN);
       CancellationRequest saved = cancellationRequestRepository.save(request);

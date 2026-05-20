@@ -37,7 +37,7 @@ import com.infy.billing.service.NotificationService;
 
 @WebMvcTest(NotificationController.class)
 @Import(SecurityConfig.class)
-public class NotificationControllerTest {
+class NotificationControllerTest {
 
 	@Autowired
 	private MockMvc mockMvc;

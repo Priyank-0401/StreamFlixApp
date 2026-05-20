@@ -80,10 +80,7 @@ public class MockPaymentGatewayImpl implements MockPaymentGateway {
         }
 
         // Random failure for non-test cards/UPIs
-        if (DEFAULT_RANDOM_FAILURE_RATE > 0.0 && random.nextDouble() < DEFAULT_RANDOM_FAILURE_RATE) {
-            return true;
-        }
-        return false;
+        return DEFAULT_RANDOM_FAILURE_RATE > 0.0 && random.nextDouble() < DEFAULT_RANDOM_FAILURE_RATE;
     }
 
     @Override

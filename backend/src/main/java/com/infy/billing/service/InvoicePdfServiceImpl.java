@@ -2,12 +2,15 @@ package com.infy.billing.service;
 
 import com.infy.billing.entity.*;
 import com.infy.billing.enums.Status;
+import com.infy.billing.exception.CustomException;
 import com.infy.billing.repository.InvoiceLineItemRepository;
 import com.infy.billing.repository.PaymentRepository;
 import com.lowagie.text.*;
 import com.lowagie.text.Font;
 import com.lowagie.text.pdf.*;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.awt.Color;
@@ -67,41 +70,43 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
         try {
             PdfWriter.getInstance(document, out);
             document.open();
-
-            // 1. Company Header
-            addCompanyHeader(document, invoice);
-            document.add(Chunk.NEWLINE);
-
-            // 2. Invoice Metadata + Bill To
-            addInvoiceMetaAndBillTo(document, invoice);
-            document.add(Chunk.NEWLINE);
-
-            // 3. Subscription Info
-            if (invoice.getSubscription() != null && invoice.getSubscription().getPlan() != null) {
-                addSubscriptionInfo(document, invoice);
-                document.add(Chunk.NEWLINE);
-            }
-
-            // 4. Line Items Table
-            addLineItemsTable(document, invoice);
-            document.add(Chunk.NEWLINE);
-
-            // 5. Totals
-            addTotals(document, invoice);
-            document.add(Chunk.NEWLINE);
-
-            // 6. Payment Status / Stamp
-            addPaymentStatus(document, invoice);
-
-            // 7. Footer
-            addFooter(document);
-
+            populateDocument(document, invoice);
             document.close();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to generate invoice PDF", e);
+            throw new CustomException("Failed to generate invoice PDF", HttpStatus.INTERNAL_SERVER_ERROR, "PDF_GENERATION_FAILED");
         }
 
         return out.toByteArray();
+    }
+
+    private void populateDocument(Document document, Invoice invoice) throws DocumentException {
+        // 1. Company Header
+        addCompanyHeader(document, invoice);
+        document.add(Chunk.NEWLINE);
+
+        // 2. Invoice Metadata + Bill To
+        addInvoiceMetaAndBillTo(document, invoice);
+        document.add(Chunk.NEWLINE);
+
+        // 3. Subscription Info
+        if (invoice.getSubscription() != null && invoice.getSubscription().getPlan() != null) {
+            addSubscriptionInfo(document, invoice);
+            document.add(Chunk.NEWLINE);
+        }
+
+        // 4. Line Items Table
+        addLineItemsTable(document, invoice);
+        document.add(Chunk.NEWLINE);
+
+        // 5. Totals
+        addTotals(document, invoice);
+        document.add(Chunk.NEWLINE);
+
+        // 6. Payment Status / Stamp
+        addPaymentStatus(document, invoice);
+
+        // 7. Footer
+        addFooter(document);
     }
 
     // ────────────────────────────────────────────────────────────────
@@ -464,7 +469,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
 
         try {
             Locale locale;
-            if ("INR".equals(currencyCode)) locale = new Locale("en", "IN");
+            if ("INR".equals(currencyCode)) locale = Locale.forLanguageTag("en-IN");
             else if ("GBP".equals(currencyCode)) locale = Locale.UK;
             else if ("USD".equals(currencyCode)) locale = Locale.US;
             else locale = Locale.US;

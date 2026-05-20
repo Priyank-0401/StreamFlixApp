@@ -9,13 +9,14 @@ import java.time.format.DateTimeFormatter;
 import java.util.Currency;
 import java.util.Locale;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import com.infy.billing.dto.finance.FinanceDashboardDTO;
 import com.infy.billing.dto.finance.PlanRevenueDTO;
 import com.infy.billing.dto.finance.RegionRevenueDTO;
+import com.infy.billing.exception.CustomException;
 import com.lowagie.text.*;
-import com.lowagie.text.Font;
 import com.lowagie.text.pdf.*;
 
 @Service
@@ -40,6 +41,8 @@ public class ReportExportServiceImpl implements ReportExportService {
     private static final Font TOTAL_FONT = new Font(Font.HELVETICA, 12, Font.BOLD, TEXT_PRIMARY);
     private static final Font FOOTER_FONT = new Font(Font.HELVETICA, 8, Font.NORMAL, TEXT_SECONDARY);
 
+    private static final String MRR_CONTRIBUTION_LABEL = "MRR Contribution";
+
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm");
 
     // CSV Export
@@ -56,7 +59,7 @@ public class ReportExportServiceImpl implements ReportExportService {
         csv.append("Active Customers,").append(data.getActiveCustomers()).append("\n");
 
         csv.append("\nRevenue by Plan (MRR)\n");
-        csv.append("Plan ID,Plan Name,MRR Contribution (INR)\n");
+        csv.append("Plan ID,Plan Name,").append(MRR_CONTRIBUTION_LABEL).append(" (INR)\n");
         for (PlanRevenueDTO p : data.getRevenueByPlan()) {
             csv.append(p.getPlanId()).append(",")
                .append(escapeCsv(p.getPlanName())).append(",")
@@ -64,7 +67,7 @@ public class ReportExportServiceImpl implements ReportExportService {
         }
 
         csv.append("\nRevenue by Region (MRR)\n");
-        csv.append("Region,MRR Contribution (INR)\n");
+        csv.append("Region,").append(MRR_CONTRIBUTION_LABEL).append(" (INR)\n");
         for (RegionRevenueDTO r : data.getRevenueByRegion()) {
             csv.append(escapeCsv(r.getRegion())).append(",")
                .append(formatAmount(r.getRevenueMinor())).append("\n");
@@ -107,7 +110,7 @@ public class ReportExportServiceImpl implements ReportExportService {
             document.add(Chunk.NEWLINE);
 
             // 4. Revenue by Plan Table
-            Paragraph planHeading = new Paragraph("REVENUE BY PLAN (MRR CONTRIBUTION)", VALUE_BOLD_FONT);
+            Paragraph planHeading = new Paragraph("REVENUE BY PLAN (" + MRR_CONTRIBUTION_LABEL.toUpperCase() + ")", VALUE_BOLD_FONT);
             planHeading.setSpacingBefore(10f);
             planHeading.setSpacingAfter(6f);
             document.add(planHeading);
@@ -116,7 +119,7 @@ public class ReportExportServiceImpl implements ReportExportService {
             planTable.setWidthPercentage(100);
             planTable.setWidths(new float[]{1f, 2.5f, 1.5f});
             planTable.setSpacingAfter(15f);
-            addTableHeader(planTable, "Plan ID", "Plan Name", "MRR Contribution");
+            addTableHeader(planTable, "Plan ID", "Plan Name", MRR_CONTRIBUTION_LABEL);
 
             for (PlanRevenueDTO p : data.getRevenueByPlan()) {
                 addTableCell(planTable, String.valueOf(p.getPlanId()), false, Element.ALIGN_CENTER);
@@ -130,7 +133,7 @@ public class ReportExportServiceImpl implements ReportExportService {
             document.add(Chunk.NEWLINE);
 
             // 5. Revenue by Region Table
-            Paragraph regionHeading = new Paragraph("REVENUE BY REGION (MRR CONTRIBUTION)", VALUE_BOLD_FONT);
+            Paragraph regionHeading = new Paragraph("REVENUE BY REGION (" + MRR_CONTRIBUTION_LABEL.toUpperCase() + ")", VALUE_BOLD_FONT);
             regionHeading.setSpacingBefore(10f);
             regionHeading.setSpacingAfter(6f);
             document.add(regionHeading);
@@ -139,7 +142,7 @@ public class ReportExportServiceImpl implements ReportExportService {
             regionTable.setWidthPercentage(100);
             regionTable.setWidths(new float[]{2f, 1.5f});
             regionTable.setSpacingAfter(15f);
-            addTableHeader(regionTable, "Region", "MRR Contribution");
+            addTableHeader(regionTable, "Region", MRR_CONTRIBUTION_LABEL);
 
             for (RegionRevenueDTO r : data.getRevenueByRegion()) {
                 addTableCell(regionTable, r.getRegion(), false, Element.ALIGN_LEFT);
@@ -162,7 +165,7 @@ public class ReportExportServiceImpl implements ReportExportService {
                 trendTable.setWidthPercentage(100);
                 trendTable.setWidths(new float[]{1.5f, 1.5f, 2f});
                 trendTable.setSpacingAfter(15f);
-                addTableHeader(trendTable, "Month", "Year", "MRR Contribution");
+                addTableHeader(trendTable, "Month", "Year", MRR_CONTRIBUTION_LABEL);
 
                 data.getRevenueTrend().forEach(t -> {
                     addTableCell(trendTable, t.getMonth(), false, Element.ALIGN_LEFT);
@@ -177,7 +180,7 @@ public class ReportExportServiceImpl implements ReportExportService {
 
             document.close();
         } catch (Exception e) {
-            throw new RuntimeException("Error generating PDF report", e);
+            throw new CustomException("Error generating PDF report", HttpStatus.INTERNAL_SERVER_ERROR, "PDF_GENERATION_FAILED");
         }
 
         return out.toByteArray();
@@ -297,7 +300,7 @@ public class ReportExportServiceImpl implements ReportExportService {
             cell.setBorderColor(BORDER_COLOR);
             cell.setBorderWidth(1.5f);
             cell.setPadding(8);
-            if (header.contains("Contribution")) {
+            if (header.contains("Contribution") || header.contains(MRR_CONTRIBUTION_LABEL)) {
                 cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
             } else if (header.equals("Plan Name") || header.equals("Region") || header.equals("Month")) {
                 cell.setHorizontalAlignment(Element.ALIGN_LEFT);
@@ -364,7 +367,7 @@ public class ReportExportServiceImpl implements ReportExportService {
         double amount = amountMinor / 100.0;
 
         try {
-            Locale locale = new Locale("en", "IN"); // Default Indian Rupee format
+            Locale locale = Locale.forLanguageTag("en-IN"); // Default Indian Rupee format
             NumberFormat fmt = NumberFormat.getCurrencyInstance(locale);
             fmt.setCurrency(Currency.getInstance("INR"));
             return fmt.format(amount);

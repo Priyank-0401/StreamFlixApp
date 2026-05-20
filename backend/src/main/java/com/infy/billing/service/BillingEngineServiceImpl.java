@@ -62,39 +62,42 @@ public class BillingEngineServiceImpl implements BillingEngineService {
 				.findByTrialEndDateAndStatus(today, Status.TRIALING);
 		subscriptions.addAll(trialSubscriptions);
 		for (Subscription subscription : subscriptions) {
-			try {
-				PaymentMethod paymentMethod = validateSubscription(subscription);
-				boolean alreadyProcessed = invoiceRepository
-						.existsBySubscriptionAndBillingReasonAndIssueDate(subscription,
-								BillingReason.SUBSCRIPTION_CYCLE, today);
-				if (alreadyProcessed) {
-					continue;
-				}
-				Invoice invoice = createInvoice(subscription, today);
-				addPlanLine(invoice, subscription);
-				addAddonLines(invoice, subscription);
+			processRenewalForSubscription(subscription, today);
+		}
+	}
 
-				// Apply credits and check if invoice becomes zero
-				boolean isFullyCoveredByCredits = applyCustomerCredits(invoice);
-				recalculateInvoiceTotals(invoice);
-
-				// If fully covered by credits, no payment needed
-				if (isFullyCoveredByCredits || invoice.getTotalMinor() == 0L) {
-
-					// Mark invoice as paid without payment
-					invoice.setStatus(Status.PAID);
-					invoice.setBalanceMinor(0L);
-					invoiceRepository.save(invoice);
-
-					// Advance subscription
-					advanceSubscription(subscription);
-					continue; // Skip payment processing
-				}
-				Payment payment = createPayment(invoice, paymentMethod);
-				processPayment(payment, paymentMethod, invoice, subscription);
-			} catch (Exception ex) {
-				ex.printStackTrace();
+	private void processRenewalForSubscription(Subscription subscription, LocalDate today) {
+		try {
+			PaymentMethod paymentMethod = validateSubscription(subscription);
+			boolean alreadyProcessed = invoiceRepository
+					.existsBySubscriptionAndBillingReasonAndIssueDate(subscription,
+							BillingReason.SUBSCRIPTION_CYCLE, today);
+			if (alreadyProcessed) {
+				return;
 			}
+			Invoice invoice = createInvoice(subscription, today);
+			addPlanLine(invoice, subscription);
+			addAddonLines(invoice, subscription);
+
+			// Apply credits and check if invoice becomes zero
+			boolean isFullyCoveredByCredits = applyCustomerCredits(invoice);
+			recalculateInvoiceTotals(invoice);
+
+			// If fully covered by credits, no payment needed
+			if (isFullyCoveredByCredits || invoice.getTotalMinor() == 0L) {
+				// Mark invoice as paid without payment
+				invoice.setStatus(Status.PAID);
+				invoice.setBalanceMinor(0L);
+				invoiceRepository.save(invoice);
+
+				// Advance subscription
+				advanceSubscription(subscription);
+				return; // Skip payment processing
+			}
+			Payment payment = createPayment(invoice, paymentMethod);
+			processPayment(payment, paymentMethod, invoice, subscription);
+		} catch (Exception ex) {
+			ex.printStackTrace();
 		}
 	}
 
@@ -224,7 +227,9 @@ public class BillingEngineServiceImpl implements BillingEngineService {
 				case DISCOUNT -> discount += Math.abs(line.getAmountMinor());
 				case TAX -> tax += line.getAmountMinor();
 				case CREDIT -> credits += Math.abs(line.getAmountMinor());
-				default -> {}
+				default -> {
+					// No actions needed for other line types (e.g. unknown or unsupported types)
+				}
 			}
 		}
 		long total = subtotal - discount - credits + tax;
