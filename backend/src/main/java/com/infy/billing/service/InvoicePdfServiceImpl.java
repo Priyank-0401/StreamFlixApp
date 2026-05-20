@@ -145,7 +145,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
         PdfPTable divider = new PdfPTable(1);
         divider.setWidthPercentage(100);
         PdfPCell line = new PdfPCell();
-        line.setBorder(PdfPCell.BOTTOM);
+        line.setBorder(Rectangle.BOTTOM);
         line.setBorderColor(BRAND_COLOR);
         line.setBorderWidth(2);
         line.setFixedHeight(4);
@@ -211,7 +211,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
         infoTable.setWidthPercentage(100);
 
         PdfPCell cell = new PdfPCell();
-        cell.setBorder(PdfPCell.BOX);
+        cell.setBorder(Rectangle.BOX);
         cell.setBorderColor(BORDER_COLOR);
         cell.setPadding(12);
         cell.setBackgroundColor(HEADER_BG);
@@ -266,7 +266,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             String amountText = formatCurrency(item.getAmountMinor(), invoice.getCurrency());
             PdfPCell amountCell = new PdfPCell(new Phrase(amountText,
                     isNegative ? new Font(Font.HELVETICA, 9, Font.NORMAL, DANGER_COLOR) : TABLE_CELL_FONT));
-            amountCell.setBorder(PdfPCell.BOTTOM);
+            amountCell.setBorder(Rectangle.BOTTOM);
             amountCell.setBorderColor(BORDER_COLOR);
             amountCell.setPadding(8);
             amountCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
@@ -278,7 +278,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             PdfPCell emptyCell = new PdfPCell(new Phrase("No line items", TABLE_CELL_FONT));
             emptyCell.setColspan(5);
             emptyCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-            emptyCell.setBorder(PdfPCell.BOTTOM);
+            emptyCell.setBorder(Rectangle.BOTTOM);
             emptyCell.setBorderColor(BORDER_COLOR);
             emptyCell.setPadding(16);
             table.addCell(emptyCell);
@@ -304,13 +304,13 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
 
         // Grand Total separator
         PdfPCell sepLeft = new PdfPCell();
-        sepLeft.setBorder(PdfPCell.TOP);
+        sepLeft.setBorder(Rectangle.TOP);
         sepLeft.setBorderColor(TEXT_PRIMARY);
         sepLeft.setBorderWidth(1.5f);
         sepLeft.setFixedHeight(4);
         totals.addCell(sepLeft);
         PdfPCell sepRight = new PdfPCell();
-        sepRight.setBorder(PdfPCell.TOP);
+        sepRight.setBorder(Rectangle.TOP);
         sepRight.setBorderColor(TEXT_PRIMARY);
         sepRight.setBorderWidth(1.5f);
         sepRight.setFixedHeight(4);
@@ -331,56 +331,67 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
         statusTable.setWidthPercentage(100);
 
         PdfPCell cell = new PdfPCell();
-        cell.setBorder(PdfPCell.BOX);
+        cell.setBorder(Rectangle.BOX);
         cell.setPadding(16);
         cell.setHorizontalAlignment(Element.ALIGN_CENTER);
 
         if (invoice.getStatus() == Status.PAID) {
-            cell.setBackgroundColor(new Color(240, 253, 244)); // green-50
-            cell.setBorderColor(new Color(187, 247, 208));     // green-200
-
-            Paragraph stamp = new Paragraph("✓  PAID", STAMP_FONT);
-            stamp.setAlignment(Element.ALIGN_CENTER);
-            cell.addElement(stamp);
-
-            // Show payment reference if available
-            List<Payment> payments = paymentRepository.findByInvoice_Id(invoice.getId());
-            if (!payments.isEmpty()) {
-                Payment lastPayment = payments.get(payments.size() - 1);
-                Paragraph ref = new Paragraph(
-                        "Payment Ref: " + (lastPayment.getGatewayRef() != null ? lastPayment.getGatewayRef() : "—")
-                        + "  •  " + (lastPayment.getCreatedAt() != null ? lastPayment.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")) : ""),
-                        FOOTER_FONT);
-                ref.setAlignment(Element.ALIGN_CENTER);
-                cell.addElement(ref);
-            }
+            addPaidStatus(cell, invoice);
         } else if (invoice.getStatus() == Status.VOID || invoice.getStatus() == Status.CANCELED) {
-            cell.setBackgroundColor(new Color(254, 242, 242)); // red-50
-            cell.setBorderColor(new Color(254, 202, 202));     // red-200
-
-            Font voidFont = new Font(Font.HELVETICA, 28, Font.BOLD, DANGER_COLOR);
-            Paragraph stamp = new Paragraph("VOID", voidFont);
-            stamp.setAlignment(Element.ALIGN_CENTER);
-            cell.addElement(stamp);
+            addVoidStatus(cell);
         } else {
-            // OPEN status
-            cell.setBackgroundColor(new Color(255, 247, 237)); // amber-50
-            cell.setBorderColor(new Color(254, 215, 170));     // amber-200
-
-            Font openFont = new Font(Font.HELVETICA, 14, Font.BOLD, new Color(194, 65, 12)); // orange-700
-            Paragraph stamp = new Paragraph("PAYMENT PENDING", openFont);
-            stamp.setAlignment(Element.ALIGN_CENTER);
-            cell.addElement(stamp);
-
-            Paragraph note = new Paragraph(
-                    "This invoice is awaiting payment. Amount due: " + formatCurrency(invoice.getBalanceMinor(), invoice.getCurrency()),
-                    FOOTER_FONT);
-            note.setAlignment(Element.ALIGN_CENTER);
-            cell.addElement(note);
+            addOpenStatus(cell, invoice);
         }
 
         statusTable.addCell(cell);
         document.add(statusTable);
+    }
+
+    private void addPaidStatus(PdfPCell cell, Invoice invoice) {
+        cell.setBackgroundColor(new Color(240, 253, 244)); // green-50
+        cell.setBorderColor(new Color(187, 247, 208));     // green-200
+
+        Paragraph stamp = new Paragraph("✓  PAID", STAMP_FONT);
+        stamp.setAlignment(Element.ALIGN_CENTER);
+        cell.addElement(stamp);
+
+        // Show payment reference if available
+        List<Payment> payments = paymentRepository.findByInvoice_Id(invoice.getId());
+        if (!payments.isEmpty()) {
+            Payment lastPayment = payments.get(payments.size() - 1);
+            Paragraph ref = new Paragraph(
+                    "Payment Ref: " + (lastPayment.getGatewayRef() != null ? lastPayment.getGatewayRef() : "—")
+                    + "  •  " + (lastPayment.getCreatedAt() != null ? lastPayment.getCreatedAt().format(DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm")) : ""),
+                    FOOTER_FONT);
+            ref.setAlignment(Element.ALIGN_CENTER);
+            cell.addElement(ref);
+        }
+    }
+
+    private void addVoidStatus(PdfPCell cell) {
+        cell.setBackgroundColor(new Color(254, 242, 242)); // red-50
+        cell.setBorderColor(new Color(254, 202, 202));     // red-200
+
+        Font voidFont = new Font(Font.HELVETICA, 28, Font.BOLD, DANGER_COLOR);
+        Paragraph stamp = new Paragraph("VOID", voidFont);
+        stamp.setAlignment(Element.ALIGN_CENTER);
+        cell.addElement(stamp);
+    }
+
+    private void addOpenStatus(PdfPCell cell, Invoice invoice) {
+        cell.setBackgroundColor(new Color(255, 247, 237)); // amber-50
+        cell.setBorderColor(new Color(254, 215, 170));     // amber-200
+
+        Font openFont = new Font(Font.HELVETICA, 14, Font.BOLD, new Color(194, 65, 12)); // orange-700
+        Paragraph stamp = new Paragraph("PAYMENT PENDING", openFont);
+        stamp.setAlignment(Element.ALIGN_CENTER);
+        cell.addElement(stamp);
+
+        Paragraph note = new Paragraph(
+                "This invoice is awaiting payment. Amount due: " + formatCurrency(invoice.getBalanceMinor(), invoice.getCurrency()),
+                FOOTER_FONT);
+        note.setAlignment(Element.ALIGN_CENTER);
+        cell.addElement(note);
     }
 
     private void addFooter(Document document) throws DocumentException {
@@ -403,7 +414,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
     private void addTableHeader(PdfPTable table, String text) {
         PdfPCell cell = new PdfPCell(new Phrase(text, TABLE_HEADER_FONT));
         cell.setBackgroundColor(HEADER_BG);
-        cell.setBorder(PdfPCell.BOTTOM);
+        cell.setBorder(Rectangle.BOTTOM);
         cell.setBorderColor(BORDER_COLOR);
         cell.setBorderWidth(1.5f);
         cell.setPadding(8);
@@ -419,7 +430,7 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
 
     private void addTableCell(PdfPTable table, String text, boolean bold, int alignment) {
         PdfPCell cell = new PdfPCell(new Phrase(text, bold ? TABLE_CELL_BOLD_FONT : TABLE_CELL_FONT));
-        cell.setBorder(PdfPCell.BOTTOM);
+        cell.setBorder(Rectangle.BOTTOM);
         cell.setBorderColor(BORDER_COLOR);
         cell.setPadding(8);
         cell.setHorizontalAlignment(alignment);

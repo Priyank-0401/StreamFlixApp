@@ -46,8 +46,7 @@ public class AuditLoggingServiceImpl implements AuditLoggingService {
             // Populate Actor details from SecurityContext
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null && auth.isAuthenticated() && !auth.getPrincipal().equals("anonymousUser")) {
-                if (auth.getPrincipal() instanceof UserDetails) {
-                    UserDetails userDetails = (UserDetails) auth.getPrincipal();
+                if (auth.getPrincipal() instanceof UserDetails userDetails) {
                     auditLog.setActor(userDetails.getUsername());
                     // Pick the first granted authority as the role for simplicity
                     if (!userDetails.getAuthorities().isEmpty()) {
@@ -81,7 +80,7 @@ public class AuditLoggingServiceImpl implements AuditLoggingService {
 
     private String serializeSafely(Object value) {
         if (value == null) return null;
-        if (value instanceof String) return (String) value; // if it's already a JSON string
+        if (value instanceof String string) return string; // if it's already a JSON string
         try {
             return objectMapper.writeValueAsString(value);
         } catch (Exception e) {

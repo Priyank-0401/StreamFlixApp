@@ -162,23 +162,21 @@ public class BillingEngineServiceImpl implements BillingEngineService {
 			return;
 		}
 		for (SubscriptionItem item : items) {
-			if (item.getAddOn() == null) {
-				continue;
+			if (item.getAddOn() != null) {
+				Long price = item.getAddOn().getPriceMinor();
+				if (price != null && price > 0) {
+					int quantity = item.getQuantity() != null ? item.getQuantity() : 1;
+					long total = price * quantity;
+					InvoiceLineItem line = new InvoiceLineItem();
+					line.setInvoice(invoice);
+					line.setDescription(item.getAddOn().getName());
+					line.setQuantity(quantity);
+					line.setUnitPriceMinor(price);
+					line.setAmountMinor(total);
+					line.setLineType(InvoiceLineItem.LineType.ADDON);
+					invoiceLineItemRepository.save(line);
+				}
 			}
-			Long price = item.getAddOn().getPriceMinor();
-			if (price == null || price <= 0) {
-				continue;
-			}
-			int quantity = item.getQuantity() != null ? item.getQuantity() : 1;
-			long total = price * quantity;
-			InvoiceLineItem line = new InvoiceLineItem();
-			line.setInvoice(invoice);
-			line.setDescription(item.getAddOn().getName());
-			line.setQuantity(quantity);
-			line.setUnitPriceMinor(price);
-			line.setAmountMinor(total);
-			line.setLineType(InvoiceLineItem.LineType.ADDON);
-			invoiceLineItemRepository.save(line);
 		}
 	}
 

@@ -221,7 +221,7 @@ public class ReportExportServiceImpl implements ReportExportService {
         PdfPTable divider = new PdfPTable(1);
         divider.setWidthPercentage(100);
         PdfPCell line = new PdfPCell();
-        line.setBorder(PdfPCell.BOTTOM);
+        line.setBorder(Rectangle.BOTTOM);
         line.setBorderColor(BRAND_COLOR);
         line.setBorderWidth(2);
         line.setFixedHeight(4);

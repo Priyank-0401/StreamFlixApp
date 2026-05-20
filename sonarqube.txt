@@ -1,62 +1,24 @@
 Resource	Date	Description
-AdminDashboardServiceImplTest.java	1 day ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
-AdminDashboardServiceImplTest.java	1 day ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
-AdminDashboardServiceImplTest.java	1 day ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
-AdminDashboardServiceImplTest.java	1 day ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
-AdminDashboardServiceImplTest.java	1 day ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
-AdminDashboardServiceImplTest.java	1 day ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
-AdminDashboardServiceImplTest.java	1 day ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
-AuthController.java	28 days ago	Remove usage of generic wildcard type.
-BillingEngineServiceImpl.java	20 hours ago	Remove this block of code, fill it in, or add a comment explaining why it is empty.
+AdminDashboardServiceImpl.java	1 minute ago	Define a constant instead of duplicating this literal "MeteredComponent" 3 times. [+3 locations]
+AdminDashboardServiceImpl.java	1 minute ago	Define a constant instead of duplicating this literal "Coupon" 3 times. [+3 locations]
+AdminDashboardServiceImpl.java	1 minute ago	Define a constant instead of duplicating this literal "Product" 3 times. [+3 locations]
+AdminDashboardServiceImpl.java	1 minute ago	Define a constant instead of duplicating this literal "AddOn" 3 times. [+3 locations]
+AuditLoggingServiceImpl.java	1 minute ago	Replace this instanceof check and cast with 'instanceof String string' [+1 location]
+AuditLoggingServiceImpl.java	1 minute ago	Replace this instanceof check and cast with 'instanceof UserDetails userDetails' [+1 location]
 BillingEngineServiceImpl.java	5 days ago	Reduce the total number of break and continue statements in this loop to use at most one. [+2 locations]
-BillingEngineServiceImpl.java	5 days ago	Reduce the total number of break and continue statements in this loop to use at most one. [+2 locations]
-BillingEngineServiceImplTest.java	20 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingEngineServiceImplTest.java	20 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingEngineServiceImplTest.java	20 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingEngineServiceImplTest.java	20 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingEngineServiceImplTest.java	20 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingEngineServiceImplTest.java	1 day ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingEngineServiceImplTest.java	1 day ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingEngineServiceImplTest.java	1 day ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingEngineServiceImplTest.java	1 day ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingEngineServiceImplTest.java	1 day ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingEngineServiceImplTest.java	1 day ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingEngineServiceImplTest.java	1 day ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingEngineServiceImplTest.java	1 day ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingEngineServiceImplTest.java	1 day ago	Remove this and every subsequent useless "eq(...)" invocation; pass the values directly. [+2 locations]
-BillingRetryServiceImplTest.java	20 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingRetryServiceImplTest.java	20 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingRetryServiceImplTest.java	20 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingRetryServiceImplTest.java	1 day ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingRetryServiceImplTest.java	1 day ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-BillingRetryServiceImplTest.java	1 day ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
-CustomerPaymentServiceImplTest.java	20 hours ago	Replace these 3 tests with a single Parameterized one. [+4 locations]
-CustomerServiceImpl.java	15 days ago	Update this method so that its implementation is not identical to "getAvailablePlans" on line 40. [+1 location]
-CustomerSubscriptionServiceImpl.java	22 hours ago	A "Brain Method" was detected. Refactor it to reduce at least one of the following metrics: LOC from 145 to 64, Complexity from 16 to 14, Nesting Level from 3 to 2, Number of Variables from 32 to 6.
+CustomerSubscriptionServiceImpl.java	1 minute ago	A "Brain Method" was detected. Refactor it to reduce at least one of the following metrics: LOC from 197 to 64, Complexity from 29 to 14, Nesting Level from 3 to 2, Number of Variables from 43 to 6.
+CustomerSubscriptionServiceImpl.java	1 minute ago	A "Brain Method" was detected. Refactor it to reduce at least one of the following metrics: LOC from 117 to 64, Complexity from 19 to 14, Nesting Level from 4 to 2, Number of Variables from 27 to 6.
+CustomerSubscriptionServiceImpl.java	1 minute ago	Refactor this method to reduce its Cognitive Complexity from 41 to the 15 allowed. [+33 locations]
+CustomerSubscriptionServiceImpl.java	1 minute ago	Refactor this method to reduce its Cognitive Complexity from 36 to the 15 allowed. [+21 locations]
+CustomerSubscriptionServiceImpl.java	1 minute ago	Define a constant instead of duplicating this literal "Subscription" 8 times. [+8 locations]
+CustomerSubscriptionServiceImpl.java	23 hours ago	A "Brain Method" was detected. Refactor it to reduce at least one of the following metrics: LOC from 146 to 64, Complexity from 16 to 14, Nesting Level from 3 to 2, Number of Variables from 32 to 6.
 CustomerSubscriptionServiceImpl.java	1 day ago	Refactor this method to reduce its Cognitive Complexity from 19 to the 15 allowed. [+15 locations]
 CustomerSubscriptionServiceImpl.java	8 days ago	Refactor this method to reduce its Cognitive Complexity from 29 to the 15 allowed. [+16 locations]
-CustomerSubscriptionServiceImpl.java	14 days ago	Define a constant instead of duplicating this literal " (Starts after trial)" 3 times. [+3 locations]
-CustomerSubscriptionServiceImpl.java	14 days ago	Define a constant instead of duplicating this literal "Add-on: " 4 times. [+4 locations]
-CustomerSubscriptionServiceImpl.java	14 days ago	Define a constant instead of duplicating this literal "Unknown" 3 times. [+3 locations]
-CustomerSubscriptionServiceImpl.java	14 days ago	Define a constant instead of duplicating this literal "yyyyMMdd-HHmmss" 4 times. [+4 locations]
-CustomerSubscriptionServiceImpl.java	14 days ago	Refactor this method to reduce its Cognitive Complexity from 95 to the 15 allowed. [+56 locations]
-CustomerSubscriptionServiceImpl.java	14 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-CustomerSubscriptionServiceImpl.java	14 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-CustomerSubscriptionServiceImpl.java	14 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-CustomerSubscriptionServiceImpl.java	14 days ago	Use isEmpty() to check whether the collection is empty or not.
-CustomerSubscriptionServiceImpl.java	15 days ago	A "Brain Method" was detected. Refactor it to reduce at least one of the following metrics: LOC from 324 to 64, Complexity from 49 to 14, Nesting Level from 5 to 2, Number of Variables from 66 to 6.
-CustomerSubscriptionServiceImpl.java	15 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
-CustomerSubscriptionServiceImplTest.java	8 hours ago	Rename this variable to not match a restricted identifier.
-CustomerSubscriptionServiceImplTest.java	22 hours ago	Rename this variable to not match a restricted identifier.
-CustomerSupportServiceImpl.java	15 days ago	Define a constant instead of duplicating this literal "BILLING" 3 times. [+3 locations]
-CustomerSupportServiceImpl.java	15 days ago	Define a constant instead of duplicating this literal "answer" 8 times. [+8 locations]
-CustomerSupportServiceImpl.java	15 days ago	Define a constant instead of duplicating this literal "category" 8 times. [+8 locations]
-CustomerSupportServiceImpl.java	15 days ago	Define a constant instead of duplicating this literal "question" 8 times. [+8 locations]
-CustomerSupportServiceImplTest.java	1 day ago	Add at least one assertion to this test case.
-FinanceController.java	8 hours ago	This block of commented-out lines of code should be removed.
+CustomerSubscriptionServiceImpl.java	14 days ago	Use already-defined constant 'ADDON_PREFIX' instead of duplicating its value here.
+CustomerSubscriptionServiceImpl.java	14 days ago	Use already-defined constant 'STARTS_AFTER_TRIAL' instead of duplicating its value here.
+FinanceController.java	9 hours ago	This block of commented-out lines of code should be removed.
 FinanceController.java	2 days ago	This block of commented-out lines of code should be removed.
 FinanceController.java	2 days ago	This block of commented-out lines of code should be removed.
-InvoicePdfServiceImpl.java	8 days ago	Remove this use of "Locale"; it is deprecated.
 InvoicePdfServiceImpl.java	8 days ago	Use static access with "com.lowagie.text.Rectangle" for "BOTTOM".
 InvoicePdfServiceImpl.java	8 days ago	Use static access with "com.lowagie.text.Rectangle" for "BOTTOM".
 InvoicePdfServiceImpl.java	8 days ago	Use static access with "com.lowagie.text.Rectangle" for "BOX".
@@ -67,35 +29,37 @@ InvoicePdfServiceImpl.java	8 days ago	Use static access with "com.lowagie.text.R
 InvoicePdfServiceImpl.java	8 days ago	Use static access with "com.lowagie.text.Rectangle" for "BOX".
 InvoicePdfServiceImpl.java	8 days ago	Refactor this method to reduce its Cognitive Complexity from 19 to the 15 allowed. [+12 locations]
 InvoicePdfServiceImpl.java	8 days ago	Use static access with "com.lowagie.text.Rectangle" for "BOTTOM".
-InvoicePdfServiceImpl.java	8 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
-MockPaymentGatewayImpl.java	8 days ago	Replace this if-then-else statement by a single return statement.
-NotificationControllerTest.java	1 day ago	Remove this 'public' modifier.
-NotificationServiceImpl.java	1 day ago	Define a constant instead of duplicating this literal "Upcoming Subscription Renewal & Payment Reminder" 3 times. [+3 locations]
 NotificationServiceImpl.java	5 days ago	Reduce the total number of break and continue statements in this loop to use at most one. [+2 locations]
-NotificationServiceImpl.java	5 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-NotificationServiceImpl.java	5 days ago	Replace this use of System.out by a logger.
-NotificationServiceImpl.java	5 days ago	Replace this use of System.out by a logger.
-PaymentMethodRequest.java	15 days ago	Use concise character class syntax '\\d' instead of '[0-9]'.
-PaymentMethodRequest.java	15 days ago	Use concise character class syntax '\\d' instead of '[0-9]'.
-PaymentMethodRequest.java	15 days ago	Use concise character class syntax '\\d' instead of '[0-9]'.
-ReportExportServiceImpl.java	1 day ago	Define a constant instead of duplicating this literal "MRR Contribution" 3 times. [+3 locations]
-ReportExportServiceImpl.java	1 day ago	Remove this use of "Locale"; it is deprecated.
-ReportExportServiceImpl.java	1 day ago	Replace generic exceptions with specific library exceptions or a custom exception.
 ReportExportServiceImpl.java	1 day ago	Use static access with "com.lowagie.text.Rectangle" for "BOTTOM".
 ReportExportServiceImpl.java	1 day ago	Use static access with "com.lowagie.text.Rectangle" for "BOTTOM".
 ReportExportServiceImpl.java	1 day ago	Use static access with "com.lowagie.text.Rectangle" for "BOTTOM".
 ReportExportServiceImpl.java	1 day ago	Use static access with "com.lowagie.text.Rectangle" for "BOTTOM".
 ReportExportServiceImpl.java	1 day ago	Use static access with "com.lowagie.text.Rectangle" for "BOX".
-RevenueAnalyticsServiceImpl.java	8 hours ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-RevenueAnalyticsServiceImpl.java	8 hours ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-RevenueAnalyticsServiceImpl.java	8 hours ago	Refactor this method to reduce its Cognitive Complexity from 25 to the 15 allowed. [+18 locations]
-RevenueAnalyticsServiceImpl.java	8 hours ago	Refactor this method to reduce its Cognitive Complexity from 21 to the 15 allowed. [+13 locations]
-RevenueAnalyticsServiceImpl.java	8 hours ago	Merge this if statement with the enclosing one. [+1 location]
-RevenueAnalyticsServiceImpl.java	8 hours ago	Merge this if statement with the enclosing one. [+1 location]
-RevenueAnalyticsServiceImpl.java	1 day ago	A "Brain Method" was detected. Refactor it to reduce at least one of the following metrics: LOC from 77 to 64, Complexity from 16 to 14, Nesting Level from 3 to 2, Number of Variables from 22 to 6.
-RevenueAnalyticsServiceImpl.java	1 day ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-RevenueAnalyticsServiceImpl.java	2 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-RevenueAnalyticsServiceImpl.java	2 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-RevenueAnalyticsServiceImpl.java	2 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-RevenueAnalyticsServiceImpl.java	2 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-RevenueAnalyticsServiceImpl.java	2 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+RevenueAnalyticsServiceImpl.java	1 minute ago	Refactor this method to reduce its Cognitive Complexity from 22 to the 15 allowed. [+17 locations]
+RevenueAnalyticsServiceImpl.java	2 days ago	Define a constant instead of duplicating this literal "yyyy-MM" 4 times. [+4 locations]
+RevenueAnalyticsServiceImpl.java	2 days ago	Cast one of the operands of this addition operation to a "long".
+SubscriptionFlowServiceImpl.java	8 days ago	Remove this useless assignment to local variable "creditApplied".
+SubscriptionFlowServiceImpl.java	8 days ago	Refactor this method to reduce its Cognitive Complexity from 50 to the 15 allowed. [+33 locations]
+SubscriptionFlowServiceImpl.java	14 days ago	Extract this nested ternary operation into an independent statement.
+SubscriptionFlowServiceImpl.java	14 days ago	Method has 8 parameters, which is greater than 7 authorized.
+SubscriptionFlowServiceImpl.java	15 days ago	A "Brain Method" was detected. Refactor it to reduce at least one of the following metrics: LOC from 178 to 64, Complexity from 30 to 14, Nesting Level from 4 to 2, Number of Variables from 36 to 6.
+SubscriptionFlowServiceImpl.java	22 days ago	Replace this lambda with method reference 'TaxRate::getRatePercent'.
+SubscriptionFlowServiceImpl.java	22 days ago	Replace this use of System.out by a logger.
+SubscriptionFlowServiceImpl.java	22 days ago	Replace this use of System.out by a logger.
+SubscriptionFlowServiceImpl.java	22 days ago	Replace this use of System.out by a logger.
+SubscriptionFlowServiceImpl.java	22 days ago	Replace this use of System.out by a logger.
+SubscriptionFlowServiceImplTest.java	1 day ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
+SubscriptionFlowServiceImplTest.java	1 day ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
+SubscriptionFlowServiceImplTest.java	1 day ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
+SubscriptionFlowServiceImplTest.java	1 day ago	Remove this and every subsequent useless "eq(...)" invocation; pass the values directly. [+1 location]
+SubscriptionFlowServiceImplTest.java	1 day ago	Remove this and every subsequent useless "eq(...)" invocation; pass the values directly. [+1 location]
+SubscriptionFlowServiceImplTest.java	1 day ago	Remove this and every subsequent useless "eq(...)" invocation; pass the values directly. [+1 location]
+SubscriptionFlowServiceImplTest.java	1 day ago	Remove this and every subsequent useless "eq(...)" invocation; pass the values directly. [+1 location]
+SupportServiceImpl.java	21 hours ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+SupportServiceImpl.java	21 hours ago	Use a primitive boolean expression here.
+SupportServiceImpl.java	1 day ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+SupportServiceImpl.java	1 day ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+SupportServiceImpl.java	1 day ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+SupportServiceImpl.java	1 day ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+SupportServiceImpl.java	1 day ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+SupportServiceImpl.java	1 day ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.

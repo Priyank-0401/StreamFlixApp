@@ -48,6 +48,10 @@ import lombok.RequiredArgsConstructor;
 public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     private static final String PRODUCT_NOT_FOUND_MSG = "Product not found with id: ";
+    private static final String ENTITY_PRODUCT = "Product";
+    private static final String ENTITY_ADD_ON = "AddOn";
+    private static final String ENTITY_METERED_COMPONENT = "MeteredComponent";
+    private static final String ENTITY_COUPON = "Coupon";
 
     private final ProductRepository productRepository;
     private final PlanRepository planRepository;
@@ -97,7 +101,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     @Override
     public ProductResponse createProduct(Product product) {
         Product saved = productRepository.save(product);
-        auditLoggingService.logAction("CREATE_PRODUCT", "Product", saved.getId(), null, saved);
+        auditLoggingService.logAction("CREATE_PRODUCT", ENTITY_PRODUCT, saved.getId(), null, saved);
         return ProductResponse.from(saved, 0);
     }
 
@@ -108,7 +112,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         product.setName(updated.getName());
         product.setDescription(updated.getDescription());
         Product saved = productRepository.save(product);
-        auditLoggingService.logAction("UPDATE_PRODUCT", "Product", saved.getId(), null, saved);
+        auditLoggingService.logAction("UPDATE_PRODUCT", ENTITY_PRODUCT, saved.getId(), null, saved);
         return ProductResponse.from(saved, planRepository.countByProductId(saved.getId()));
     }
 
@@ -118,7 +122,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .orElseThrow(() -> CustomException.notFound(PRODUCT_NOT_FOUND_MSG + id));
         product.setStatus(product.getStatus().equals(Status.ACTIVE) ? Status.INACTIVE : Status.ACTIVE);
         productRepository.save(product);
-        auditLoggingService.logAction("TOGGLE_PRODUCT_STATUS", "Product", product.getId(), null, product);
+        auditLoggingService.logAction("TOGGLE_PRODUCT_STATUS", ENTITY_PRODUCT, product.getId(), null, product);
     }
 
     // ==================== PLAN ====================
@@ -214,7 +218,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     @Override
     public AddOnResponse createAddOn(AddOn addOn) {
         AddOn saved = addOnRepository.save(addOn);
-        auditLoggingService.logAction("CREATE_ADDON", "AddOn", saved.getId(), null, saved);
+        auditLoggingService.logAction("CREATE_ADDON", ENTITY_ADD_ON, saved.getId(), null, saved);
         return AddOnResponse.from(saved);
     }
 
@@ -228,7 +232,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         addOn.setBillingPeriod(updated.getBillingPeriod());
         addOn.setTaxMode(updated.getTaxMode());
         AddOn saved = addOnRepository.save(addOn);
-        auditLoggingService.logAction("UPDATE_ADDON", "AddOn", saved.getId(), null, saved);
+        auditLoggingService.logAction("UPDATE_ADDON", ENTITY_ADD_ON, saved.getId(), null, saved);
         return AddOnResponse.from(saved);
     }
 
@@ -238,7 +242,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .orElseThrow(() -> CustomException.notFound("Add-on not found"));
         addOn.setStatus(addOn.getStatus().equals(Status.ACTIVE) ? Status.INACTIVE : Status.ACTIVE);
         addOnRepository.save(addOn);
-        auditLoggingService.logAction("TOGGLE_ADDON_STATUS", "AddOn", addOn.getId(), null, addOn);
+        auditLoggingService.logAction("TOGGLE_ADDON_STATUS", ENTITY_ADD_ON, addOn.getId(), null, addOn);
     }
 
     // ==================== METERED COMPONENT ====================
@@ -250,7 +254,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     @Override
     public MeteredComponentResponse createMeteredComponent(MeteredComponent component) {
         MeteredComponent saved = meteredComponentRepository.save(component);
-        auditLoggingService.logAction("CREATE_METERED_COMPONENT", "MeteredComponent", saved.getId(), null, saved);
+        auditLoggingService.logAction("CREATE_METERED_COMPONENT", ENTITY_METERED_COMPONENT, saved.getId(), null, saved);
         return MeteredComponentResponse.from(saved);
     }
 
@@ -263,7 +267,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         component.setPricePerUnitMinor(updated.getPricePerUnitMinor());
         component.setFreeTierQuantity(updated.getFreeTierQuantity());
         MeteredComponent saved = meteredComponentRepository.save(component);
-        auditLoggingService.logAction("UPDATE_METERED_COMPONENT", "MeteredComponent", saved.getId(), null, saved);
+        auditLoggingService.logAction("UPDATE_METERED_COMPONENT", ENTITY_METERED_COMPONENT, saved.getId(), null, saved);
         return MeteredComponentResponse.from(saved);
     }
 
@@ -273,7 +277,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .orElseThrow(() -> CustomException.notFound("Metered component not found"));
         component.setStatus(component.getStatus().equals(Status.ACTIVE) ? Status.INACTIVE : Status.ACTIVE);
         meteredComponentRepository.save(component);
-        auditLoggingService.logAction("TOGGLE_METERED_COMPONENT_STATUS", "MeteredComponent", component.getId(), null, component);
+        auditLoggingService.logAction("TOGGLE_METERED_COMPONENT_STATUS", ENTITY_METERED_COMPONENT, component.getId(), null, component);
     }
 
     // ==================== TAX RATE ====================
@@ -321,7 +325,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
             throw CustomException.conflict("Coupon code already exists: " + coupon.getCode());
         }
         Coupon saved = couponRepository.save(coupon);
-        auditLoggingService.logAction("CREATE_COUPON", "Coupon", saved.getId(), null, saved);
+        auditLoggingService.logAction("CREATE_COUPON", ENTITY_COUPON, saved.getId(), null, saved);
         return saved;
     }
 
@@ -339,7 +343,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         coupon.setValidFrom(updated.getValidFrom());
         coupon.setValidTo(updated.getValidTo());
         Coupon saved = couponRepository.save(coupon);
-        auditLoggingService.logAction("UPDATE_COUPON", "Coupon", saved.getId(), null, saved);
+        auditLoggingService.logAction("UPDATE_COUPON", ENTITY_COUPON, saved.getId(), null, saved);
         return saved;
     }
 
@@ -349,7 +353,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .orElseThrow(() -> CustomException.notFound("Coupon not found"));
         coupon.setStatus(coupon.getStatus().equals(Status.ACTIVE) ? Status.DISABLED : Status.ACTIVE);
         couponRepository.save(coupon);
-        auditLoggingService.logAction("TOGGLE_COUPON_STATUS", "Coupon", coupon.getId(), null, coupon);
+        auditLoggingService.logAction("TOGGLE_COUPON_STATUS", ENTITY_COUPON, coupon.getId(), null, coupon);
     }
 
     // ==================== CUSTOMERS ====================
