@@ -1,18 +1,16 @@
 import React from 'react';
-import type { RevenueMetric } from '../../../types/financeTypes';
 
 interface Props {
   title: string;
-  metric: RevenueMetric;
+  value: number;
   icon: React.ReactNode;
   prefix?: string;
   suffix?: string;
   formatter?: (val: number) => string | number;
 }
 
-export const FinanceMetricCard: React.FC<Props> = ({ title, metric, icon, prefix = '', suffix = '', formatter }) => {
-  const isUp = metric.trendDirection === 'up';
-  const displayValue = formatter ? formatter(metric.value) : metric.value.toLocaleString();
+export const FinanceMetricCard: React.FC<Props> = ({ title, value, icon, prefix = '', suffix = '', formatter }) => {
+  const displayValue = formatter ? formatter(value) : value.toLocaleString();
 
   return (
     <div
@@ -72,19 +70,6 @@ export const FinanceMetricCard: React.FC<Props> = ({ title, metric, icon, prefix
       >
         {prefix}{displayValue}{suffix}
       </div>
-      <span
-        style={{
-          fontFamily: 'Inter, sans-serif',
-          fontSize: '12px',
-          fontWeight: 500,
-          color: !isUp ? '#dc2626' : '#16a34a',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-        }}
-      >
-        {!isUp ? '↓' : '↑'} {metric.trend}%
-      </span>
     </div>
   );
 };

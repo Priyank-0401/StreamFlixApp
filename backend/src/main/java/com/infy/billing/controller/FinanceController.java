@@ -130,6 +130,17 @@ public class FinanceController {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // 7.1. Invoice Detail with Line Items
+    // GET /api/finance/invoices/{invoiceId}
+    // Returns invoice details including line items:
+    //   invoiceNumber, customerId, amount, date, dueDate, status, lineItems[]
+    // ─────────────────────────────────────────────────────────────────────────
+    @GetMapping("/invoices/{invoiceId}")
+    public ResponseEntity<InvoiceDetailDTO> getInvoiceDetail(@PathVariable Long invoiceId) {
+        return ResponseEntity.ok(revenueAnalyticsService.getInvoiceDetailById(invoiceId));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // 8. Payments
     // GET /api/finance/payments
     // Returns from payment table:

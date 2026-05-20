@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, Calendar, TrendingUp } from 'lucide-react';
+import { Activity, Calendar } from 'lucide-react';
 import { DonutChart } from '../../components/finance/charts/donut';
 import { RevenueTrendChart } from '../../components/finance/charts/revenueTrendchart';
 import { AnalyticsChartCard } from '../../components/finance/components/analyticsChartCards';
@@ -32,10 +32,9 @@ export const ARRAnalyticsPage: React.FC = () => {
     <>
       <PageHeader subtitle="Annual Recurring Revenue and yearly forecasts." />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '32px' }}>
-        <FinanceMetricCard title="Total ARR" metric={{ value: data.total, trend: 15.2, trendDirection: 'up' }} icon={<Activity />} prefix="₹" />
-        <FinanceMetricCard title="Monthly Equivalent" metric={{ value: data.total / 12, trend: 15.2, trendDirection: 'up' }} icon={<Calendar />} prefix="₹" />
-        <FinanceMetricCard title="Projected ARR (Next Year)" metric={{ value: data.total * 1.15, trend: 15.0, trendDirection: 'up' }} icon={<TrendingUp />} prefix="₹" />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
+        <FinanceMetricCard title="Total ARR" value={data.total} icon={<Activity />} prefix="₹" />
+        <FinanceMetricCard title="Monthly Equivalent" value={data.total / 12} icon={<Calendar />} prefix="₹" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px', marginBottom: '24px' }}>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PageHeader } from '../../components/admin/shared/PageHeader';
 import { DataTable } from '../../components/admin/shared/DataTable';
-import { StatusBadge } from '../../components/admin/shared/StatusBadge';
+import { StatusBadge } from '../../components/shared/StatusBadge';
 import { searchCustomers, getCustomerDetails, type CustomerSearchResponse, type CustomerDetailResponse } from '../../services/support/supportService';
 import { Search } from 'lucide-react';
 
@@ -244,7 +244,7 @@ export const SupportDashboardPage: React.FC = () => {
                                 <div style={{ fontSize: '13px', color: '#64748b' }}>Date: {cn.createdAt}</div>
                               </div>
                               <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontWeight: 600 }}>{(cn.amountMinor / 100).toFixed(2)}</div>
+                                <div style={{ fontWeight: 600 }}>{selectedCustomer.customerProfile.currency} {(cn.amountMinor / 100).toFixed(2)}</div>
                                 <StatusBadge status={cn.status} />
                               </div>
                             </div>

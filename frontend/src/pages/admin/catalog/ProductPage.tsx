@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PageHeader } from '../../../components/admin/shared/PageHeader';
-import { StatusBadge } from '../../../components/admin/shared/StatusBadge';
+import { StatusBadge } from '../../../components/shared/StatusBadge';
 import { AdminModal } from '../../../components/admin/shared/AdminModal';
 import { FormField } from '../../../components/admin/shared/FormField';
 import { Package } from 'lucide-react';

@@ -178,7 +178,7 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
    }
 
    private InvoiceLineItemDTO mapToLineItemDTO(InvoiceLineItem item) {
-       InvoiceLineItemDTO dto = new InvoiceLineItemDTO();
+       InvoiceLineItemDTO dto = InvoiceLineItemDTO.builder().build();
        dto.setLineItemId(item.getId());
        dto.setDescription(item.getDescription());
        dto.setLineType(item.getLineType());
@@ -193,9 +193,14 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
    private PaymentDTO mapToPaymentDTO(Payment payment) {
        PaymentDTO dto = new PaymentDTO();
        dto.setPaymentId(payment.getId());
-       dto.setInvoiceId(payment.getInvoice().getId());
-       Invoice inv = invoiceRepository.findById(payment.getInvoice().getId()).orElse(null);
-       dto.setInvoiceNumber(inv != null ? inv.getInvoiceNumber() : "N/A");
+       if (payment.getInvoice() != null) {
+           dto.setInvoiceId(payment.getInvoice().getId());
+           Invoice inv = invoiceRepository.findById(payment.getInvoice().getId()).orElse(null);
+           dto.setInvoiceNumber(inv != null ? inv.getInvoiceNumber() : "N/A");
+       } else {
+           dto.setInvoiceId(null);
+           dto.setInvoiceNumber("N/A");
+       }
        dto.setAmountMinor(payment.getAmountMinor());
        dto.setCurrency(payment.getCurrency());
        dto.setStatus(payment.getStatus());
@@ -209,9 +214,14 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
        CreditNoteDTO dto = new CreditNoteDTO();
        dto.setCreditNoteId(creditNote.getId());
        dto.setCreditNoteNumber(creditNote.getCreditNoteNumber());
-       dto.setInvoiceId(creditNote.getInvoice().getId());
-       Invoice inv = invoiceRepository.findById(creditNote.getInvoice().getId()).orElse(null);
-       dto.setInvoiceNumber(inv != null ? inv.getInvoiceNumber() : "N/A");
+       if (creditNote.getInvoice() != null) {
+           dto.setInvoiceId(creditNote.getInvoice().getId());
+           Invoice inv = invoiceRepository.findById(creditNote.getInvoice().getId()).orElse(null);
+           dto.setInvoiceNumber(inv != null ? inv.getInvoiceNumber() : "N/A");
+       } else {
+           dto.setInvoiceId(null);
+           dto.setInvoiceNumber("N/A");
+       }
        dto.setReason(creditNote.getReason());
        dto.setAmountMinor(creditNote.getAmountMinor());
        dto.setStatus(creditNote.getStatus());

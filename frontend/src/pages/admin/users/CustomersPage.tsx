@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PageHeader } from '../../../components/admin/shared/PageHeader';
 import { DataTable } from '../../../components/admin/shared/DataTable';
-import { StatusBadge } from '../../../components/admin/shared/StatusBadge';
+import { StatusBadge } from '../../../components/shared/StatusBadge';
 import { getCustomers } from '../../../services/admin/adminService';
 import type { CustomerResponse } from '../../../services/admin/adminTypes';
 

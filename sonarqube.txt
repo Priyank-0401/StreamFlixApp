@@ -1,0 +1,101 @@
+Resource	Date	Description
+AdminControllerTest.java	11 hours ago	Remove this 'public' modifier.
+AdminDashboardServiceImpl.java	13 days ago	Define a constant instead of duplicating this literal "Product not found with id: " 3 times. [+3 locations]
+AdminDashboardServiceImplTest.java	6 hours ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
+AdminDashboardServiceImplTest.java	6 hours ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
+AdminDashboardServiceImplTest.java	6 hours ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
+AdminDashboardServiceImplTest.java	6 hours ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
+AdminDashboardServiceImplTest.java	6 hours ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
+AdminDashboardServiceImplTest.java	6 hours ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
+AdminDashboardServiceImplTest.java	6 hours ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
+AdminDashboardServiceImplTest.java	6 hours ago	Remove this 'public' modifier.
+AuthController.java	6 hours ago	Define a constant instead of duplicating this literal "DEBUG: /auth/me - Not authenticated, returning 401" 3 times. [+3 locations]
+AuthController.java	6 hours ago	Define a constant instead of duplicating this literal "Not authenticated" 3 times. [+3 locations]
+AuthController.java	20 days ago	Replace this use of System.out by a logger.
+AuthController.java	20 days ago	Replace this use of System.out by a logger.
+AuthController.java	23 days ago	Replace this use of System.out by a logger.
+AuthController.java	23 days ago	Replace this use of System.out by a logger.
+AuthController.java	23 days ago	Replace this use of System.out by a logger.
+AuthController.java	23 days ago	Replace this use of System.out by a logger.
+AuthController.java	23 days ago	Replace this use of System.out by a logger.
+AuthController.java	23 days ago	Replace this use of System.out by a logger.
+AuthController.java	23 days ago	Replace this use of System.out by a logger.
+AuthController.java	27 days ago	Remove usage of generic wildcard type.
+AuthControllerTest.java	6 hours ago	Remove this 'public' modifier.
+AuthServiceImpl.java	21 days ago	Replace this use of System.out by a logger.
+AuthServiceImpl.java	21 days ago	Replace this use of System.out by a logger.
+AuthServiceImpl.java	21 days ago	Replace this use of System.out by a logger.
+AuthServiceImpl.java	21 days ago	Replace this use of System.out by a logger.
+AuthServiceImpl.java	21 days ago	Replace this use of System.out by a logger.
+AuthServiceImplTest.java	6 hours ago	Remove this 'public' modifier.
+BillingEngineServiceImpl.java	4 days ago	Merge the previous cases into this one using comma-separated label. [+3 locations]
+BillingEngineServiceImpl.java	4 days ago	Reduce the total number of break and continue statements in this loop to use at most one. [+2 locations]
+BillingEngineServiceImpl.java	4 days ago	Reduce the total number of break and continue statements in this loop to use at most one. [+2 locations]
+BillingEngineServiceImpl.java	4 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
+BillingEngineServiceImpl.java	4 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
+BillingEngineServiceImpl.java	4 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
+BillingEngineServiceImpl.java	4 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
+BillingEngineServiceImplTest.java	6 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
+BillingEngineServiceImplTest.java	6 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
+BillingEngineServiceImplTest.java	6 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
+BillingEngineServiceImplTest.java	6 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
+BillingEngineServiceImplTest.java	6 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
+BillingEngineServiceImplTest.java	6 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
+BillingEngineServiceImplTest.java	6 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
+BillingEngineServiceImplTest.java	6 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
+BillingEngineServiceImplTest.java	6 hours ago	Remove this 'public' modifier.
+BillingEngineServiceImplTest.java	6 hours ago	Remove this and every subsequent useless "eq(...)" invocation; pass the values directly. [+2 locations]
+BillingRetryServiceImpl.java	4 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
+BillingRetryServiceImpl.java	4 days ago	Extract this nested try block into a separate method. [+1 location]
+BillingRetryServiceImpl.java	4 days ago	Reduce the total number of break and continue statements in this loop to use at most one. [+5 locations]
+BillingRetryServiceImpl.java	4 days ago	Refactor this method to reduce its Cognitive Complexity from 19 to the 15 allowed. [+11 locations]
+BillingRetryServiceImplTest.java	6 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
+BillingRetryServiceImplTest.java	6 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
+BillingRetryServiceImplTest.java	6 hours ago	Remove the declaration of thrown exception 'java.lang.Exception', as it cannot be thrown from method's body.
+BillingRetryServiceImplTest.java	6 hours ago	Remove this 'public' modifier.
+BillingScheduler.java	4 days ago	Replace this use of System.out by a logger.
+BillingScheduler.java	4 days ago	Replace this use of System.out by a logger.
+CustomerBillingControllerTest.java	6 hours ago	Remove this 'public' modifier.
+CustomerBillingServiceImpl.java	13 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
+CustomerBillingServiceImpl.java	13 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
+CustomerBillingServiceImpl.java	13 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
+CustomerBillingServiceImpl.java	13 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
+CustomerBillingServiceImpl.java	13 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
+CustomerBillingServiceImpl.java	13 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+CustomerBillingServiceImpl.java	14 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
+CustomerBillingServiceImpl.java	14 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+CustomerBillingServiceImpl.java	14 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+CustomerBillingServiceImpl.java	14 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+CustomerBillingServiceImpl.java	14 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+CustomerBillingServiceImplTest.java	6 hours ago	Remove this 'public' modifier.
+CustomerControllerTest.java	6 hours ago	Remove this 'public' modifier.
+CustomerPaymentControllerTest.java	6 hours ago	Remove this 'public' modifier.
+CustomerPaymentServiceImpl.java	14 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
+CustomerPaymentServiceImpl.java	14 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
+CustomerPaymentServiceImpl.java	14 days ago	Replace generic exceptions with specific library exceptions or a custom exception.
+CustomerPaymentServiceImpl.java	14 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+CustomerPaymentServiceImpl.java	14 days ago	Use a primitive boolean expression here.
+CustomerPaymentServiceImpl.java	14 days ago	Use a primitive boolean expression here.
+CustomerPaymentServiceImpl.java	14 days ago	Use a primitive boolean expression here.
+CustomerPaymentServiceImplTest.java	6 hours ago	Remove this 'public' modifier.
+CustomerRegistrationRequest.java	14 days ago	Use concise character class syntax '\\d' instead of '[0-9]'.
+CustomerServiceImpl.java	14 days ago	Define a constant instead of duplicating this literal "DEBUG: Found " 3 times. [+3 locations]
+CustomerServiceImpl.java	14 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+CustomerServiceImpl.java	14 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+CustomerServiceImpl.java	14 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+CustomerServiceImpl.java	14 days ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+CustomerServiceImpl.java	14 days ago	Replace this use of System.out by a logger.
+CustomerServiceImpl.java	14 days ago	Replace this use of System.out by a logger.
+CustomerServiceImpl.java	14 days ago	Replace this use of System.out by a logger.
+CustomerServiceImplTest.java	6 hours ago	Remove this 'public' modifier.
+CustomerSubscriptionControllerTest.java	11 hours ago	Remove this 'public' modifier.
+CustomerSubscriptionServiceImpl.java	2 minutes ago	Refactor this method to reduce its Cognitive Complexity from 19 to the 15 allowed. [+15 locations]
+CustomerSubscriptionServiceImpl.java	11 hours ago	Refactor this method to reduce its Cognitive Complexity from 17 to the 15 allowed. [+10 locations]
+CustomerSubscriptionServiceImpl.java	7 days ago	A "NullPointerException" could be thrown; "pm" is nullable here. [+2 locations]
+CustomerSubscriptionServiceImpl.java	7 days ago	Refactor this method to reduce its Cognitive Complexity from 25 to the 15 allowed. [+14 locations]
+CustomerSubscriptionServiceImpl.java	13 days ago	Define a constant instead of duplicating this literal " (Starts after trial)" 3 times. [+3 locations]
+CustomerSubscriptionServiceImpl.java	13 days ago	Define a constant instead of duplicating this literal "Add-on: " 4 times. [+4 locations]
+CustomerSubscriptionServiceImpl.java	13 days ago	Define a constant instead of duplicating this literal "Unknown" 3 times. [+3 locations]
+CustomerSubscriptionServiceImpl.java	13 days ago	Define a constant instead of duplicating this literal "yyyyMMdd-HHmmss" 4 times. [+4 locations]
+CustomerSubscriptionServiceImpl.java	13 days ago	Refactor this method to reduce its Cognitive Complexity from 92 to the 15 allowed. [+54 locations]
+CustomerSubscriptionServiceImpl.java	13 days ago	Replace generic exceptions with specific library exceptions or a custom exception.

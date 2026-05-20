@@ -3,7 +3,7 @@ import { PageHeader } from '../../components/admin/shared/PageHeader';
 import { type Column, FinanceDataTable } from '../../components/finance/components/finanaceDataTable';
 import { financeService } from '../../services/finance/financeService';
 import type { Refund } from '../../types/financeTypes';
-import { StatusBadge } from '../../components/finance/components/statusBadge';
+import { StatusBadge } from '../../components/shared/StatusBadge';
 
 export const CreditsPage: React.FC = () => {
   const [data, setData] = useState<Refund[]>([]);
@@ -28,7 +28,7 @@ export const CreditsPage: React.FC = () => {
   }, [page]);
 
   const columns: Column<Refund>[] = [
-    { header: 'Refund ID', accessor: 'id' },
+    { header: 'Refund ID', accessor: (row) => <span style={{ fontWeight: 600, color: '#1f2937', fontFamily: 'Inter, sans-serif' }}>{row.id}</span> },
     { header: 'Payment ID', accessor: 'paymentId' },
     { header: 'Amount', accessor: (row) => `₹${row.amount.toFixed(2)}` },
     { header: 'Reason', accessor: 'reason' },

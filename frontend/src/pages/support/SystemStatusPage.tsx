@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PageHeader } from '../../components/admin/shared/PageHeader';
 import { DataTable } from '../../components/admin/shared/DataTable';
-import { StatusBadge } from '../../components/admin/shared/StatusBadge';
+import { StatusBadge } from '../../components/shared/StatusBadge';
 import { getBillingJobs, getDunningLogs, type BillingJob, type DunningRetryLog } from '../../services/support/supportService';
 
 export const SystemStatusPage: React.FC = () => {
@@ -24,8 +24,18 @@ export const SystemStatusPage: React.FC = () => {
     { key: 'createdAt', header: 'Triggered', render: (r: BillingJob) => new Date(r.createdAt).toLocaleString() },
     { key: 'jobType', header: 'Type' },
     { key: 'status', header: 'Status', render: (r: BillingJob) => <StatusBadge status={r.status} /> },
+    { key: 'totalRecords', header: 'Total' },
     { key: 'successCount', header: 'Success' },
     { key: 'failureCount', header: 'Failure' },
+    { 
+      key: 'successRate', 
+      header: 'Success Rate', 
+      render: (r: BillingJob) => {
+        if (r.totalRecords === 0) return 'N/A';
+        const rate = Math.round((r.successCount / r.totalRecords) * 100);
+        return <span style={{ color: rate === 100 ? '#10b981' : rate > 80 ? '#f59e0b' : '#ef4444', fontWeight: 600 }}>{rate}%</span>;
+      } 
+    },
   ];
 
   const dunningColumns = [

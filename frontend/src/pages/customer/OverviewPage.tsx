@@ -100,7 +100,7 @@ export const OverviewPage: React.FC = () => {
       case 'open':
       case 'past_due':
         return '#f59e0b';
-      case 'cancelled':
+      case 'canceled':
       case 'canceled':
       case 'failed':
         return '#dc2626';

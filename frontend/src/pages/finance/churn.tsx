@@ -32,10 +32,10 @@ export const ChurnAnalyticsPage: React.FC = () => {
       <PageHeader subtitle="Analyze customer and revenue retention." />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '32px' }}>
-        <FinanceMetricCard title="Customer Churn Rate" metric={{ value: data.customerChurnRate, trend: 0.3, trendDirection: 'down' }} icon={<Users />} suffix="%" />
-        <FinanceMetricCard title="Revenue Churn Rate" metric={{ value: data.revenueChurnRate, trend: 0.1, trendDirection: 'down' }} icon={<TrendingDown />} suffix="%" />
-        <FinanceMetricCard title="Churned Revenue" metric={{ value: data.churnedRevenue, trend: 5.0, trendDirection: 'up' }} icon={<DollarSign />} prefix="₹" />
-        <FinanceMetricCard title="Net Revenue Retention" metric={{ value: Math.max(0, 100 - data.revenueChurnRate), trend: 0.1, trendDirection: 'up' }} icon={<ShieldCheck />} suffix="%" />
+        <FinanceMetricCard title="Customer Churn Rate" value={data.customerChurnRate} icon={<Users />} suffix="%" />
+        <FinanceMetricCard title="Revenue Churn Rate" value={data.revenueChurnRate} icon={<TrendingDown />} suffix="%" />
+        <FinanceMetricCard title="Churned Revenue" value={data.churnedRevenue} icon={<DollarSign />} prefix="₹" />
+        <FinanceMetricCard title="Net Revenue Retention" value={Math.max(0, 100 - data.revenueChurnRate)} icon={<ShieldCheck />} suffix="%" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>

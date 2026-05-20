@@ -15,6 +15,16 @@
   --text-muted: #9ca3af;
   --border: #e5e7eb;
   --border-light: #d1d5db;
+
+  /* Status Colors */
+  --success-bg: #ecfdf5;
+  --success-text: #059669;
+  --info-bg: #eff6ff;
+  --info-text: #2563eb;
+  --error-bg: #fef2f2;
+  --error-text: #dc2626;
+  --warning-bg: #fffbeb;
+  --warning-text: #d97706;
   
   /* Layout */
   --sidebar-width: 260px;
@@ -599,6 +609,7 @@
 .status-badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 4px 12px;
   border-radius: 12px;
@@ -606,32 +617,20 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-}
-
-.status-badge::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  min-width: 110px;
 }
 
 .status-badge.active { background: var(--success-bg); color: var(--success-text); }
-.status-badge.active::before { background: var(--success-text); }
 
 .status-badge.inactive { background: var(--bg-tertiary); color: var(--text-muted); }
-.status-badge.inactive::before { background: var(--text-muted); }
 
 .status-badge.trialing { background: var(--info-bg); color: var(--info-text); }
-.status-badge.trialing::before { background: var(--info-text); }
 
 .status-badge.canceled { background: var(--error-bg); color: var(--error-text); }
-.status-badge.canceled::before { background: var(--error-text); }
 
 .status-badge.past_due { background: var(--warning-bg); color: var(--warning-text); }
-.status-badge.past_due::before { background: var(--warning-text); }
 
 .status-badge.suspended { background: var(--warning-bg); color: var(--warning-text); }
-.status-badge.suspended::before { background: var(--warning-text); }
 
 /* --- Page Header --- */
 .page-header {

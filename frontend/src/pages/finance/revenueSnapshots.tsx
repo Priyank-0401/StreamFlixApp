@@ -27,7 +27,7 @@ export const SnapshotsPage: React.FC = () => {
   }, [page]);
 
   const columns: Column<RevenueSnapshot>[] = [
-    { header: 'Date', accessor: (row) => new Date(row.date).toLocaleDateString() },
+    { header: 'Date', accessor: (row) => <span style={{ fontWeight: 600, color: '#1f2937', fontFamily: 'Inter, sans-serif' }}>{new Date(row.date).toLocaleDateString()}</span> },
     { header: 'Total Revenue', accessor: (row) => `₹${row.totalRevenue.toLocaleString()}` },
     { header: 'MRR', accessor: (row) => `₹${row.mrr.toLocaleString()}` },
     { header: 'ARR', accessor: (row) => `₹${row.arr.toLocaleString()}` },

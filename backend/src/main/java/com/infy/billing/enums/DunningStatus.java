@@ -5,5 +5,5 @@ public enum DunningStatus {
 	ATTEMPTED,
 	SUCCESS,
 	FAILED,
-	CANCELLED
+	CANCELED
 }

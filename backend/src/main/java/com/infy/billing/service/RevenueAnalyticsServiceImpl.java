@@ -1,5 +1,6 @@
 package com.infy.billing.service;
 
+import com.infy.billing.dto.customer.InvoiceLineItemDTO;
 import com.infy.billing.dto.finance.*;
 import com.infy.billing.entity.*;
 import com.infy.billing.enums.BillingPeriod;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -25,6 +27,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     private final CreditNoteRepository creditNoteRepository;
     private final RevenueSnapshotRepository snapshotRepository;
     private final PriceBookEntryRepository priceBookEntryRepository;
+    private final InvoiceLineItemRepository invoiceLineItemRepository;
 
     // ─── Currency → INR conversion ───────────────────────────────────────────
     // Seed data: INR customers (country=IN), USD customers (country=US), GBP
@@ -212,8 +215,89 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     // snapshot_date e.g. 2026-01-31 → month "2026-01"
 
     private List<RevenueSnapshot> loadAllSnapshots() {
-        return snapshotRepository.findAllByOrderBySnapshotDateAsc();
-        // System.out.println("loaded");
+        List<LocalDate> snapshotDates = new ArrayList<>();
+        LocalDate start = LocalDate.of(2026, 1, 31);
+        LocalDate end = LocalDate.of(2026, 12, 31);
+        LocalDate curr = start;
+        while (!curr.isAfter(end)) {
+            snapshotDates.add(curr);
+            curr = curr.plusMonths(1);
+            curr = curr.withDayOfMonth(curr.lengthOfMonth());
+        }
+
+        List<Subscription> allSubscriptions = subscriptionRepository.findAll();
+        List<Payment> allPayments = paymentRepository.findAll();
+        List<CreditNote> allCreditNotes = creditNoteRepository.findAll();
+
+        List<RevenueSnapshot> snapshots = new ArrayList<>();
+        for (LocalDate date : snapshotDates) {
+            List<Subscription> activeSubs = allSubscriptions.stream()
+                .filter(s -> !s.getStartDate().isAfter(date))
+                .filter(s -> {
+                    if (s.getStatus() == Status.ACTIVE) {
+                        return s.getCanceledAt() == null || s.getCanceledAt().toLocalDate().isAfter(date);
+                    }
+                    if (s.getStatus() == Status.CANCELED) {
+                        return s.getCanceledAt() != null && s.getCanceledAt().toLocalDate().isAfter(date);
+                    }
+                    return false;
+                })
+                .collect(Collectors.toList());
+
+            long mrrMinor = computeMrrMinor(activeSubs);
+            long arrMinor = mrrMinor * 12;
+            int activeCustomers = countActiveCustomers(activeSubs);
+            long arpuMinor = activeCustomers > 0 ? mrrMinor / activeCustomers : 0L;
+
+            LocalDate monthStart = date.withDayOfMonth(1);
+            int newCustomers = (int) allSubscriptions.stream()
+                .filter(s -> !s.getStartDate().isBefore(monthStart) && !s.getStartDate().isAfter(date))
+                .map(s -> s.getCustomer().getId())
+                .distinct()
+                .count();
+
+            int churnedCustomers = (int) allSubscriptions.stream()
+                .filter(s -> s.getCanceledAt() != null && !s.getCanceledAt().toLocalDate().isBefore(monthStart) && !s.getCanceledAt().toLocalDate().isAfter(date))
+                .map(s -> s.getCustomer().getId())
+                .distinct()
+                .count();
+
+            double grossChurnPercent = 0.0;
+            double netChurnPercent = 0.0;
+            if (activeCustomers + churnedCustomers > 0) {
+                grossChurnPercent = (churnedCustomers / (double) (activeCustomers + churnedCustomers)) * 100.0;
+                netChurnPercent = grossChurnPercent;
+            }
+
+            long ltvMinor = computeLtvMinor(arpuMinor, netChurnPercent);
+
+            long totalRevenueMinor = allPayments.stream()
+                .filter(p -> p.getStatus() == Status.SUCCESS && !p.getCreatedAt().toLocalDate().isBefore(monthStart) && !p.getCreatedAt().toLocalDate().isAfter(date))
+                .mapToLong(p -> toINRMinor(p.getAmountMinor(), p.getCurrency()))
+                .sum();
+
+            long totalRefundsMinor = allCreditNotes.stream()
+                .filter(cn -> !cn.getCreatedAt().toLocalDate().isBefore(monthStart) && !cn.getCreatedAt().toLocalDate().isAfter(date))
+                .mapToLong(cn -> toINRMinor(cn.getAmountMinor(), cn.getInvoice() != null ? cn.getInvoice().getCurrency() : "INR"))
+                .sum();
+
+            RevenueSnapshot snap = new RevenueSnapshot();
+            snap.setSnapshotDate(date);
+            snap.setMrrMinor(mrrMinor);
+            snap.setArrMinor(arrMinor);
+            snap.setArpuMinor(arpuMinor);
+            snap.setActiveCustomers(activeCustomers);
+            snap.setNewCustomers(newCustomers);
+            snap.setChurnedCustomers(churnedCustomers);
+            snap.setGrossChurnPercent(BigDecimal.valueOf(grossChurnPercent));
+            snap.setNetChurnPercent(BigDecimal.valueOf(netChurnPercent));
+            snap.setLtvMinor(ltvMinor);
+            snap.setTotalRevenueMinor(totalRevenueMinor);
+            snap.setTotalRefundsMinor(totalRefundsMinor);
+            
+            snapshots.add(snap);
+        }
+        return snapshots;
     }
 
     private List<MonthlyTrendDTO> buildMrrTrend(List<RevenueSnapshot> snapshots) {
@@ -255,7 +339,21 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     private RevenueSnapshot getLatestSnapshot(List<RevenueSnapshot> snapshots) {
         if (snapshots.isEmpty())
             return null;
-        return snapshots.get(snapshots.size() - 1);
+        LocalDate today = LocalDate.now();
+        for (RevenueSnapshot snap : snapshots) {
+            if (snap.getSnapshotDate().isAfter(today)) {
+                if (snap.getChurnedCustomers() > 0 || snap.getNewCustomers() > 0) {
+                    today = snap.getSnapshotDate();
+                }
+            }
+        }
+        for (int i = snapshots.size() - 1; i >= 0; i--) {
+            RevenueSnapshot snap = snapshots.get(i);
+            if (!snap.getSnapshotDate().isAfter(today)) {
+                return snap;
+            }
+        }
+        return snapshots.get(0);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -373,27 +471,66 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
                 ? latest.getNetChurnPercent().doubleValue()
                 : computeRawChurnRate(activeSubs, canceledSubs);
 
-        // Revenue churn = mrr_lost / mrr_start
-        // mrr_start = MRR of the period immediately before the latest snapshot period
-        // mrr_lost = mrr_start - mrr_end (positive when MRR declined between periods)
-        // Uses the two most recent snapshots; falls back to live active MRR if fewer
-        // than 2 exist.
+        // Revenue churn = (MRR of canceled subscriptions in period) / (Starting MRR) * 100.0
         double revenueChurnPercent = 0.0;
-        if (snapshots.size() >= 2) {
-            long mrrStart = snapshots.get(snapshots.size() - 2).getMrrMinor();
-            long mrrEnd = snapshots.get(snapshots.size() - 1).getMrrMinor();
-            long mrrLost = mrrStart - mrrEnd;
-            if (mrrStart > 0 && mrrLost > 0) {
-                revenueChurnPercent = Math.round((mrrLost / (double) mrrStart) * 10000.0) / 100.0;
-            }
-        } else if (snapshots.size() == 1) {
-            long mrrStart = snapshots.get(0).getMrrMinor();
-            long mrrEnd = computeMrrMinor(activeSubs);
-            long mrrLost = mrrStart - mrrEnd;
-            if (mrrStart > 0 && mrrLost > 0) {
-                revenueChurnPercent = Math.round((mrrLost / (double) mrrStart) * 10000.0) / 100.0;
+        int latestIndex = -1;
+        LocalDate today = LocalDate.now();
+        for (RevenueSnapshot snap : snapshots) {
+            if (snap.getSnapshotDate().isAfter(today)) {
+                if (snap.getChurnedCustomers() > 0 || snap.getNewCustomers() > 0) {
+                    today = snap.getSnapshotDate();
+                }
             }
         }
+        for (int i = snapshots.size() - 1; i >= 0; i--) {
+            if (!snapshots.get(i).getSnapshotDate().isAfter(today)) {
+                latestIndex = i;
+                break;
+            }
+        }
+        if (latestIndex == -1 && !snapshots.isEmpty()) {
+            latestIndex = 0;
+        }
+
+        List<Subscription> allSubscriptions = subscriptionRepository.findAll();
+
+        if (latestIndex >= 1) {
+            long mrrStart = snapshots.get(latestIndex - 1).getMrrMinor();
+            LocalDate latestSnapDate = snapshots.get(latestIndex).getSnapshotDate();
+            LocalDate prevSnapDate = snapshots.get(latestIndex - 1).getSnapshotDate();
+            
+            long canceledMrrMinorInPeriod = allSubscriptions.stream()
+                .filter(s -> s.getCanceledAt() != null 
+                    && !s.getCanceledAt().toLocalDate().isBefore(prevSnapDate.plusDays(1)) 
+                    && !s.getCanceledAt().toLocalDate().isAfter(latestSnapDate))
+                .mapToLong(this::getMonthlyINRMinor)
+                .sum();
+                
+            if (mrrStart > 0) {
+                revenueChurnPercent = (canceledMrrMinorInPeriod / (double) mrrStart) * 100.0;
+            }
+        } else if (latestIndex == 0 && !snapshots.isEmpty()) {
+            long mrrStart = snapshots.get(0).getMrrMinor();
+            long canceledMrrMinorInPeriod = allSubscriptions.stream()
+                .filter(s -> s.getCanceledAt() != null 
+                    && !s.getCanceledAt().toLocalDate().isBefore(LocalDate.of(2026, 1, 1)) 
+                    && !s.getCanceledAt().toLocalDate().isAfter(snapshots.get(0).getSnapshotDate()))
+                .mapToLong(this::getMonthlyINRMinor)
+                .sum();
+            if (mrrStart > 0) {
+                revenueChurnPercent = (canceledMrrMinorInPeriod / (double) mrrStart) * 100.0;
+            }
+        } else {
+            long activeMrr = computeMrrMinor(activeSubs);
+            long canceledMrr = canceledSubs.stream().mapToLong(this::getMonthlyINRMinor).sum();
+            long totalMrr = activeMrr + canceledMrr;
+            if (totalMrr > 0) {
+                revenueChurnPercent = (canceledMrr / (double) totalMrr) * 100.0;
+            }
+        }
+
+        // Round to 3 decimal places to match customer churn rate format (e.g. 4.348)
+        revenueChurnPercent = Math.round(revenueChurnPercent * 1000.0) / 1000.0;
 
         List<ChurnReasonDTO> reasons = new ArrayList<>();
         reasons.add(new ChurnReasonDTO("Too Expensive", (int) (canceledSubs.size() * 0.4)));
@@ -464,6 +601,40 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
                         .dueDate(inv.getDueDate())
                         .status(inv.getStatus().name())
                         .build());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public InvoiceDetailDTO getInvoiceDetailById(Long invoiceId) {
+        Invoice invoice = invoiceRepository.findById(invoiceId)
+                .orElseThrow(() -> new IllegalArgumentException("Invoice not found with id: " + invoiceId));
+
+        // Fetch line items for this invoice
+        List<com.infy.billing.entity.InvoiceLineItem> lineItems = invoiceLineItemRepository.findByInvoice_Id(invoiceId);
+
+        // Map line items to DTOs
+        List<InvoiceLineItemDTO> lineItemDTOs = lineItems.stream()
+                .map(item -> com.infy.billing.dto.customer.InvoiceLineItemDTO.builder()
+                        .lineItemId(item.getId())
+                        .description(item.getDescription())
+                        .lineType(item.getLineType())
+                        .quantity(item.getQuantity())
+                        .unitPriceMinor(toINRMinor(item.getUnitPriceMinor(), invoice.getCurrency()))
+                        .amountMinor(toINRMinor(item.getAmountMinor(), invoice.getCurrency()))
+                        .periodStart(item.getPeriodStart() != null ? item.getPeriodStart().toString() : null)
+                        .periodEnd(item.getPeriodEnd() != null ? item.getPeriodEnd().toString() : null)
+                        .build())
+                .collect(java.util.stream.Collectors.toList());
+
+        return InvoiceDetailDTO.builder()
+                .invoiceNumber(buildInvoiceNumber(invoice))
+                .customerId(invoice.getCustomer().getId())
+                .amount(toINRMinor(invoice.getTotalMinor(), invoice.getCurrency()) / 100.0)
+                .date(invoice.getCreatedAt())
+                .dueDate(invoice.getDueDate())
+                .status(invoice.getStatus().name())
+                .lineItems(lineItemDTOs)
+                .build();
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -548,7 +719,14 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<RevenueSnapshotDTO> getAllRevenueSnapshots(
             org.springframework.data.domain.Pageable pageable) {
-        return snapshotRepository.findAllByOrderByIdDesc(pageable)
+        List<RevenueSnapshot> snapshots = loadAllSnapshots();
+        snapshots.sort((a, b) -> b.getSnapshotDate().compareTo(a.getSnapshotDate()));
+        
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), snapshots.size());
+        List<RevenueSnapshotDTO> pagedList = new ArrayList<>();
+        if (start < snapshots.size()) {
+            pagedList = snapshots.subList(start, end).stream()
                 .map(snap -> RevenueSnapshotDTO.builder()
                         .date(snap.getSnapshotDate())
                         .totalRevenueMinor(snap.getTotalRevenueMinor())
@@ -557,7 +735,11 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
                         .activeCustomers(snap.getActiveCustomers())
                         .newCustomers(snap.getNewCustomers())
                         .netChurnPercent(snap.getNetChurnPercent())
-                        .build());
+                        .build())
+                .collect(Collectors.toList());
+        }
+        
+        return new org.springframework.data.domain.PageImpl<>(pagedList, pageable, snapshots.size());
     }
 
 }

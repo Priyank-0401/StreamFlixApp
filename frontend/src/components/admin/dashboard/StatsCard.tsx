@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 interface StatsCardProps {
   label: string;
@@ -6,22 +7,12 @@ interface StatsCardProps {
   change?: string;
   trend?: 'up' | 'down';
   icon: React.ReactNode;
+  to?: string;
 }
 
-export const StatsCard: React.FC<StatsCardProps> = ({ label, value, change, trend, icon }) => {
-  return (
-    <div
-      style={{
-        background: '#ffffff',
-        border: '1px solid #e5e7eb',
-        borderRadius: '12px',
-        padding: '20px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
-      }}
-    >
+export const StatsCard: React.FC<StatsCardProps> = ({ label, value, change, trend, icon, to }) => {
+  const content = (
+    <>
       <div
         style={{
           display: 'flex',
@@ -82,6 +73,27 @@ export const StatsCard: React.FC<StatsCardProps> = ({ label, value, change, tren
           {trend === 'down' ? '↓' : '↑'} {change}
         </span>
       )}
+    </>
+  );
+
+  const containerStyle = {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: '12px',
+    textDecoration: 'none',
+  };
+
+  if (to) {
+    return (
+      <Link to={to} className="stat-card" style={containerStyle}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className="stat-card" style={containerStyle}>
+      {content}
     </div>
   );
 };

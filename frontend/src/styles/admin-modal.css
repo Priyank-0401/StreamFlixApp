@@ -151,6 +151,7 @@
 .status-badge {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 6px 14px;
   border-radius: 99px;
@@ -159,6 +160,7 @@
   font-family: 'Inter', sans-serif;
   text-transform: capitalize;
   transition: all 0.2s ease;
+  min-width: 110px;
 }
 
 .status-badge.active, .status-badge.trialing {

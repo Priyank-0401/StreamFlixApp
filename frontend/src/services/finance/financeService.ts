@@ -139,6 +139,31 @@ export const financeService = {
     };
   },
 
+  getInvoiceDetail: async (invoiceId: string): Promise<Invoice> => {
+    // Extract numeric ID from invoice number (e.g., "INV-2026-1001" -> "1001")
+    const numericId = invoiceId.split('-').pop() || invoiceId;
+    const response = await financeFetch<any>(`/invoices/${numericId}`);
+    return {
+      id: response.invoiceNumber,
+      customerId: String(response.customerId),
+      customerName: `Customer ${response.customerId}`,
+      amount: response.amount,
+      status: response.status === 'PAID' ? 'Paid' : response.status === 'DRAFT' ? 'Draft' : 'Pending',
+      date: response.date,
+      dueDate: response.dueDate,
+      lineItems: response.lineItems?.map((item: any) => ({
+        lineItemId: String(item.lineItemId),
+        description: item.description,
+        lineType: item.lineType,
+        quantity: item.quantity,
+        unitPriceMinor: item.unitPriceMinor,
+        amountMinor: item.amountMinor,
+        periodStart: item.periodStart,
+        periodEnd: item.periodEnd
+      })) || []
+    };
+  },
+
   getPayments: async (page = 1, limit = 10): Promise<{ data: Payment[]; total: number }> => {
     const response = await financeFetch<any>(`/payments?page=${page - 1}&size=${limit}`);
     return {

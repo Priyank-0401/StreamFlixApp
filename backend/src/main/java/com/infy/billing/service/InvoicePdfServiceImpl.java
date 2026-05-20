@@ -25,7 +25,7 @@ import java.util.Locale;
  * <ul>
  *   <li>OPEN → "PROFORMA INVOICE" (payment pending)</li>
  *   <li>PAID → "TAX INVOICE" (payment complete)</li>
- *   <li>VOID → "VOID INVOICE" (cancelled)</li>
+ *   <li>VOID → "VOID INVOICE" (canceled)</li>
  * </ul>
  */
 @Service

@@ -377,7 +377,7 @@ CREATE TABLE dunning_retry_log (
         'ATTEMPTED',
         'SUCCESS',
         'FAILED',
-        'CANCELLED'
+        'CANCELED'
     ) NOT NULL,
     failure_reason VARCHAR(255) NULL,
     FOREIGN KEY (invoice_id) REFERENCES invoice (invoice_id),
@@ -439,7 +439,7 @@ CREATE TABLE tax_rate (
     name VARCHAR(100) NOT NULL,
     region VARCHAR(50) NOT NULL,
     rate_percent DECIMAL(5, 2) NOT NULL,
-    inclusive BOOLEAN NOT NULL DEFAULT FALSE,
+    inclusive BOOLEAN NOT NULL DEFAULT TRUE,
     effective_from DATE NOT NULL,
     effective_to DATE NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -43,18 +43,18 @@ export const FinanceDashboard: React.FC = () => {
 
       {/* Row 1: Core Revenue Metrics */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '20px' }}>
-        <FinanceMetricCard title="Monthly Recurring Revenue" metric={data.mrr} icon={<TrendingUp />} prefix="₹" />
-        <FinanceMetricCard title="Annual Recurring Revenue" metric={data.arr} icon={<Activity />} prefix="₹" />
-        <FinanceMetricCard title="Avg Revenue Per User" metric={data.arpu} icon={<DollarSign />} prefix="₹" />
-        <FinanceMetricCard title="Lifetime Value" metric={data.ltv} icon={<TrendingUp />} prefix="₹" />
+        <FinanceMetricCard title="Monthly Recurring Revenue" value={data.mrr.value} icon={<TrendingUp />} prefix="₹" />
+        <FinanceMetricCard title="Annual Recurring Revenue" value={data.arr.value} icon={<Activity />} prefix="₹" />
+        <FinanceMetricCard title="Avg Revenue Per User" value={data.arpu.value} icon={<DollarSign />} prefix="₹" />
+        <FinanceMetricCard title="Lifetime Value" value={data.ltv.value} icon={<TrendingUp />} prefix="₹" />
       </div>
 
       {/* Row 2: Health Metrics */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '32px' }}>
-        <FinanceMetricCard title="Churn Rate" metric={data.churnRate} icon={<TrendingDown />} suffix="%" />
-        <FinanceMetricCard title="Active Customers" metric={data.activeCustomers} icon={<Users />} />
-        <FinanceMetricCard title="Failed Payments" metric={data.failedPayments} icon={<TrendingDown />} />
-        <FinanceMetricCard title="Total Refunds" metric={data.refundAmount} icon={<DollarSign />} prefix="₹" />
+        <FinanceMetricCard title="Churn Rate" value={data.churnRate.value} icon={<TrendingDown />} suffix="%" />
+        <FinanceMetricCard title="Active Customers" value={data.activeCustomers.value} icon={<Users />} />
+        <FinanceMetricCard title="Failed Payments" value={data.failedPayments.value} icon={<TrendingDown />} />
+        <FinanceMetricCard title="Total Refunds" value={data.refundAmount.value} icon={<DollarSign />} prefix="₹" />
       </div>
 
       {/* Charts Row */}

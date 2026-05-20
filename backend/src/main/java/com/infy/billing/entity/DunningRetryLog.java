@@ -21,11 +21,23 @@ public class DunningRetryLog {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "invoice_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Invoice invoice;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "payment_id")
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Payment payment;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("invoiceId")
+    public Long getInvoiceId() {
+        return invoice != null ? invoice.getId() : null;
+    }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("paymentId")
+    public Long getPaymentId() {
+        return payment != null ? payment.getId() : null;
+    }
 
     @Column(name = "attempt_no", nullable = false)
     private Integer attemptNo;

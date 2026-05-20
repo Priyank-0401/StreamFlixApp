@@ -109,10 +109,25 @@ export const SubscriptionPage: React.FC = () => {
       setShowUpgradeModal(false);
     } catch (error) {
       console.error('handleUpgrade error:', error);
-      showAlert('Error', 'Failed to upgrade plan. Please try again.');
+      showAlert('Error', 'Failed to change plan. Please try again.');
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const initiatePlanChange = (plan: CustomerService.Plan) => {
+    setShowUpgradeModal(false); // Close the underlying modal
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Confirm Plan Change',
+      message: `Are you sure you want to change your subscription to the ${plan.name} plan?`,
+      confirmLabel: 'Confirm Change',
+      cancelLabel: 'Cancel',
+      onConfirm: () => {
+        closeConfirmDialog();
+        handleUpgrade(plan.planId);
+      }
+    });
   };
 
   const handleCancel = (atPeriodEnd: boolean) => {
@@ -258,7 +273,7 @@ export const SubscriptionPage: React.FC = () => {
       case 'past_due':
         return '#f59e0b';
       case 'canceled':
-      case 'cancelled':
+      case 'canceled':
         return '#5b4fff';
       default:
         return '#6b7280';
@@ -607,7 +622,7 @@ export const SubscriptionPage: React.FC = () => {
                   {plan.planId !== subscription.planId && (
                     <button 
                       className="btn-primary" 
-                      onClick={() => handleUpgrade(plan.planId)}
+                      onClick={() => initiatePlanChange(plan)}
                       disabled={actionLoading}
                     >
                       {actionLoading ? 'Updating...' : 'Select Plan'}

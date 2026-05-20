@@ -313,8 +313,8 @@ export const FinanceLayout: React.FC = () => {
                 onClick={() => setDropdownOpen(!dropdownOpen)}
               >
                 <div style={{ textAlign: 'right' }}>
-                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#1E293B' }}>{user?.fullName || 'Admin User'}</p>
-                  <p style={{ margin: 0, fontSize: '11px', color: '#64748B', fontWeight: 500 }}>{user?.role || 'ADMIN'}</p>
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#1E293B' }}>{user?.fullName || 'Finance Manager'}</p>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#64748B', fontWeight: 500 }}>{user?.role || 'FINANCE'}</p>
                 </div>
                 <div
                   style={{
@@ -331,7 +331,7 @@ export const FinanceLayout: React.FC = () => {
                     boxShadow: '0 4px 12px rgba(91, 79, 255, 0.2)'
                   }}
                 >
-                  {user ? getInitials(user.fullName || user.email) : 'AD'}
+                  {user ? getInitials(user.fullName || user.email) : 'FM'}
                 </div>
               </button>
 
@@ -351,7 +351,7 @@ export const FinanceLayout: React.FC = () => {
                   }}
                 >
                   <div style={{ padding: '16px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
-                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B', margin: 0 }}>{user?.fullName || 'Admin'}</p>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#1E293B', margin: 0 }}>{user?.fullName || 'Finance Manager'}</p>
                     <p style={{ fontSize: '12px', color: '#64748B', margin: 0 }}>{user?.email}</p>
                   </div>
                   <div style={{ padding: '8px' }}>

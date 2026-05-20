@@ -35,6 +35,17 @@ export interface ARPUAnalytics {
   history: Array<{ date: string; value: number }>;
 }
 
+export interface InvoiceLineItem {
+  lineItemId: string;
+  description: string;
+  lineType: 'PLAN' | 'ADDON' | 'METERED' | 'PRORATION' | 'DISCOUNT' | 'TAX' | 'CREDIT';
+  quantity: number;
+  unitPriceMinor: number;
+  amountMinor: number;
+  periodStart: string | null;
+  periodEnd: string | null;
+}
+
 export interface Invoice {
   id: string;
   customerId: string;
@@ -43,6 +54,7 @@ export interface Invoice {
   status: 'Paid' | 'Pending' | 'Failed' | 'Overdue' | 'Draft';
   date: string;
   dueDate: string;
+  lineItems?: InvoiceLineItem[];
 }
 
 export interface Payment {
