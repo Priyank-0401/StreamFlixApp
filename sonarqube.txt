@@ -1,41 +1,11 @@
 Resource	Date	Description
-CustomerSubscriptionServiceImpl.java	1 minute ago	Refactor this method to reduce its Cognitive Complexity from 19 to the 15 allowed. [+15 locations]
-CustomerSubscriptionServiceImpl.java	1 minute ago	Method has 13 parameters, which is greater than 7 authorized.
-CustomerSubscriptionServiceImpl.java	1 minute ago	Method has 8 parameters, which is greater than 7 authorized.
-CustomerSubscriptionServiceImpl.java	24 minutes ago	Refactor this method to reduce its Cognitive Complexity from 19 to the 15 allowed. [+16 locations]
-CustomerSubscriptionServiceImpl.java	24 minutes ago	Use already-defined constant 'ENTITY_SUBSCRIPTION' instead of duplicating its value here.
+CustomerSubscriptionServiceImpl.java	19 minutes ago	Refactor this method to reduce its Cognitive Complexity from 19 to the 15 allowed. [+15 locations]
+CustomerSubscriptionServiceImpl.java	19 minutes ago	Method has 13 parameters, which is greater than 7 authorized.
+CustomerSubscriptionServiceImpl.java	19 minutes ago	Method has 8 parameters, which is greater than 7 authorized.
+CustomerSubscriptionServiceImpl.java	42 minutes ago	Refactor this method to reduce its Cognitive Complexity from 19 to the 15 allowed. [+16 locations]
 CustomerSubscriptionServiceImpl.java	1 day ago	Refactor this method to reduce its Cognitive Complexity from 19 to the 15 allowed. [+15 locations]
 InvoicePdfServiceImpl.java	8 days ago	Refactor this method to reduce its Cognitive Complexity from 19 to the 15 allowed. [+12 locations]
-NotificationServiceImpl.java	5 days ago	Reduce the total number of break and continue statements in this loop to use at most one. [+2 locations]
-ReportExportServiceImpl.java	1 day ago	Use static access with "com.lowagie.text.Rectangle" for "BOTTOM".
-ReportExportServiceImpl.java	1 day ago	Use static access with "com.lowagie.text.Rectangle" for "BOTTOM".
-ReportExportServiceImpl.java	1 day ago	Use static access with "com.lowagie.text.Rectangle" for "BOTTOM".
-ReportExportServiceImpl.java	1 day ago	Use static access with "com.lowagie.text.Rectangle" for "BOX".
-RevenueAnalyticsServiceImpl.java	24 minutes ago	Refactor this method to reduce its Cognitive Complexity from 22 to the 15 allowed. [+17 locations]
-RevenueAnalyticsServiceImpl.java	2 days ago	Define a constant instead of duplicating this literal "yyyy-MM" 4 times. [+4 locations]
-RevenueAnalyticsServiceImpl.java	2 days ago	Cast one of the operands of this addition operation to a "long".
-SubscriptionFlowServiceImpl.java	8 days ago	Remove this useless assignment to local variable "creditApplied".
-SubscriptionFlowServiceImpl.java	8 days ago	Refactor this method to reduce its Cognitive Complexity from 50 to the 15 allowed. [+33 locations]
-SubscriptionFlowServiceImpl.java	14 days ago	Extract this nested ternary operation into an independent statement.
-SubscriptionFlowServiceImpl.java	14 days ago	Method has 8 parameters, which is greater than 7 authorized.
-SubscriptionFlowServiceImpl.java	15 days ago	A "Brain Method" was detected. Refactor it to reduce at least one of the following metrics: LOC from 178 to 64, Complexity from 30 to 14, Nesting Level from 4 to 2, Number of Variables from 36 to 6.
-SubscriptionFlowServiceImpl.java	22 days ago	Replace this lambda with method reference 'TaxRate::getRatePercent'.
-SubscriptionFlowServiceImpl.java	22 days ago	Replace this use of System.out by a logger.
-SubscriptionFlowServiceImpl.java	22 days ago	Replace this use of System.out by a logger.
-SubscriptionFlowServiceImpl.java	22 days ago	Replace this use of System.out by a logger.
-SubscriptionFlowServiceImpl.java	22 days ago	Replace this use of System.out by a logger.
-SubscriptionFlowServiceImplTest.java	1 day ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
-SubscriptionFlowServiceImplTest.java	1 day ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
-SubscriptionFlowServiceImplTest.java	1 day ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
-SubscriptionFlowServiceImplTest.java	1 day ago	Remove this and every subsequent useless "eq(...)" invocation; pass the values directly. [+1 location]
-SubscriptionFlowServiceImplTest.java	1 day ago	Remove this and every subsequent useless "eq(...)" invocation; pass the values directly. [+1 location]
-SubscriptionFlowServiceImplTest.java	1 day ago	Remove this and every subsequent useless "eq(...)" invocation; pass the values directly. [+1 location]
-SubscriptionFlowServiceImplTest.java	1 day ago	Remove this and every subsequent useless "eq(...)" invocation; pass the values directly. [+1 location]
-SupportServiceImpl.java	21 hours ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-SupportServiceImpl.java	21 hours ago	Use a primitive boolean expression here.
-SupportServiceImpl.java	1 day ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-SupportServiceImpl.java	1 day ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-SupportServiceImpl.java	1 day ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-SupportServiceImpl.java	1 day ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-SupportServiceImpl.java	1 day ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
-SupportServiceImpl.java	1 day ago	Replace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()' and ensure that the list is unmodified.
+SubscriptionFlowServiceImpl.java	2 minutes ago	Replace this if-then-else statement by a single return statement.
+SubscriptionFlowServiceImpl.java	2 minutes ago	Remove these unused method parameters "plan", "customer". [+1 location]
+SubscriptionFlowServiceImpl.java	2 minutes ago	Refactor this method to reduce its Cognitive Complexity from 17 to the 15 allowed. [+8 locations]
+SubscriptionFlowServiceImpl.java	2 minutes ago	Method has 9 parameters, which is greater than 7 authorized.

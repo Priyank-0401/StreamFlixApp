@@ -190,15 +190,9 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
             }
             billToCell.addElement(createSpacing(4));
 
-            StringBuilder address = new StringBuilder();
-            if (customer.getAddressLine1() != null) address.append(customer.getAddressLine1()).append("\n");
-            if (customer.getCity() != null) address.append(customer.getCity());
-            if (customer.getState() != null) address.append(", ").append(customer.getState());
-            if (customer.getPostalCode() != null) address.append(" - ").append(customer.getPostalCode());
-            if (customer.getCountry() != null) address.append("\n").append(customer.getCountry());
-
+            String address = buildCustomerAddress(customer);
             if (!address.isEmpty()) {
-                billToCell.addElement(new Paragraph(address.toString(), VALUE_FONT));
+                billToCell.addElement(new Paragraph(address, VALUE_FONT));
             }
         }
         table.addCell(billToCell);
@@ -472,6 +466,16 @@ public class InvoicePdfServiceImpl implements InvoicePdfService {
         Paragraph p = new Paragraph(" ");
         p.setSpacingBefore(points);
         return p;
+    }
+
+    private String buildCustomerAddress(Customer customer) {
+        StringBuilder address = new StringBuilder();
+        if (customer.getAddressLine1() != null) address.append(customer.getAddressLine1()).append("\n");
+        if (customer.getCity() != null) address.append(customer.getCity());
+        if (customer.getState() != null) address.append(", ").append(customer.getState());
+        if (customer.getPostalCode() != null) address.append(" - ").append(customer.getPostalCode());
+        if (customer.getCountry() != null) address.append("\n").append(customer.getCountry());
+        return address.toString();
     }
 
     private String formatCurrency(Long amountMinor, String currencyCode) {

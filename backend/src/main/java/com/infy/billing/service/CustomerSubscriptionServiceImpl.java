@@ -109,15 +109,20 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       List<SubscriptionItem> items = subscriptionItemRepository.findBySubscription_Id(subscription.getId());
 
       if (isTrialing) {
-         return upgradeTrialingSubscription(customer, subscription, oldPlan, newPlan, items, scOpt);
+         return upgradeTrialingSubscription(new TrialingUpgradeContext(customer, subscription, oldPlan, newPlan, items, scOpt));
       } else {
-         return upgradeActiveSubscription(email, customer, subscription, oldPlan, newPlan, items, scOpt);
+         return upgradeActiveSubscription(new ActiveUpgradeContext(email, customer, subscription, oldPlan, newPlan, items, scOpt));
       }
    }
 
-   private SubscriptionDTO upgradeTrialingSubscription(
-         Customer customer, Subscription subscription, Plan oldPlan, Plan newPlan,
-         List<SubscriptionItem> items, Optional<SubscriptionCoupon> scOpt) {
+   private SubscriptionDTO upgradeTrialingSubscription(TrialingUpgradeContext ctx) {
+      Customer customer = ctx.customer;
+      Subscription subscription = ctx.subscription;
+      Plan oldPlan = ctx.oldPlan;
+      Plan newPlan = ctx.newPlan;
+      List<SubscriptionItem> items = ctx.items;
+      Optional<SubscriptionCoupon> scOpt = ctx.scOpt;
+
       LocalDate today = LocalDate.now();
       long daysUsed = ChronoUnit.DAYS.between(subscription.getStartDate(), today);
       if (daysUsed < 0)
@@ -169,10 +174,105 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       return mapToSubscriptionDTO(subscription);
    }
 
-   private SubscriptionDTO upgradeActiveSubscription(
-         String email, Customer customer, Subscription subscription, Plan oldPlan, Plan newPlan,
-         List<SubscriptionItem> items, Optional<SubscriptionCoupon> scOpt) {
-      LocalDate today = LocalDate.now();
+   private static class ProrationLineItemsParam {
+      Invoice invoice;
+      Plan newPlan;
+      long newPriceMinor;
+      long unusedCredit;
+      long remainingDays;
+      long newTaxMinor;
+      long newDiscountMinor;
+      Coupon activeCoupon;
+      String oldPlanName;
+
+      ProrationLineItemsParam(Invoice invoice, Plan newPlan, long newPriceMinor, long unusedCredit, long remainingDays, long newTaxMinor, long newDiscountMinor, Coupon activeCoupon, String oldPlanName) {
+         this.invoice = invoice;
+         this.newPlan = newPlan;
+         this.newPriceMinor = newPriceMinor;
+         this.unusedCredit = unusedCredit;
+         this.remainingDays = remainingDays;
+         this.newTaxMinor = newTaxMinor;
+         this.newDiscountMinor = newDiscountMinor;
+         this.activeCoupon = activeCoupon;
+         this.oldPlanName = oldPlanName;
+      }
+   }
+
+   private static class ProrationDetails {
+      final long newPriceMinor;
+      final long newDiscountMinor;
+      final Coupon activeCoupon;
+      final long newAddonTotal;
+      final long newTaxMinor;
+      final long prorationAmount;
+      final long headerSubtotal;
+
+      ProrationDetails(long newPriceMinor, long newDiscountMinor, Coupon activeCoupon, long newAddonTotal, long newTaxMinor, long prorationAmount, long headerSubtotal) {
+         this.newPriceMinor = newPriceMinor;
+         this.newDiscountMinor = newDiscountMinor;
+         this.activeCoupon = activeCoupon;
+         this.newAddonTotal = newAddonTotal;
+         this.newTaxMinor = newTaxMinor;
+         this.prorationAmount = prorationAmount;
+         this.headerSubtotal = headerSubtotal;
+      }
+   }
+
+   private static class TrialingUpgradeContext {
+      final Customer customer;
+      final Subscription subscription;
+      final Plan oldPlan;
+      final Plan newPlan;
+      final List<SubscriptionItem> items;
+      final Optional<SubscriptionCoupon> scOpt;
+
+      TrialingUpgradeContext(Customer customer, Subscription subscription, Plan oldPlan, Plan newPlan,
+            List<SubscriptionItem> items, Optional<SubscriptionCoupon> scOpt) {
+         this.customer = customer;
+         this.subscription = subscription;
+         this.oldPlan = oldPlan;
+         this.newPlan = newPlan;
+         this.items = items;
+         this.scOpt = scOpt;
+      }
+   }
+
+   private static class ActiveUpgradeContext {
+      final String email;
+      final Customer customer;
+      final Subscription subscription;
+      final Plan oldPlan;
+      final Plan newPlan;
+      final List<SubscriptionItem> items;
+      final Optional<SubscriptionCoupon> scOpt;
+
+      ActiveUpgradeContext(String email, Customer customer, Subscription subscription, Plan oldPlan, Plan newPlan,
+            List<SubscriptionItem> items, Optional<SubscriptionCoupon> scOpt) {
+         this.email = email;
+         this.customer = customer;
+         this.subscription = subscription;
+         this.oldPlan = oldPlan;
+         this.newPlan = newPlan;
+         this.items = items;
+         this.scOpt = scOpt;
+      }
+   }
+
+   private long resolveDiscountMinor(Optional<SubscriptionCoupon> scOpt, long basePrice, String subscriptionCurrency) {
+      if (scOpt.isEmpty()) {
+         return 0L;
+      }
+      Coupon coupon = scOpt.get().getCoupon();
+      if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
+         return basePrice * coupon.getAmount() / 100;
+      }
+      if (coupon.getCurrency() == null || coupon.getCurrency().equals(subscriptionCurrency)) {
+         return coupon.getAmount();
+      }
+      return 0L;
+   }
+
+   private long calculateUnusedCredit(Customer customer, Subscription subscription, Plan oldPlan, List<SubscriptionItem> items, Optional<SubscriptionCoupon> scOpt, LocalDate today) {
       LocalDate periodStart = subscription.getCurrentPeriodStart();
       LocalDate periodEnd = subscription.getCurrentPeriodEnd();
 
@@ -185,11 +285,10 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          remainingDays = 0;
 
       long oldTotalPaid = calculateOldTotalPaid(customer, oldPlan, items, scOpt);
+      return oldTotalPaid * remainingDays / totalDaysInPeriod;
+   }
 
-      // Calculate unused refund credit we owe the user
-      long unusedCredit = oldTotalPaid * remainingDays / totalDaysInPeriod;
-
-      // New Plan calculations
+   private ProrationDetails calculateProrationDetails(Customer customer, Plan newPlan, List<SubscriptionItem> items, Optional<SubscriptionCoupon> scOpt, long unusedCredit) {
       long newPriceMinor = newPlan.getDefaultPriceMinor();
       long newDiscountMinor = 0L;
       Coupon activeCoupon = null;
@@ -197,12 +296,8 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          activeCoupon = scOpt.get().getCoupon();
          if (activeCoupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
             newDiscountMinor = newPriceMinor * activeCoupon.getAmount() / 100;
-         } else {
-            if (activeCoupon.getCurrency() == null || activeCoupon.getCurrency().equals(customer.getCurrency())) {
-               newDiscountMinor = activeCoupon.getAmount();
-            } else {
-               newDiscountMinor = 0L;
-            }
+         } else if (activeCoupon.getCurrency() == null || activeCoupon.getCurrency().equals(customer.getCurrency())) {
+            newDiscountMinor = activeCoupon.getAmount();
          }
       }
       long newAddonTotal = items.stream()
@@ -216,37 +311,58 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       long newTaxMinor = calculateTaxMinor(newSubtotal, customer.getCountry(), newPlan.getTaxMode());
       long newTotalCost = (newPlan.getTaxMode() == TaxMode.INCLUSIVE) ? newSubtotal : newSubtotal + newTaxMinor;
 
-      // Immediate prorated charge amount
       long prorationAmount = newTotalCost - unusedCredit;
 
-      // Generate immediate proration invoice
       long headerSubtotal = (newPlan.getTaxMode() == TaxMode.INCLUSIVE) 
             ? (newPriceMinor + newAddonTotal - unusedCredit - newTaxMinor) 
             : (newPriceMinor + newAddonTotal - unusedCredit);
 
-      Invoice invoice = createProrationInvoice(customer, subscription, today, headerSubtotal, newTaxMinor);
+      return new ProrationDetails(newPriceMinor, newDiscountMinor, activeCoupon, newAddonTotal, newTaxMinor, prorationAmount, headerSubtotal);
+   }
 
-      if (prorationAmount > 0) {
+   private SubscriptionDTO upgradeActiveSubscription(ActiveUpgradeContext ctx) {
+      String email = ctx.email;
+      Customer customer = ctx.customer;
+      Subscription subscription = ctx.subscription;
+      Plan oldPlan = ctx.oldPlan;
+      Plan newPlan = ctx.newPlan;
+      List<SubscriptionItem> items = ctx.items;
+      Optional<SubscriptionCoupon> scOpt = ctx.scOpt;
+
+      LocalDate today = LocalDate.now();
+      long unusedCredit = calculateUnusedCredit(customer, subscription, oldPlan, items, scOpt, today);
+      ProrationDetails details = calculateProrationDetails(customer, newPlan, items, scOpt, unusedCredit);
+
+      Invoice invoice = createProrationInvoice(customer, subscription, today, details.headerSubtotal, details.newTaxMinor);
+
+      if (details.prorationAmount > 0) {
          // Upgrade: charge the difference
          invoice.setStatus(Status.PAID);
-         invoice.setDiscountMinor(newDiscountMinor);
-         invoice.setTotalMinor(prorationAmount);
+         invoice.setDiscountMinor(details.newDiscountMinor);
+         invoice.setTotalMinor(details.prorationAmount);
          invoice.setBalanceMinor(0L);
          invoiceRepository.save(invoice);
-         chargeUpgradeAmount(customer, subscription, invoice, prorationAmount);
-      } else if (prorationAmount < 0) {
+         chargeUpgradeAmount(customer, subscription, invoice, details.prorationAmount);
+      } else if (details.prorationAmount < 0) {
          // Downgrade: credit the difference to customer account
-         handleDowngradeCredit(email, customer, oldPlan, newPlan, invoice, prorationAmount, headerSubtotal, newTaxMinor);
+         handleDowngradeCredit(email, oldPlan, newPlan, invoice, details.prorationAmount);
       } else {
          // Zero difference
          invoice.setStatus(Status.PAID);
-         invoice.setDiscountMinor(newDiscountMinor);
+         invoice.setDiscountMinor(details.newDiscountMinor);
          invoice.setTotalMinor(0L);
          invoice.setBalanceMinor(0L);
          invoiceRepository.save(invoice);
       }
 
-      saveProratedLineItems(invoice, newPlan, newPriceMinor, unusedCredit, remainingDays, today, periodEnd, newTaxMinor, items, newDiscountMinor, activeCoupon, customer.getCountry(), oldPlan.getName());
+      long remainingDays = ChronoUnit.DAYS.between(today, subscription.getCurrentPeriodEnd());
+      if (remainingDays <= 0)
+         remainingDays = 0;
+
+      ProrationLineItemsParam lineItemsParam = new ProrationLineItemsParam(
+            invoice, newPlan, details.newPriceMinor, unusedCredit, remainingDays,
+            details.newTaxMinor, details.newDiscountMinor, details.activeCoupon, oldPlan.getName());
+      saveProratedLineItems(lineItemsParam);
 
       // Reset subscription period and save
       subscription.setPlan(newPlan);
@@ -589,111 +705,113 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
             .build();
    }
 
-   private void handleDowngradeCredit(String email, Customer customer, Plan oldPlan, Plan newPlan, Invoice invoice, long prorationAmount, long headerSubtotal, long newTaxMinor) {
-      long creditAmount = Math.abs(prorationAmount);
-      customer.setCreditBalanceMinor(customer.getCreditBalanceMinor() + creditAmount);
-      customerRepository.save(customer);
-
-      invoice.setStatus(Status.PAID);
-      invoice.setDiscountMinor(headerSubtotal + newTaxMinor);
-      invoice.setTotalMinor(0L);
-      invoice.setBalanceMinor(0L);
-
-      invoiceRepository.save(invoice);
-
-      User currentUser = userRepository.findByEmail(email)
-            .orElseThrow(() -> CustomException.notFound("User not found."));
-
-      CreditNote creditNote = new CreditNote();
-      creditNote
-            .setCreditNoteNumber("CN-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern(DATE_FORMAT_PATTERN)));
-      creditNote.setInvoice(invoice);
-      creditNote.setReason("Proration credit from plan downgrade: " + oldPlan.getName() + " → " + newPlan.getName());
-      creditNote.setAmountMinor(creditAmount);
-      creditNote.setStatus(Status.ISSUED);
-      creditNote.setCreatedBy(currentUser);
-      creditNoteRepository.save(creditNote);
-   }
-
-   private void chargeUpgradeAmount(Customer customer, Subscription subscription, Invoice invoice, long prorationAmount) {
-      PaymentMethod pm = paymentMethodRepository.findById(subscription.getPaymentMethodId())
-            .orElseThrow(() -> CustomException.notFound("Payment method not found"));
-      if (pm.getGatewayToken() == null || pm.getGatewayToken().isBlank()) {
-         throw CustomException.badRequest(NO_GATEWAY_TOKEN_MSG);
-      }
-      String gatewayRef = mockPaymentGateway.charge(pm.getGatewayToken(), prorationAmount, customer.getCurrency());
-
-      Payment payment = new Payment();
-      payment.setInvoice(invoice);
-      payment.setPaymentMethod(pm);
-      payment.setIdempotencyKey(UUID.randomUUID().toString());
-      payment.setGatewayRef(gatewayRef);
-      payment.setAmountMinor(prorationAmount);
-      payment.setCurrency(customer.getCurrency());
-      payment.setStatus(Status.SUCCESS);
-      payment.setAttemptNo(1);
-      paymentRepository.save(payment);
-   }
-
-   private void saveProratedLineItems(Invoice invoice, Plan newPlan, long newPriceMinor, long unusedCredit, long remainingDays, LocalDate today, LocalDate periodEnd, long newTaxMinor, List<SubscriptionItem> items, long newDiscountMinor, Coupon activeCoupon, String country, String oldPlanName) {
-      InvoiceLineItem planLine = new InvoiceLineItem();
-      planLine.setInvoice(invoice);
-      planLine.setDescription("Plan change to " + newPlan.getName() + " (Cycle starting today)");
-      planLine.setLineType(InvoiceLineItem.LineType.PLAN);
-      planLine.setQuantity(1);
-      planLine.setUnitPriceMinor(newPriceMinor);
-      planLine.setAmountMinor(newPriceMinor);
-      planLine.setPeriodStart(today);
-      planLine.setPeriodEnd(
-            newPlan.getBillingPeriod() == BillingPeriod.MONTHLY ? today.plusMonths(1) : today.plusYears(1));
-      invoiceLineItemRepository.save(planLine);
-
-      InvoiceLineItem creditLine = new InvoiceLineItem();
-      creditLine.setInvoice(invoice);
-      creditLine.setDescription("Unused credit from " + oldPlanName + " (" + remainingDays + " days remaining)");
-      creditLine.setLineType(InvoiceLineItem.LineType.PRORATION);
-      creditLine.setQuantity(1);
-      creditLine.setUnitPriceMinor(-unusedCredit);
-      creditLine.setAmountMinor(-unusedCredit);
-      creditLine.setPeriodStart(today);
-      creditLine.setPeriodEnd(periodEnd);
-      invoiceLineItemRepository.save(creditLine);
-
-      if (newTaxMinor > 0) {
-         InvoiceLineItem taxLine = new InvoiceLineItem();
-         taxLine.setInvoice(invoice);
-         taxLine.setDescription(getTaxDescription(country));
-         taxLine.setLineType(InvoiceLineItem.LineType.TAX);
-         taxLine.setQuantity(1);
-         taxLine.setUnitPriceMinor(newTaxMinor);
-         taxLine.setAmountMinor(newTaxMinor);
-         invoiceLineItemRepository.save(taxLine);
-      }
-
-      for (SubscriptionItem item : items) {
-         if (item.getItemType() == ItemType.ADDON) {
-            InvoiceLineItem addonLine = new InvoiceLineItem();
-            addonLine.setInvoice(invoice);
-            addonLine.setDescription(ADDON_PREFIX + item.getAddOn().getName());
-            addonLine.setLineType(InvoiceLineItem.LineType.ADDON);
-            addonLine.setQuantity(item.getQuantity());
-            addonLine.setUnitPriceMinor(item.getUnitPriceMinor());
-            addonLine.setAmountMinor(item.getUnitPriceMinor() * item.getQuantity());
-            invoiceLineItemRepository.save(addonLine);
-         }
-      }
-
-      if (newDiscountMinor > 0 && activeCoupon != null) {
-         InvoiceLineItem discountLine = new InvoiceLineItem();
-         discountLine.setInvoice(invoice);
-         discountLine.setDescription("Coupon: " + activeCoupon.getCode());
-         discountLine.setLineType(InvoiceLineItem.LineType.DISCOUNT);
-         discountLine.setQuantity(1);
-         discountLine.setUnitPriceMinor(-newDiscountMinor);
-         discountLine.setAmountMinor(-newDiscountMinor);
-         invoiceLineItemRepository.save(discountLine);
-      }
-   }
+    private void handleDowngradeCredit(String email, Plan oldPlan, Plan newPlan, Invoice invoice, long prorationAmount) {
+       long creditAmount = Math.abs(prorationAmount);
+       Customer customer = invoice.getCustomer();
+       customer.setCreditBalanceMinor(customer.getCreditBalanceMinor() + creditAmount);
+       customerRepository.save(customer);
+ 
+       invoice.setStatus(Status.PAID);
+       invoice.setDiscountMinor(invoice.getSubtotalMinor() + invoice.getTaxMinor());
+       invoice.setTotalMinor(0L);
+       invoice.setBalanceMinor(0L);
+ 
+       invoiceRepository.save(invoice);
+ 
+       User currentUser = userRepository.findByEmail(email)
+             .orElseThrow(() -> CustomException.notFound("User not found."));
+ 
+       CreditNote creditNote = new CreditNote();
+       creditNote
+             .setCreditNoteNumber("CN-" + LocalDateTime.now().format(DateTimeFormatter.ofPattern(DATE_FORMAT_PATTERN)));
+       creditNote.setInvoice(invoice);
+       creditNote.setReason("Proration credit from plan downgrade: " + oldPlan.getName() + " → " + newPlan.getName());
+       creditNote.setAmountMinor(creditAmount);
+       creditNote.setStatus(Status.ISSUED);
+       creditNote.setCreatedBy(currentUser);
+       creditNoteRepository.save(creditNote);
+    }
+ 
+    private void chargeUpgradeAmount(Customer customer, Subscription subscription, Invoice invoice, long prorationAmount) {
+       PaymentMethod pm = paymentMethodRepository.findById(subscription.getPaymentMethodId())
+             .orElseThrow(() -> CustomException.notFound("Payment method not found"));
+       if (pm.getGatewayToken() == null || pm.getGatewayToken().isBlank()) {
+          throw CustomException.badRequest(NO_GATEWAY_TOKEN_MSG);
+       }
+       String gatewayRef = mockPaymentGateway.charge(pm.getGatewayToken(), prorationAmount, customer.getCurrency());
+ 
+       Payment payment = new Payment();
+       payment.setInvoice(invoice);
+       payment.setPaymentMethod(pm);
+       payment.setIdempotencyKey(UUID.randomUUID().toString());
+       payment.setGatewayRef(gatewayRef);
+       payment.setAmountMinor(prorationAmount);
+       payment.setCurrency(customer.getCurrency());
+       payment.setStatus(Status.SUCCESS);
+       payment.setAttemptNo(1);
+       paymentRepository.save(payment);
+    }
+ 
+    private void saveProratedLineItems(ProrationLineItemsParam param) {
+       InvoiceLineItem planLine = new InvoiceLineItem();
+       planLine.setInvoice(param.invoice);
+       planLine.setDescription("Plan change to " + param.newPlan.getName() + " (Cycle starting today)");
+       planLine.setLineType(InvoiceLineItem.LineType.PLAN);
+       planLine.setQuantity(1);
+       planLine.setUnitPriceMinor(param.newPriceMinor);
+       planLine.setAmountMinor(param.newPriceMinor);
+       planLine.setPeriodStart(LocalDate.now());
+       planLine.setPeriodEnd(
+             param.newPlan.getBillingPeriod() == BillingPeriod.MONTHLY ? LocalDate.now().plusMonths(1) : LocalDate.now().plusYears(1));
+       invoiceLineItemRepository.save(planLine);
+ 
+       InvoiceLineItem creditLine = new InvoiceLineItem();
+       creditLine.setInvoice(param.invoice);
+       creditLine.setDescription("Unused credit from " + param.oldPlanName + " (" + param.remainingDays + " days remaining)");
+       creditLine.setLineType(InvoiceLineItem.LineType.PRORATION);
+       creditLine.setQuantity(1);
+       creditLine.setUnitPriceMinor(-param.unusedCredit);
+       creditLine.setAmountMinor(-param.unusedCredit);
+       creditLine.setPeriodStart(LocalDate.now());
+       creditLine.setPeriodEnd(param.invoice.getSubscription().getCurrentPeriodEnd());
+       invoiceLineItemRepository.save(creditLine);
+ 
+       if (param.newTaxMinor > 0) {
+          InvoiceLineItem taxLine = new InvoiceLineItem();
+          taxLine.setInvoice(param.invoice);
+          taxLine.setDescription(getTaxDescription(param.invoice.getSubscription().getCustomer().getCountry()));
+          taxLine.setLineType(InvoiceLineItem.LineType.TAX);
+          taxLine.setQuantity(1);
+          taxLine.setUnitPriceMinor(param.newTaxMinor);
+          taxLine.setAmountMinor(param.newTaxMinor);
+          invoiceLineItemRepository.save(taxLine);
+       }
+ 
+       List<SubscriptionItem> items = subscriptionItemRepository.findBySubscription_Id(param.invoice.getSubscription().getId());
+       for (SubscriptionItem item : items) {
+          if (item.getItemType() == ItemType.ADDON) {
+             InvoiceLineItem addonLine = new InvoiceLineItem();
+             addonLine.setInvoice(param.invoice);
+             addonLine.setDescription(ADDON_PREFIX + item.getAddOn().getName());
+             addonLine.setLineType(InvoiceLineItem.LineType.ADDON);
+             addonLine.setQuantity(item.getQuantity());
+             addonLine.setUnitPriceMinor(item.getUnitPriceMinor());
+             addonLine.setAmountMinor(item.getUnitPriceMinor() * item.getQuantity());
+             invoiceLineItemRepository.save(addonLine);
+          }
+       }
+ 
+       if (param.newDiscountMinor > 0 && param.activeCoupon != null) {
+          InvoiceLineItem discountLine = new InvoiceLineItem();
+          discountLine.setInvoice(param.invoice);
+          discountLine.setDescription("Coupon: " + param.activeCoupon.getCode());
+          discountLine.setLineType(InvoiceLineItem.LineType.DISCOUNT);
+          discountLine.setQuantity(1);
+          discountLine.setUnitPriceMinor(-param.newDiscountMinor);
+          discountLine.setAmountMinor(-param.newDiscountMinor);
+          invoiceLineItemRepository.save(discountLine);
+       }
+    }
 
    private void addAddOnToTrialingSubscription(Customer customer, Subscription subscription, AddOn addOn) {
       Optional<Invoice> openInvoiceOpt = invoiceRepository.findBySubscription_IdAndStatus(subscription.getId(),
@@ -913,21 +1031,9 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
             .toList());
 
       // Calculate discount if any
-      Long discountMinor = 0L;
       Optional<SubscriptionCoupon> scOpt = subscriptionCouponRepository
             .findBySubscription_IdAndStatus(subscription.getId(), Status.ACTIVE);
-      if (scOpt.isPresent()) {
-         Coupon coupon = scOpt.get().getCoupon();
-         if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
-            discountMinor = basePrice * coupon.getAmount() / 100;
-         } else {
-            if (coupon.getCurrency() == null || coupon.getCurrency().equals(subscription.getCurrency())) {
-               discountMinor = coupon.getAmount();
-            } else {
-               discountMinor = 0L;
-            }
-         }
-      }
+      long discountMinor = resolveDiscountMinor(scOpt, basePrice, subscription.getCurrency());
       dto.setDiscountMinor(discountMinor);
 
       // Calculate total due (Plan + Add-ons - Discount + dynamic tax)

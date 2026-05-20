@@ -134,7 +134,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         Long priceMinor = getPriceForRegion(plan, customer.getCountry(), customer.getCurrency());
 
         // Apply coupon discount if provided
-        CouponDiscountResult discountResult = calculateCouponDiscount(plan, customer, request.getCouponCode(), priceMinor);
+        CouponDiscountResult discountResult = calculateCouponDiscount(request.getCouponCode(), priceMinor);
         Long discountMinor = discountResult.discountMinor;
         Coupon appliedCoupon = discountResult.appliedCoupon;
 
@@ -206,7 +206,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         }
     }
 
-    private CouponDiscountResult calculateCouponDiscount(Plan plan, Customer customer, String couponCode, long priceMinor) {
+    private CouponDiscountResult calculateCouponDiscount(String couponCode, long priceMinor) {
         LocalDate today = LocalDate.now();
         Long discountMinor = 0L;
         Coupon appliedCoupon = null;
@@ -411,16 +411,9 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
 
         boolean isDashboardEligible = dashboardEligibleSub.isPresent();
         boolean hasDraftSubscription = draftSub.isPresent();
-
-        String message;
-        if (isDashboardEligible) {
-            message = "Active or relevant subscription found";
-        } else if (hasDraftSubscription) {
-            message = "Draft subscription found";
-        } else {
-            message = "Customer exists but no subscription";
-        }
-
+        String message = isDashboardEligible ? "Active or relevant subscription found" 
+                       : hasDraftSubscription ? "Draft subscription found" 
+                       : "Customer exists but no subscription";
         return new CustomerStatusResponse(isDashboardEligible, isDashboardEligible, hasDraftSubscription, message);
     }
 
