@@ -56,6 +56,7 @@ public class SupportServiceImpl implements SupportService {
      private final UserRepository userRepository;
      private final CustomerSubscriptionService customerSubscriptionService;
      private final NotificationRepository notificationRepository;
+     private final AuditLoggingService auditLoggingService;
  
      @Override
      public List<CustomerSearchResponse> searchCustomers(String query) {
@@ -264,6 +265,8 @@ public class SupportServiceImpl implements SupportService {
                 .build();
         notificationRepository.save(notification);
 
+        auditLoggingService.logAction("APPROVE_CANCELLATION", "CancellationRequest", request.getId(), null, request);
+
         return response;
     }
 
@@ -303,6 +306,8 @@ public class SupportServiceImpl implements SupportService {
                 .sentAt(LocalDateTime.now())
                 .build();
         notificationRepository.save(notification);
+
+        auditLoggingService.logAction("REJECT_CANCELLATION", "CancellationRequest", request.getId(), null, request);
     }
 
     private CancellationRequestDTO mapToCancellationRequestDTO(com.infy.billing.entity.CancellationRequest request) {

@@ -90,7 +90,7 @@ class BillingRetryServiceImplTest {
         }
 
         @Test
-        void testRetryFailedPayments_Success() throws Exception {
+        void testRetryFailedPayments_Success() {
                 when(dunningRetryLogRepository.findByStatusAndScheduledAtLessThanEqual(any(), any()))
                                 .thenReturn(Arrays.asList(retryLog));
                 when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
@@ -140,7 +140,7 @@ class BillingRetryServiceImplTest {
         }
 
         @Test
-        void testRetryFailedPayments_PaymentGatewayFailure() throws Exception {
+        void testRetryFailedPayments_PaymentGatewayFailure() {
                 when(dunningRetryLogRepository.findByStatusAndScheduledAtLessThanEqual(any(), any()))
                                 .thenReturn(Arrays.asList(retryLog));
                 when(paymentMethodRepository.findById(1L)).thenReturn(Optional.of(paymentMethod));
@@ -154,7 +154,7 @@ class BillingRetryServiceImplTest {
         }
 
         @Test
-        void testRetryFailedPayments_FinalAttemptFailure() throws Exception {
+        void testRetryFailedPayments_FinalAttemptFailure() {
                 retryLog.setAttemptNo(3);
                 when(dunningRetryLogRepository.findByStatusAndScheduledAtLessThanEqual(any(), any()))
                                 .thenReturn(Arrays.asList(retryLog));
@@ -217,7 +217,7 @@ class BillingRetryServiceImplTest {
         }
 
         @Test
-        void testRetryFailedPayments_YearlyAdvance() throws Exception {
+        void testRetryFailedPayments_YearlyAdvance() {
                 plan.setBillingPeriod(BillingPeriod.YEARLY);
                 when(dunningRetryLogRepository.findByStatusAndScheduledAtLessThanEqual(any(), any()))
                                 .thenReturn(Arrays.asList(retryLog));
@@ -232,7 +232,7 @@ class BillingRetryServiceImplTest {
         }
 
         @Test
-        void testRetryFailedPayments_Attempt2Scheduling() throws Exception {
+        void testRetryFailedPayments_Attempt2Scheduling() {
                 retryLog.setAttemptNo(1);
                 when(dunningRetryLogRepository.findByStatusAndScheduledAtLessThanEqual(any(), any()))
                                 .thenReturn(Arrays.asList(retryLog));
@@ -247,7 +247,7 @@ class BillingRetryServiceImplTest {
         }
 
         @Test
-        void testRetryFailedPayments_Attempt3Scheduling() throws Exception {
+        void testRetryFailedPayments_Attempt3Scheduling() {
                 retryLog.setAttemptNo(2);
                 when(dunningRetryLogRepository.findByStatusAndScheduledAtLessThanEqual(any(), any()))
                                 .thenReturn(Arrays.asList(retryLog));

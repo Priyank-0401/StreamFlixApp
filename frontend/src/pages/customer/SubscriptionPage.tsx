@@ -734,7 +734,7 @@ export const SubscriptionPage: React.FC = () => {
       {/* Cancellation Request Modal */}
       {showCancelRequestModal && (
         <div className="modal-overlay" onClick={() => setShowCancelRequestModal(false)}>
-          <div className="modal modal-small" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Request Subscription Cancellation</h3>
               <button 

@@ -46,6 +46,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
    private final CreditNoteRepository creditNoteRepository;
    private final SubscriptionFlowService subscriptionFlowService;
    private final CancellationRequestRepository cancellationRequestRepository;
+   private final AuditLoggingService auditLoggingService;
 
    public SubscriptionDTO getCurrentSubscription(String email) {
       Customer customer = getCustomerByEmail(email);
@@ -244,6 +245,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
             }
          }
 
+         auditLoggingService.logAction("UPGRADE_SUBSCRIPTION", "Subscription", subscription.getId(), oldPlan, newPlan);
          return mapToSubscriptionDTO(subscription);
       }
 
@@ -486,6 +488,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       planItem.setUnitPriceMinor(newPlan.getDefaultPriceMinor());
       subscriptionItemRepository.save(planItem);
 
+      auditLoggingService.logAction("UPGRADE_SUBSCRIPTION", "Subscription", subscription.getId(), oldPlan, newPlan);
       return mapToSubscriptionDTO(subscription);
    }
 
@@ -497,6 +500,8 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
        if (atPeriodEnd) {
           subscription.setCancelAtPeriodEnd(true);
           subscriptionRepository.save(subscription);
+          
+          auditLoggingService.logAction("CANCEL_SUBSCRIPTION", "Subscription", subscription.getId(), null, subscription);
           return new CancellationResponse(false, 0, customer.getCurrency(), null, null,
                 "Subscription will be canceled at the end of the current billing period.");
        } else {
@@ -510,6 +515,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
           CancellationResponse response = processRefundIfApplicable(email, customer, subscription, lastPaidInvoice);
           updateCustomerStatusIfNoActiveSubscriptions(customer);
 
+          auditLoggingService.logAction("CANCEL_SUBSCRIPTION", "Subscription", subscription.getId(), null, subscription);
           return response;
        }
     }
@@ -598,6 +604,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       subscription.setPausedTo(LocalDate.parse(request.getPausedTo()));
       subscriptionRepository.save(subscription);
 
+      auditLoggingService.logAction("PAUSE_SUBSCRIPTION", "Subscription", subscription.getId(), null, subscription);
       return mapToSubscriptionDTO(subscription);
    }
 
@@ -613,6 +620,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       subscription.setPausedTo(null);
       subscriptionRepository.save(subscription);
 
+      auditLoggingService.logAction("RESUME_SUBSCRIPTION", "Subscription", subscription.getId(), null, subscription);
       return mapToSubscriptionDTO(subscription);
    }
 
@@ -790,6 +798,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       subscriptionItemRepository.flush();
       invoiceRepository.flush();
 
+      auditLoggingService.logAction("ADD_ADDON", "Subscription", subscription.getId(), null, addOn);
       return mapToSubscriptionDTO(subscription);
    }
 
@@ -804,6 +813,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          subscriptionItemRepository.delete(item);
       }
 
+      auditLoggingService.logAction("REMOVE_ADDON", "Subscription", subscription.getId(), item, null);
       return mapToSubscriptionDTO(subscription);
    }
 

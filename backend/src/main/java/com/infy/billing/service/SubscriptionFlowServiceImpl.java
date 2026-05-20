@@ -34,6 +34,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
     private final SubscriptionCouponRepository subscriptionCouponRepository;
     private final InvoiceLineItemRepository invoiceLineItemRepository;
     private final MockPaymentGateway mockPaymentGateway;
+    private final AuditLoggingService auditLoggingService;
 
     /**
      * Step 1: Register customer details
@@ -340,6 +341,9 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         if (subscription.getTrialEndDate() != null) {
             response.setTrialEndDate(subscription.getTrialEndDate().toString());
         }
+
+        // Audit Log for Subscription Creation
+        auditLoggingService.logAction("CREATE_SUBSCRIPTION", "Subscription", subscription.getId(), null, subscription);
 
         return response;
     }

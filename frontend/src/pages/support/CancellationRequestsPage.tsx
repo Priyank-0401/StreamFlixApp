@@ -267,7 +267,7 @@ export const CancellationRequestsPage: React.FC = () => {
       {/* Action Processing Modal */}
       {selectedRequest && modalType && (
         <div className="modal-overlay" onClick={handleCloseModal}>
-          <div className="modal modal-small" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">
                 {modalType === 'APPROVE' ? 'Approve Cancellation' : 'Decline Cancellation'}
@@ -342,7 +342,7 @@ export const CancellationRequestsPage: React.FC = () => {
       {/* Refund Details Modal */}
       {refundInfo && (
         <div className="modal-overlay">
-          <div className="modal modal-small">
+          <div className="modal modal-large">
             <div className="modal-header">
               <h3 className="modal-title" style={{ color: '#22c55e' }}>Refund Issued</h3>
             </div>

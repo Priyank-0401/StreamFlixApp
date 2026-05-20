@@ -243,8 +243,13 @@ class CustomerPaymentServiceImplTest {
         assertThrows(RuntimeException.class, () -> customerPaymentService.deletePaymentMethod("test@test.com", 1L));
     }
 
-    @Test
-    void testAddPaymentMethod_Card_Visa() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+        "4111111111111111, VISA",
+        "5111111111111111, MASTERCARD",
+        "341111111111111, AMEX"
+    })
+    void testAddPaymentMethod_CardBrands(String cardNumber, String expectedBrand) {
         when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
         when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
         when(paymentMethodRepository.findByCustomer_Id(1L)).thenReturn(Arrays.asList());
@@ -252,7 +257,7 @@ class CustomerPaymentServiceImplTest {
 
         AddPaymentMethodRequest request = new AddPaymentMethodRequest();
         request.setPaymentType(PaymentType.CARD);
-        request.setCardNumber("4111111111111111");
+        request.setCardNumber(cardNumber);
         request.setExpiryMonth(12);
         request.setExpiryYear(2030);
         request.setIsDefault(true);
@@ -260,47 +265,7 @@ class CustomerPaymentServiceImplTest {
         PaymentMethodDTO dto = customerPaymentService.addPaymentMethod("test@test.com", request);
 
         assertNotNull(dto);
-        assertEquals("VISA", dto.getCardBrand());
-    }
-
-    @Test
-    void testAddPaymentMethod_Card_Mastercard() {
-        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
-        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
-        when(paymentMethodRepository.findByCustomer_Id(1L)).thenReturn(Arrays.asList());
-        when(paymentMethodRepository.save(any(PaymentMethod.class))).thenAnswer(i -> i.getArgument(0));
-
-        AddPaymentMethodRequest request = new AddPaymentMethodRequest();
-        request.setPaymentType(PaymentType.CARD);
-        request.setCardNumber("5111111111111111");
-        request.setExpiryMonth(12);
-        request.setExpiryYear(2030);
-        request.setIsDefault(true);
-
-        PaymentMethodDTO dto = customerPaymentService.addPaymentMethod("test@test.com", request);
-
-        assertNotNull(dto);
-        assertEquals("MASTERCARD", dto.getCardBrand());
-    }
-
-    @Test
-    void testAddPaymentMethod_Card_Amex() {
-        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
-        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
-        when(paymentMethodRepository.findByCustomer_Id(1L)).thenReturn(Arrays.asList());
-        when(paymentMethodRepository.save(any(PaymentMethod.class))).thenAnswer(i -> i.getArgument(0));
-
-        AddPaymentMethodRequest request = new AddPaymentMethodRequest();
-        request.setPaymentType(PaymentType.CARD);
-        request.setCardNumber("341111111111111");
-        request.setExpiryMonth(12);
-        request.setExpiryYear(2030);
-        request.setIsDefault(true);
-
-        PaymentMethodDTO dto = customerPaymentService.addPaymentMethod("test@test.com", request);
-
-        assertNotNull(dto);
-        assertEquals("AMEX", dto.getCardBrand());
+        assertEquals(expectedBrand, dto.getCardBrand());
     }
 
     @Test

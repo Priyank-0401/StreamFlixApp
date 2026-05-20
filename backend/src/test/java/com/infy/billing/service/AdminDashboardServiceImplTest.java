@@ -178,7 +178,8 @@ class AdminDashboardServiceImplTest {
     @Test
     void testUpdateProduct_NotFound() {
         when(productRepository.findById(1L)).thenReturn(Optional.empty());
-        assertThrows(RuntimeException.class, () -> adminDashboardService.updateProduct(1L, new Product()));
+        Product emptyProduct = new Product();
+        assertThrows(RuntimeException.class, () -> adminDashboardService.updateProduct(1L, emptyProduct));
     }
 
     @Test
@@ -236,7 +237,8 @@ class AdminDashboardServiceImplTest {
     @Test
     void testUpdatePlan_NotFound() {
         when(planRepository.findById(1L)).thenReturn(Optional.empty());
-        assertThrows(RuntimeException.class, () -> adminDashboardService.updatePlan(1L, new Plan()));
+        Plan emptyPlan = new Plan();
+        assertThrows(RuntimeException.class, () -> adminDashboardService.updatePlan(1L, emptyPlan));
     }
 
     @Test
@@ -304,8 +306,9 @@ class AdminDashboardServiceImplTest {
     @Test
     void testUpdatePriceBookEntry_NotFound() {
         when(priceBookEntryRepository.findById(1L)).thenReturn(Optional.empty());
+        PriceBookEntry emptyEntry = new PriceBookEntry();
         assertThrows(RuntimeException.class,
-                () -> adminDashboardService.updatePriceBookEntry(1L, new PriceBookEntry()));
+                () -> adminDashboardService.updatePriceBookEntry(1L, emptyEntry));
     }
 
     @Test
@@ -366,7 +369,8 @@ class AdminDashboardServiceImplTest {
     @Test
     void testUpdateAddOn_NotFound() {
         when(addOnRepository.findById(1L)).thenReturn(Optional.empty());
-        assertThrows(RuntimeException.class, () -> adminDashboardService.updateAddOn(1L, new AddOn()));
+        AddOn emptyAddOn = new AddOn();
+        assertThrows(RuntimeException.class, () -> adminDashboardService.updateAddOn(1L, emptyAddOn));
     }
 
     @Test
@@ -427,8 +431,9 @@ class AdminDashboardServiceImplTest {
     @Test
     void testUpdateMeteredComponent_NotFound() {
         when(meteredComponentRepository.findById(1L)).thenReturn(Optional.empty());
+        MeteredComponent emptyComp = new MeteredComponent();
         assertThrows(RuntimeException.class,
-                () -> adminDashboardService.updateMeteredComponent(1L, new MeteredComponent()));
+                () -> adminDashboardService.updateMeteredComponent(1L, emptyComp));
     }
 
     @Test
@@ -480,7 +485,8 @@ class AdminDashboardServiceImplTest {
     @Test
     void testUpdateTaxRate_NotFound() {
         when(taxRateRepository.findById(1L)).thenReturn(Optional.empty());
-        assertThrows(RuntimeException.class, () -> adminDashboardService.updateTaxRate(1L, new TaxRate()));
+        TaxRate emptyTax = new TaxRate();
+        assertThrows(RuntimeException.class, () -> adminDashboardService.updateTaxRate(1L, emptyTax));
     }
 
     @Test
@@ -529,7 +535,8 @@ class AdminDashboardServiceImplTest {
     @Test
     void testUpdateCoupon_NotFound() {
         when(couponRepository.findById(1L)).thenReturn(Optional.empty());
-        assertThrows(RuntimeException.class, () -> adminDashboardService.updateCoupon(1L, new Coupon()));
+        Coupon emptyCoupon = new Coupon();
+        assertThrows(RuntimeException.class, () -> adminDashboardService.updateCoupon(1L, emptyCoupon));
     }
 
     @Test

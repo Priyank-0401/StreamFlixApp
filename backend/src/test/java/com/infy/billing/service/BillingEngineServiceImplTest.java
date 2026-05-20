@@ -71,7 +71,7 @@ class BillingEngineServiceImplTest {
 
 	// ==================== EXISTING TESTS ====================
 	@Test
-	void testProcessRenewals_Success() throws Exception {
+	void testProcessRenewals_Success() {
 		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
 				.thenReturn(new ArrayList<>(Arrays.asList(subscription)));
 		when(subscriptionRepository.findByTrialEndDateAndStatus(any(), any()))
@@ -106,7 +106,7 @@ class BillingEngineServiceImplTest {
 	}
 
 	@Test
-	void testProcessRenewals_PaymentFailed() throws Exception {
+	void testProcessRenewals_PaymentFailed() {
 		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
 				.thenReturn(new ArrayList<>(Arrays.asList(subscription)));
 		when(subscriptionRepository.findByTrialEndDateAndStatus(any(), any()))
@@ -124,7 +124,7 @@ class BillingEngineServiceImplTest {
 		line.setLineType(InvoiceLineItem.LineType.PLAN);
 		when(invoiceLineItemRepository.findByInvoice_Id(anyLong())).thenReturn(Arrays.asList(line));
 
-		when(mockPaymentGateway.charge(eq("token123"), eq(1000L), eq("USD")))
+		when(mockPaymentGateway.charge("token123", 1000L, "USD"))
 				.thenThrow(CustomException.paymentFailed("Card declined"));
 
 		billingEngineService.processRenewals();
@@ -134,7 +134,7 @@ class BillingEngineServiceImplTest {
 	}
 
 	@Test
-	void testProcessRenewals_TrialExpired() throws Exception {
+	void testProcessRenewals_TrialExpired() {
 		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
 				.thenReturn(new ArrayList<>());
 		subscription.setStatus(Status.TRIALING);
@@ -214,7 +214,7 @@ class BillingEngineServiceImplTest {
 	}
 
 	@Test
-	void testProcessRenewals_WithAddons() throws Exception {
+	void testProcessRenewals_WithAddons() {
 		AddOn addon = AddOn.builder().id(1L).name("HD Streaming").priceMinor(500L).build();
 		SubscriptionItem item = new SubscriptionItem();
 		item.setAddOn(addon);
@@ -241,7 +241,7 @@ class BillingEngineServiceImplTest {
 	}
 
 	@Test
-	void testProcessRenewals_WithCredits_FullyCovered() throws Exception {
+	void testProcessRenewals_WithCredits_FullyCovered() {
 		customer.setCreditBalanceMinor(5000L); // More than plan price
 
 		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
@@ -269,7 +269,7 @@ class BillingEngineServiceImplTest {
 	}
 
 	@Test
-	void testProcessRenewals_ZeroAmountPayment() throws Exception {
+	void testProcessRenewals_ZeroAmountPayment() {
 		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
 				.thenReturn(new ArrayList<>(Arrays.asList(subscription)));
 		when(subscriptionRepository.findByTrialEndDateAndStatus(any(), any()))
@@ -291,7 +291,7 @@ class BillingEngineServiceImplTest {
 	}
 
 	@Test
-	void testProcessRenewals_YearlyBillingPeriod() throws Exception {
+	void testProcessRenewals_YearlyBillingPeriod() {
 		plan.setBillingPeriod(BillingPeriod.YEARLY);
 		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
 				.thenReturn(new ArrayList<>(Arrays.asList(subscription)));
@@ -313,7 +313,7 @@ class BillingEngineServiceImplTest {
 	}
 
 	@Test
-	void testProcessRenewals_RecalculateTotals_AllLineTypes() throws Exception {
+	void testProcessRenewals_RecalculateTotals_AllLineTypes() {
 		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
 				.thenReturn(new ArrayList<>(Arrays.asList(subscription)));
 		when(subscriptionRepository.findByTrialEndDateAndStatus(any(), any()))
@@ -362,7 +362,7 @@ class BillingEngineServiceImplTest {
 	}
 
 	@Test
-	void testProcessRenewals_AddonWithNullAddon() throws Exception {
+	void testProcessRenewals_AddonWithNullAddon() {
 		SubscriptionItem item = new SubscriptionItem();
 		item.setAddOn(null);
 
@@ -386,7 +386,7 @@ class BillingEngineServiceImplTest {
 	}
 
 	@Test
-	void testProcessRenewals_AddonWithZeroPrice() throws Exception {
+	void testProcessRenewals_AddonWithZeroPrice() {
 		AddOn addon = AddOn.builder().id(1L).name("Free").priceMinor(0L).build();
 		SubscriptionItem item = new SubscriptionItem();
 		item.setAddOn(addon);
@@ -412,7 +412,7 @@ class BillingEngineServiceImplTest {
 	}
 
 	@Test
-	void testProcessRenewals_AddonWithNullQuantity() throws Exception {
+	void testProcessRenewals_AddonWithNullQuantity() {
 		AddOn addon = AddOn.builder().id(1L).name("Premium").priceMinor(500L).build();
 		SubscriptionItem item = new SubscriptionItem();
 		item.setAddOn(addon);
@@ -438,7 +438,7 @@ class BillingEngineServiceImplTest {
 	}
 
 	@Test
-	void testProcessRenewals_RecalculateWithCreditProrationMetered() throws Exception {
+	void testProcessRenewals_RecalculateWithCreditProrationMetered() {
 		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
 				.thenReturn(new ArrayList<>(Arrays.asList(subscription)));
 		when(subscriptionRepository.findByTrialEndDateAndStatus(any(), any()))
@@ -478,7 +478,7 @@ class BillingEngineServiceImplTest {
 	}
 
 	@Test
-	void testProcessRenewals_NegativeTotal_ClampedToZero() throws Exception {
+	void testProcessRenewals_NegativeTotal_ClampedToZero() {
 		when(subscriptionRepository.findByCurrentPeriodEndAndStatusAndCancelAtPeriodEndFalse(any(), any()))
 				.thenReturn(new ArrayList<>(Arrays.asList(subscription)));
 		when(subscriptionRepository.findByTrialEndDateAndStatus(any(), any()))

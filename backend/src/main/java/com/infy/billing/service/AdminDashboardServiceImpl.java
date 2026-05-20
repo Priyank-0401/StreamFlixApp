@@ -60,6 +60,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     private final SubscriptionRepository subscriptionRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditLoggingService auditLoggingService;
 
     // ==================== DASHBOARD ====================
     @Override
@@ -96,6 +97,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     @Override
     public ProductResponse createProduct(Product product) {
         Product saved = productRepository.save(product);
+        auditLoggingService.logAction("CREATE_PRODUCT", "Product", saved.getId(), null, saved);
         return ProductResponse.from(saved, 0);
     }
 
@@ -106,6 +108,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         product.setName(updated.getName());
         product.setDescription(updated.getDescription());
         Product saved = productRepository.save(product);
+        auditLoggingService.logAction("UPDATE_PRODUCT", "Product", saved.getId(), null, saved);
         return ProductResponse.from(saved, planRepository.countByProductId(saved.getId()));
     }
 
@@ -115,6 +118,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .orElseThrow(() -> CustomException.notFound(PRODUCT_NOT_FOUND_MSG + id));
         product.setStatus(product.getStatus().equals(Status.ACTIVE) ? Status.INACTIVE : Status.ACTIVE);
         productRepository.save(product);
+        auditLoggingService.logAction("TOGGLE_PRODUCT_STATUS", "Product", product.getId(), null, product);
     }
 
     // ==================== PLAN ====================
@@ -125,7 +129,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public PlanResponse createPlan(Plan plan) {
-        return PlanResponse.from(planRepository.save(plan));
+        Plan saved = planRepository.save(plan);
+        auditLoggingService.logAction("CREATE_PLAN", "Plan", saved.getId(), null, saved);
+        return PlanResponse.from(saved);
     }
 
     @Override
@@ -141,7 +147,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         plan.setTaxMode(updated.getTaxMode());
         plan.setEffectiveFrom(updated.getEffectiveFrom());
         plan.setEffectiveTo(updated.getEffectiveTo());
-        return PlanResponse.from(planRepository.save(plan));
+        Plan saved = planRepository.save(plan);
+        auditLoggingService.logAction("UPDATE_PLAN", "Plan", saved.getId(), null, saved);
+        return PlanResponse.from(saved);
     }
 
     @Override
@@ -150,6 +158,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .orElseThrow(() -> CustomException.notFound("Plan not found"));
         plan.setStatus(plan.getStatus().equals(Status.ACTIVE) ? Status.INACTIVE : Status.ACTIVE);
         planRepository.save(plan);
+        auditLoggingService.logAction("TOGGLE_PLAN_STATUS", "Plan", plan.getId(), null, plan);
     }
 
     // ==================== PRICE BOOK ====================
@@ -160,7 +169,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public PriceBookResponse createPriceBookEntry(PriceBookEntry entry) {
-        return PriceBookResponse.from(priceBookEntryRepository.save(entry));
+        PriceBookEntry saved = priceBookEntryRepository.save(entry);
+        auditLoggingService.logAction("CREATE_PRICE_BOOK", "PriceBookEntry", saved.getId(), null, saved);
+        return PriceBookResponse.from(saved);
     }
 
     @Override
@@ -172,7 +183,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         entry.setPriceMinor(updated.getPriceMinor());
         entry.setEffectiveFrom(updated.getEffectiveFrom());
         entry.setEffectiveTo(updated.getEffectiveTo());
-        return PriceBookResponse.from(priceBookEntryRepository.save(entry));
+        PriceBookEntry saved = priceBookEntryRepository.save(entry);
+        auditLoggingService.logAction("UPDATE_PRICE_BOOK", "PriceBookEntry", saved.getId(), null, saved);
+        return PriceBookResponse.from(saved);
     }
 
     @Override
@@ -200,7 +213,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public AddOnResponse createAddOn(AddOn addOn) {
-        return AddOnResponse.from(addOnRepository.save(addOn));
+        AddOn saved = addOnRepository.save(addOn);
+        auditLoggingService.logAction("CREATE_ADDON", "AddOn", saved.getId(), null, saved);
+        return AddOnResponse.from(saved);
     }
 
     @Override
@@ -212,7 +227,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         addOn.setCurrency(updated.getCurrency());
         addOn.setBillingPeriod(updated.getBillingPeriod());
         addOn.setTaxMode(updated.getTaxMode());
-        return AddOnResponse.from(addOnRepository.save(addOn));
+        AddOn saved = addOnRepository.save(addOn);
+        auditLoggingService.logAction("UPDATE_ADDON", "AddOn", saved.getId(), null, saved);
+        return AddOnResponse.from(saved);
     }
 
     @Override
@@ -221,6 +238,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .orElseThrow(() -> CustomException.notFound("Add-on not found"));
         addOn.setStatus(addOn.getStatus().equals(Status.ACTIVE) ? Status.INACTIVE : Status.ACTIVE);
         addOnRepository.save(addOn);
+        auditLoggingService.logAction("TOGGLE_ADDON_STATUS", "AddOn", addOn.getId(), null, addOn);
     }
 
     // ==================== METERED COMPONENT ====================
@@ -231,7 +249,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public MeteredComponentResponse createMeteredComponent(MeteredComponent component) {
-        return MeteredComponentResponse.from(meteredComponentRepository.save(component));
+        MeteredComponent saved = meteredComponentRepository.save(component);
+        auditLoggingService.logAction("CREATE_METERED_COMPONENT", "MeteredComponent", saved.getId(), null, saved);
+        return MeteredComponentResponse.from(saved);
     }
 
     @Override
@@ -242,7 +262,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         component.setUnitName(updated.getUnitName());
         component.setPricePerUnitMinor(updated.getPricePerUnitMinor());
         component.setFreeTierQuantity(updated.getFreeTierQuantity());
-        return MeteredComponentResponse.from(meteredComponentRepository.save(component));
+        MeteredComponent saved = meteredComponentRepository.save(component);
+        auditLoggingService.logAction("UPDATE_METERED_COMPONENT", "MeteredComponent", saved.getId(), null, saved);
+        return MeteredComponentResponse.from(saved);
     }
 
     @Override
@@ -251,6 +273,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .orElseThrow(() -> CustomException.notFound("Metered component not found"));
         component.setStatus(component.getStatus().equals(Status.ACTIVE) ? Status.INACTIVE : Status.ACTIVE);
         meteredComponentRepository.save(component);
+        auditLoggingService.logAction("TOGGLE_METERED_COMPONENT_STATUS", "MeteredComponent", component.getId(), null, component);
     }
 
     // ==================== TAX RATE ====================
@@ -261,7 +284,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public TaxRate createTaxRate(TaxRate taxRate) {
-        return taxRateRepository.save(taxRate);
+        TaxRate saved = taxRateRepository.save(taxRate);
+        auditLoggingService.logAction("CREATE_TAX_RATE", "TaxRate", saved.getId(), null, saved);
+        return saved;
     }
 
     @Override
@@ -274,7 +299,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         taxRate.setInclusive(updated.getInclusive());
         taxRate.setEffectiveFrom(updated.getEffectiveFrom());
         taxRate.setEffectiveTo(updated.getEffectiveTo());
-        return taxRateRepository.save(taxRate);
+        TaxRate saved = taxRateRepository.save(taxRate);
+        auditLoggingService.logAction("UPDATE_TAX_RATE", "TaxRate", saved.getId(), null, saved);
+        return saved;
     }
 
     @Override
@@ -293,7 +320,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         if (couponRepository.existsByCode(coupon.getCode())) {
             throw CustomException.conflict("Coupon code already exists: " + coupon.getCode());
         }
-        return couponRepository.save(coupon);
+        Coupon saved = couponRepository.save(coupon);
+        auditLoggingService.logAction("CREATE_COUPON", "Coupon", saved.getId(), null, saved);
+        return saved;
     }
 
     @Override
@@ -309,7 +338,9 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
         coupon.setMaxRedemptions(updated.getMaxRedemptions());
         coupon.setValidFrom(updated.getValidFrom());
         coupon.setValidTo(updated.getValidTo());
-        return couponRepository.save(coupon);
+        Coupon saved = couponRepository.save(coupon);
+        auditLoggingService.logAction("UPDATE_COUPON", "Coupon", saved.getId(), null, saved);
+        return saved;
     }
 
     @Override
@@ -318,6 +349,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .orElseThrow(() -> CustomException.notFound("Coupon not found"));
         coupon.setStatus(coupon.getStatus().equals(Status.ACTIVE) ? Status.DISABLED : Status.ACTIVE);
         couponRepository.save(coupon);
+        auditLoggingService.logAction("TOGGLE_COUPON_STATUS", "Coupon", coupon.getId(), null, coupon);
     }
 
     // ==================== CUSTOMERS ====================

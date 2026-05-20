@@ -642,13 +642,3 @@
             (1, 'CYCLE_BILLING', 'COMPLETED', 'SCHEDULER', '2026-05-18 00:00:00', '2026-05-18 00:05:23', 150, 145, 5, NULL),
             (2, 'DUNNING_RETRY', 'COMPLETED', 'SCHEDULER', '2026-05-19 01:00:00', '2026-05-19 01:02:10', 25, 20, 5, 'Card declined errors'),
             (3, 'CYCLE_BILLING', 'RUNNING', 'SCHEDULER', '2026-05-20 00:00:00', NULL, 160, 45, 0, NULL);
-
-            -- ============================================================================
-            -- 14. AUDIT_LOG TABLE
-            -- ============================================================================
-            INSERT INTO audit_log (audit_id, actor, actor_role, action, entity_type, entity_id, request_id, ip) VALUES
-            (1, 'System Admin', 'ADMIN', 'UPDATE_PLAN_PRICE', 'PLAN', 3, 'req_abc123', '192.168.1.10'),
-            (2, 'Support Lead', 'SUPPORT', 'ISSUE_REFUND', 'PAYMENT', 45, 'req_def456', '192.168.1.20'),
-            (3, 'Finance Lead', 'FINANCE', 'CREATE_COUPON', 'COUPON', 12, 'req_ghi789', '192.168.1.15');
-
-            SET FOREIGN_KEY_CHECKS = 1;
