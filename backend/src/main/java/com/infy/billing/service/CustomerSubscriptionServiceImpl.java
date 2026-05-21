@@ -36,8 +36,14 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
    private final CustomerRepository customerRepository;
    private final UserRepository userRepository;
    private final PlanRepository planRepository;
+   private final AddOnRepository addOnRepository;
+   private final MeteredComponentRepository meteredComponentRepository;
+   private final UsageRecordRepository usageRecordRepository;
    private final PaymentMethodRepository paymentMethodRepository;
    private final InvoiceRepository invoiceRepository;
+   private final InvoiceLineItemRepository invoiceLineItemRepository;
+   private final PaymentRepository paymentRepository;
+   private final SubscriptionCouponRepository subscriptionCouponRepository;
    private final PriceBookEntryRepository priceBookEntryRepository;
    private final MockPaymentGateway mockPaymentGateway;
    private final TaxRateRepository taxRateRepository;
@@ -45,11 +51,10 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
    private final SubscriptionFlowService subscriptionFlowService;
    private final CancellationRequestRepository cancellationRequestRepository;
    private final AuditLoggingService auditLoggingService;
-   private final SubscriptionDataService subscriptionDataService;
 
    public SubscriptionDTO getCurrentSubscription(String email) {
       Customer customer = getCustomerByEmail(email);
-      Subscription subscription = subscriptionDataService.getSubscriptionRepository().findByCustomer_IdAndStatusIn(
+      Subscription subscription = subscriptionRepository.findByCustomer_IdAndStatusIn(
             customer.getId(),
             List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED, Status.ON_HOLD)).stream()
             .findFirst().orElse(null);
@@ -63,7 +68,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
    public SubscriptionDTO createSubscription(String email, CreateSubscriptionRequest request) {
       Customer customer = getCustomerByEmail(email);
 
-      if (!subscriptionDataService.getSubscriptionRepository().findByCustomer_IdAndStatusIn(customer.getId(),
+      if (!subscriptionRepository.findByCustomer_IdAndStatusIn(customer.getId(),
             List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE)).isEmpty()) {
          throw CustomException.conflict("Customer already has an active subscription");
       }
@@ -79,7 +84,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
       SubscriptionResponse resp = subscriptionFlowService.completeSubscription(customer.getId(), compReq);
 
-      Subscription subscription = subscriptionDataService.getSubscriptionRepository().findById(resp.getSubscriptionId())
+      Subscription subscription = subscriptionRepository.findById(resp.getSubscriptionId())
             .orElseThrow(() -> CustomException.notFound("Subscription not found after creation"));
 
       return mapToSubscriptionDTO(subscription);
@@ -99,9 +104,9 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       }
 
       boolean isTrialing = subscription.getStatus() == Status.TRIALING;
-      Optional<SubscriptionCoupon> scOpt = subscriptionDataService.getSubscriptionCouponRepository()
+      Optional<SubscriptionCoupon> scOpt = subscriptionCouponRepository
             .findBySubscription_IdAndStatus(subscription.getId(), Status.ACTIVE);
-      List<SubscriptionItem> items = subscriptionDataService.getSubscriptionItemRepository().findBySubscription_Id(subscription.getId());
+      List<SubscriptionItem> items = subscriptionItemRepository.findBySubscription_Id(subscription.getId());
 
       if (isTrialing) {
          return upgradeTrialingSubscription(new TrialingUpgradeContext(customer, subscription, oldPlan, newPlan, items, scOpt));
@@ -140,7 +145,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          subscription.setCurrentPeriodEnd(newTrialEndDate.plusYears(1));
       }
       subscription.setUpdatedAt(LocalDateTime.now());
-      subscriptionDataService.getSubscriptionRepository().save(subscription);
+      subscriptionRepository.save(subscription);
 
       // Update the plan subscription item
       SubscriptionItem planItem = subscriptionItemRepository.findBySubscription_IdAndItemType(
@@ -156,10 +161,10 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
       planItem.setPlan(newPlan);
       planItem.setUnitPriceMinor(newPlan.getDefaultPriceMinor());
-      subscriptionDataService.getSubscriptionItemRepository().save(planItem);
+      subscriptionItemRepository.save(planItem);
 
       // Update the OPEN trial invoice to show the new plan + tax + coupon + addons
-      Optional<Invoice> openInvoiceOpt = subscriptionDataService.getInvoiceRepository().findBySubscription_IdAndStatus(subscription.getId(),
+      Optional<Invoice> openInvoiceOpt = invoiceRepository.findBySubscription_IdAndStatus(subscription.getId(),
             Status.OPEN);
       if (openInvoiceOpt.isPresent()) {
          rebuildTrialInvoice(openInvoiceOpt.get(), customer, subscription, newPlan, newTrialDays, items, scOpt);
@@ -365,10 +370,10 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       subscription.setCurrentPeriodEnd(
             newPlan.getBillingPeriod() == BillingPeriod.MONTHLY ? today.plusMonths(1) : today.plusYears(1));
       subscription.setUpdatedAt(LocalDateTime.now());
-      subscriptionDataService.getSubscriptionRepository().save(subscription);
+      subscriptionRepository.save(subscription);
 
       // Update the plan subscription item
-      SubscriptionItem planItem = subscriptionDataService.getSubscriptionItemRepository().findBySubscription_IdAndItemType(
+      SubscriptionItem planItem = subscriptionItemRepository.findBySubscription_IdAndItemType(
             subscription.getId(), ItemType.PLAN);
 
       if (planItem == null) {
@@ -381,7 +386,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
       planItem.setPlan(newPlan);
       planItem.setUnitPriceMinor(newPlan.getDefaultPriceMinor());
-      subscriptionDataService.getSubscriptionItemRepository().save(planItem);
+      subscriptionItemRepository.save(planItem);
 
       auditLoggingService.logAction("UPGRADE_SUBSCRIPTION", ENTITY_SUBSCRIPTION, subscription.getId(), oldPlan, newPlan);
       return mapToSubscriptionDTO(subscription);
@@ -394,7 +399,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
        if (atPeriodEnd) {
           subscription.setCancelAtPeriodEnd(true);
-          subscriptionDataService.getSubscriptionRepository().save(subscription);
+          subscriptionRepository.save(subscription);
           
           auditLoggingService.logAction("CANCEL_SUBSCRIPTION", ENTITY_SUBSCRIPTION, subscription.getId(), null, subscription);
           return new CancellationResponse(false, 0, customer.getCurrency(), null, null,
@@ -402,9 +407,9 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
        } else {
           subscription.setStatus(Status.CANCELED);
           subscription.setCanceledAt(LocalDateTime.now());
-          subscriptionDataService.getSubscriptionRepository().save(subscription);
+          subscriptionRepository.save(subscription);
 
-          List<Invoice> invoices = subscriptionDataService.getInvoiceRepository().findByCustomer_IdOrderByIssueDateDesc(customer.getId());
+          List<Invoice> invoices = invoiceRepository.findByCustomer_IdOrderByIssueDateDesc(customer.getId());
           voidOpenInvoices(subscription.getId(), invoices);
           Invoice lastPaidInvoice = findLastPaidInvoice(subscription.getId(), invoices);
           CancellationResponse response = processRefundIfApplicable(email, customer, subscription, lastPaidInvoice);
@@ -422,7 +427,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
                        && inv.getStatus() == Status.OPEN)
                .forEach(openInv -> {
                    openInv.setStatus(Status.VOID);
-                   subscriptionDataService.getInvoiceRepository().save(openInv);
+                   invoiceRepository.save(openInv);
                });
     }
 
@@ -456,7 +461,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
                .orElseThrow(() -> CustomException.notFound("User not found."));
 
        // Issue mock refund via payment gateway
-       Payment originalPayment = subscriptionDataService.getPaymentRepository().findByInvoice_Id(lastPaidInvoice.getId())
+       Payment originalPayment = paymentRepository.findByInvoice_Id(lastPaidInvoice.getId())
                .stream().filter(p -> p.getStatus() == Status.SUCCESS).findFirst().orElse(null);
        String refundGatewayRef = mockPaymentGateway.refund(
                originalPayment != null ? originalPayment.getGatewayRef() : "unknown",
@@ -479,7 +484,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
     }
 
     private void updateCustomerStatusIfNoActiveSubscriptions(Customer customer) {
-       List<Subscription> otherSubs = subscriptionDataService.getSubscriptionRepository().findByCustomer_Id(customer.getId());
+       List<Subscription> otherSubs = subscriptionRepository.findByCustomer_Id(customer.getId());
        boolean hasActive = otherSubs.stream()
                .anyMatch(s -> s.getStatus() == Status.ACTIVE || s.getStatus() == Status.TRIALING || s.getStatus() == Status.PAST_DUE);
 
@@ -497,7 +502,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       subscription.setStatus(Status.PAUSED);
       subscription.setPausedFrom(LocalDate.now());
       subscription.setPausedTo(LocalDate.parse(request.getPausedTo()));
-      subscriptionDataService.getSubscriptionRepository().save(subscription);
+      subscriptionRepository.save(subscription);
 
       auditLoggingService.logAction("PAUSE_SUBSCRIPTION", ENTITY_SUBSCRIPTION, subscription.getId(), null, subscription);
       return mapToSubscriptionDTO(subscription);
@@ -506,14 +511,14 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
    @Transactional
    public SubscriptionDTO resumeSubscription(String email) {
       Customer customer = getCustomerByEmail(email);
-      Subscription subscription = subscriptionDataService.getSubscriptionRepository().findByCustomer_IdAndStatus(
+      Subscription subscription = subscriptionRepository.findByCustomer_IdAndStatus(
             customer.getId(), Status.PAUSED)
             .orElseThrow(() -> CustomException.notFound("No paused subscription found"));
 
       subscription.setStatus(Status.ACTIVE);
       subscription.setPausedFrom(null);
       subscription.setPausedTo(null);
-      subscriptionDataService.getSubscriptionRepository().save(subscription);
+      subscriptionRepository.save(subscription);
 
       auditLoggingService.logAction("RESUME_SUBSCRIPTION", ENTITY_SUBSCRIPTION, subscription.getId(), null, subscription);
       return mapToSubscriptionDTO(subscription);
@@ -523,7 +528,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
    public SubscriptionDTO addAddOn(String email, Long addonId) {
       Customer customer = getCustomerByEmail(email);
       Subscription subscription = getActiveSubscription(customer.getId());
-      AddOn addOn = subscriptionDataService.getAddOnRepository().findById(addonId)
+      AddOn addOn = addOnRepository.findById(addonId)
             .orElseThrow(() -> CustomException.notFound("Add-on not found"));
 
       // Compatibility check: Monthly add-ons only for monthly plans, etc.
@@ -533,7 +538,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       }
 
       // Check if already added
-      SubscriptionItem existing = subscriptionDataService.getSubscriptionItemRepository().findBySubscription_IdAndAddOn_Id(
+      SubscriptionItem existing = subscriptionItemRepository.findBySubscription_IdAndAddOn_Id(
             subscription.getId(), addonId);
       if (existing != null) {
          throw CustomException.conflict("Add-on already active on this subscription");
@@ -546,7 +551,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       item.setUnitPriceMinor(addOn.getPriceMinor());
       item.setQuantity(1);
       item.setTaxMode(addOn.getTaxMode());
-      subscriptionDataService.getSubscriptionItemRepository().save(item);
+      subscriptionItemRepository.save(item);
 
       LocalDate today = LocalDate.now();
       boolean isTrialing = subscription.getStatus() == Status.TRIALING;
@@ -557,8 +562,8 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          addAddOnToActiveSubscription(customer, subscription, addOn, today);
       }
 
-      subscriptionDataService.getSubscriptionItemRepository().flush();
-      subscriptionDataService.getInvoiceRepository().flush();
+      subscriptionItemRepository.flush();
+      invoiceRepository.flush();
 
       auditLoggingService.logAction("ADD_ADDON", ENTITY_SUBSCRIPTION, subscription.getId(), null, addOn);
       return mapToSubscriptionDTO(subscription);
@@ -567,9 +572,9 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
    private void rebuildTrialInvoice(Invoice invoice, Customer customer, Subscription subscription, Plan newPlan,
          long newTrialDays, List<SubscriptionItem> items, Optional<SubscriptionCoupon> scOpt) {
       // Delete old line items
-      List<InvoiceLineItem> oldLines = subscriptionDataService.getInvoiceLineItemRepository().findByInvoice_Id(invoice.getId());
-      subscriptionDataService.getInvoiceLineItemRepository().deleteAll(oldLines);
-      subscriptionDataService.getInvoiceLineItemRepository().flush();
+      List<InvoiceLineItem> oldLines = invoiceLineItemRepository.findByInvoice_Id(invoice.getId());
+      invoiceLineItemRepository.deleteAll(oldLines);
+      invoiceLineItemRepository.flush();
 
       // Compute fresh pricing
       long priceMinor = newPlan.getDefaultPriceMinor();
@@ -607,7 +612,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       invoice.setTotalMinor(totalMinor);
       invoice.setBalanceMinor(totalMinor);
       invoice.setDueDate(subscription.getTrialEndDate());
-      subscriptionDataService.getInvoiceRepository().save(invoice);
+      invoiceRepository.save(invoice);
 
       // Save fresh Plan Line item
       InvoiceLineItem planLine = new InvoiceLineItem();
@@ -618,7 +623,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       planLine.setQuantity(1);
       planLine.setUnitPriceMinor(priceMinor);
       planLine.setAmountMinor(priceMinor);
-      subscriptionDataService.getInvoiceLineItemRepository().save(planLine);
+      invoiceLineItemRepository.save(planLine);
 
       // Save Addon Lines
       for (SubscriptionItem item : items) {
@@ -630,7 +635,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
             addonLine.setQuantity(item.getQuantity());
             addonLine.setUnitPriceMinor(item.getUnitPriceMinor());
             addonLine.setAmountMinor(item.getUnitPriceMinor() * item.getQuantity());
-            subscriptionDataService.getInvoiceLineItemRepository().save(addonLine);
+            invoiceLineItemRepository.save(addonLine);
          }
       }
 
@@ -643,7 +648,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          discountLine.setQuantity(1);
          discountLine.setUnitPriceMinor(-discountMinor);
          discountLine.setAmountMinor(-discountMinor);
-         subscriptionDataService.getInvoiceLineItemRepository().save(discountLine);
+         invoiceLineItemRepository.save(discountLine);
       }
 
       // Save Tax Line
@@ -655,7 +660,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          taxLine.setQuantity(1);
          taxLine.setUnitPriceMinor(taxMinor);
          taxLine.setAmountMinor(taxMinor);
-         subscriptionDataService.getInvoiceLineItemRepository().save(taxLine);
+         invoiceLineItemRepository.save(taxLine);
       }
    }
 
@@ -711,7 +716,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
        invoice.setTotalMinor(0L);
        invoice.setBalanceMinor(0L);
  
-       subscriptionDataService.getInvoiceRepository().save(invoice);
+       invoiceRepository.save(invoice);
  
        User currentUser = userRepository.findByEmail(email)
              .orElseThrow(() -> CustomException.notFound("User not found."));
@@ -744,7 +749,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
        payment.setCurrency(customer.getCurrency());
        payment.setStatus(Status.SUCCESS);
        payment.setAttemptNo(1);
-       subscriptionDataService.getPaymentRepository().save(payment);
+       paymentRepository.save(payment);
     }
  
     private void saveProratedLineItems(ProrationLineItemsParam param) {
@@ -758,7 +763,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
        planLine.setPeriodStart(LocalDate.now());
        planLine.setPeriodEnd(
              param.newPlan.getBillingPeriod() == BillingPeriod.MONTHLY ? LocalDate.now().plusMonths(1) : LocalDate.now().plusYears(1));
-       subscriptionDataService.getInvoiceLineItemRepository().save(planLine);
+       invoiceLineItemRepository.save(planLine);
  
        InvoiceLineItem creditLine = new InvoiceLineItem();
        creditLine.setInvoice(param.invoice);
@@ -769,7 +774,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
        creditLine.setAmountMinor(-param.unusedCredit);
        creditLine.setPeriodStart(LocalDate.now());
        creditLine.setPeriodEnd(param.invoice.getSubscription().getCurrentPeriodEnd());
-       subscriptionDataService.getInvoiceLineItemRepository().save(creditLine);
+       invoiceLineItemRepository.save(creditLine);
  
        if (param.newTaxMinor > 0) {
           InvoiceLineItem taxLine = new InvoiceLineItem();
@@ -779,10 +784,10 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
           taxLine.setQuantity(1);
           taxLine.setUnitPriceMinor(param.newTaxMinor);
           taxLine.setAmountMinor(param.newTaxMinor);
-          subscriptionDataService.getInvoiceLineItemRepository().save(taxLine);
+          invoiceLineItemRepository.save(taxLine);
        }
  
-       List<SubscriptionItem> items = subscriptionDataService.getSubscriptionItemRepository().findBySubscription_Id(param.invoice.getSubscription().getId());
+       List<SubscriptionItem> items = subscriptionItemRepository.findBySubscription_Id(param.invoice.getSubscription().getId());
        for (SubscriptionItem item : items) {
           if (item.getItemType() == ItemType.ADDON) {
              InvoiceLineItem addonLine = new InvoiceLineItem();
@@ -792,7 +797,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
              addonLine.setQuantity(item.getQuantity());
              addonLine.setUnitPriceMinor(item.getUnitPriceMinor());
              addonLine.setAmountMinor(item.getUnitPriceMinor() * item.getQuantity());
-             subscriptionDataService.getInvoiceLineItemRepository().save(addonLine);
+             invoiceLineItemRepository.save(addonLine);
           }
        }
  
@@ -804,12 +809,12 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
           discountLine.setQuantity(1);
           discountLine.setUnitPriceMinor(-param.newDiscountMinor);
           discountLine.setAmountMinor(-param.newDiscountMinor);
-          subscriptionDataService.getInvoiceLineItemRepository().save(discountLine);
+          invoiceLineItemRepository.save(discountLine);
        }
     }
 
    private void addAddOnToTrialingSubscription(Customer customer, Subscription subscription, AddOn addOn) {
-      Optional<Invoice> openInvoiceOpt = subscriptionDataService.getInvoiceRepository().findBySubscription_IdAndStatus(subscription.getId(),
+      Optional<Invoice> openInvoiceOpt = invoiceRepository.findBySubscription_IdAndStatus(subscription.getId(),
             Status.OPEN);
       if (openInvoiceOpt.isPresent()) {
          Invoice invoice = openInvoiceOpt.get();
@@ -821,7 +826,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          addonLine.setQuantity(1);
          addonLine.setUnitPriceMinor(addOn.getPriceMinor());
          addonLine.setAmountMinor(addOn.getPriceMinor());
-         subscriptionDataService.getInvoiceLineItemRepository().save(addonLine);
+         invoiceLineItemRepository.save(addonLine);
 
          Long addonTax = calculateTaxMinor(addOn.getPriceMinor(), customer.getCountry(), addOn.getTaxMode());
          Long addonTotal = (addOn.getTaxMode() == TaxMode.INCLUSIVE) ? addOn.getPriceMinor()
@@ -836,13 +841,13 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          taxLine.setQuantity(1);
          taxLine.setUnitPriceMinor(addonTax);
          taxLine.setAmountMinor(addonTax);
-         subscriptionDataService.getInvoiceLineItemRepository().save(taxLine);
+         invoiceLineItemRepository.save(taxLine);
 
          invoice.setSubtotalMinor(invoice.getSubtotalMinor() + addonSubtotal);
          invoice.setTaxMinor(invoice.getTaxMinor() + addonTax);
          invoice.setTotalMinor(invoice.getTotalMinor() + addonTotal);
          invoice.setBalanceMinor(invoice.getTotalMinor());
-         subscriptionDataService.getInvoiceRepository().save(invoice);
+         invoiceRepository.save(invoice);
       }
    }
 
@@ -875,7 +880,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
               .currency(subscription.getCurrency())
               .idempotencyKey(UUID.randomUUID().toString())
               .build();
-      subscriptionDataService.getInvoiceRepository().save(invoice);
+      invoiceRepository.save(invoice);
 
       InvoiceLineItem addonLine = new InvoiceLineItem();
       addonLine.setInvoice(invoice);
@@ -886,7 +891,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       addonLine.setAmountMinor(proratedAmount);
       addonLine.setPeriodStart(today);
       addonLine.setPeriodEnd(periodEnd);
-      subscriptionDataService.getInvoiceLineItemRepository().save(addonLine);
+      invoiceLineItemRepository.save(addonLine);
 
       InvoiceLineItem taxLine = new InvoiceLineItem();
       taxLine.setInvoice(invoice);
@@ -895,7 +900,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       taxLine.setQuantity(1);
       taxLine.setUnitPriceMinor(taxMinor);
       taxLine.setAmountMinor(taxMinor);
-      subscriptionDataService.getInvoiceLineItemRepository().save(taxLine);
+      invoiceLineItemRepository.save(taxLine);
 
       long amountToCharge = totalMinor;
       if (customer.getCreditBalanceMinor() > 0 && totalMinor > 0) {
@@ -909,11 +914,11 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          creditLine.setQuantity(1);
          creditLine.setUnitPriceMinor(-creditApplied);
          creditLine.setAmountMinor(-creditApplied);
-         subscriptionDataService.getInvoiceLineItemRepository().save(creditLine);
+         invoiceLineItemRepository.save(creditLine);
 
          invoice.setTotalMinor(amountToCharge);
          invoice.setBalanceMinor(amountToCharge);
-         subscriptionDataService.getInvoiceRepository().save(invoice);
+         invoiceRepository.save(invoice);
 
          customer.setCreditBalanceMinor(customer.getCreditBalanceMinor() - creditApplied);
          customerRepository.save(customer);
@@ -936,9 +941,9 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
          payment.setIdempotencyKey(UUID.randomUUID().toString());
          payment.setGatewayRef(gatewayRef);
          payment.setAttemptNo(1);
-         subscriptionDataService.getPaymentRepository().save(payment);
+         paymentRepository.save(payment);
       }
-      subscriptionDataService.getPaymentRepository().flush();
+      paymentRepository.flush();
    }
 
    @Transactional
@@ -946,13 +951,13 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       Customer customer = getCustomerByEmail(email);
       Subscription subscription = getActiveSubscription(customer.getId());
 
-      SubscriptionItem item = subscriptionDataService.getSubscriptionItemRepository().findBySubscription_IdAndAddOn_Id(
+      SubscriptionItem item = subscriptionItemRepository.findBySubscription_IdAndAddOn_Id(
             subscription.getId(), addonId);
       if (item != null) {
          subscriptionItemRepository.delete(item);
       }
 
-      auditLoggingService.logAction("REMOVE_ADDON", ENTITY_SUBSCRIPTION, subscription.getId(), item, null);
+      auditLoggingService.logAction("REMOVE_ADDON", "Subscription", subscription.getId(), item, null);
       return mapToSubscriptionDTO(subscription);
    }
 
@@ -963,7 +968,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       LocalDate start = startDate != null ? LocalDate.parse(startDate) : subscription.getCurrentPeriodStart();
       LocalDate end = endDate != null ? LocalDate.parse(endDate) : subscription.getCurrentPeriodEnd();
 
-      List<UsageRecord> usage = subscriptionDataService.getUsageRecordRepository()
+      List<UsageRecord> usage = usageRecordRepository
             .findBySubscription_IdAndBillingPeriodStartGreaterThanEqualAndBillingPeriodEndLessThanEqual(
                   subscription.getId(), start, end);
 
@@ -1014,7 +1019,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       dto.setPausedTo(subscription.getPausedTo() != null ? subscription.getPausedTo().toString() : null);
       dto.setCurrency(subscription.getCurrency());
 
-      List<SubscriptionItem> items = subscriptionDataService.getSubscriptionItemRepository().findBySubscription_Id(subscription.getId());
+      List<SubscriptionItem> items = subscriptionItemRepository.findBySubscription_Id(subscription.getId());
       dto.setAddOns(items.stream()
             .filter(i -> i.getItemType() == ItemType.ADDON)
             .map(this::mapToSubscriptionAddOnDTO)
@@ -1026,7 +1031,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
             .toList());
 
       // Calculate discount if any
-      Optional<SubscriptionCoupon> scOpt = subscriptionDataService.getSubscriptionCouponRepository()
+      Optional<SubscriptionCoupon> scOpt = subscriptionCouponRepository
             .findBySubscription_IdAndStatus(subscription.getId(), Status.ACTIVE);
       long discountMinor = resolveDiscountMinor(scOpt, basePrice, subscription.getCurrency());
       dto.setDiscountMinor(discountMinor);
@@ -1053,7 +1058,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       SubscriptionItemDTO dto = new SubscriptionItemDTO();
       dto.setItemId(item.getId());
       dto.setAddonId(item.getAddOn().getId());
-      AddOn addOn = subscriptionDataService.getAddOnRepository().findById(item.getAddOn().getId()).orElse(null);
+      AddOn addOn = addOnRepository.findById(item.getAddOn().getId()).orElse(null);
       dto.setAddonName(addOn != null ? addOn.getName() : UNKNOWN);
       dto.setUnitPriceMinor(item.getUnitPriceMinor());
       dto.setQuantity(item.getQuantity());
@@ -1063,12 +1068,12 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
    private MeteredUsageDTO mapToMeteredUsageDTO(SubscriptionItem item) {
       MeteredUsageDTO dto = new MeteredUsageDTO();
       dto.setComponentId(item.getComponent().getId());
-      MeteredComponent comp = subscriptionDataService.getMeteredComponentRepository().findById(item.getComponent().getId()).orElse(null);
+      MeteredComponent comp = meteredComponentRepository.findById(item.getComponent().getId()).orElse(null);
       dto.setComponentName(comp != null ? comp.getName() : UNKNOWN);
       dto.setUnitName(comp != null ? comp.getUnitName() : "unit");
       dto.setPricePerUnitMinor(comp != null ? comp.getPricePerUnitMinor() : 0);
       dto.setFreeTierQuantity(comp != null ? comp.getFreeTierQuantity() : 0);
-      Long usage = subscriptionDataService.getUsageRecordRepository().sumQuantityBySubscription_IdAndComponent_Id(
+      Long usage = usageRecordRepository.sumQuantityBySubscription_IdAndComponent_Id(
             item.getSubscription().getId(), item.getComponent().getId());
       dto.setQuantityUsed(usage != null ? usage : 0);
       long billable = Math.max(0, dto.getQuantityUsed() - dto.getFreeTierQuantity());
@@ -1080,7 +1085,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
       UsageRecordDTO dto = new UsageRecordDTO();
       dto.setUsageId(usage.getId());
       dto.setComponentId(usage.getComponent().getId());
-      MeteredComponent comp = subscriptionDataService.getMeteredComponentRepository().findById(usage.getComponent().getId()).orElse(null);
+      MeteredComponent comp = meteredComponentRepository.findById(usage.getComponent().getId()).orElse(null);
       dto.setComponentName(comp != null ? comp.getName() : UNKNOWN);
       dto.setQuantity(usage.getQuantity());
       dto.setUnitName(comp != null ? comp.getUnitName() : "unit");

@@ -174,15 +174,16 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         linkSubscriptionCoupon(subscription, appliedCoupon);
 
         // Create the invoice for the period
-        InvoiceMetadata invoiceMeta = buildInvoiceMetadata(isTrial, today, subscription.getTrialEndDate());
+        Status invoiceStatus = isTrial ? Status.OPEN : Status.PAID;
+        LocalDate dueDate = isTrial ? subscription.getTrialEndDate() : today;
+
         Invoice invoice = createInvoice(subscription, subtotalMinor, taxMinor, totalMinor, today,
-                invoiceMeta.dueDate, invoiceMeta.status);
+                dueDate, invoiceStatus);
         invoice.setDiscountMinor(headerDiscountMinor);
         invoiceRepository.save(invoice);
 
         // Add line items to the invoice
-        InvoiceLineItemsContext lineItemsCtx = new InvoiceLineItemsContext(invoice, subscription, plan, priceMinor, discountMinor, appliedCoupon, taxMinor, customer, today);
-        createInvoiceLineItems(lineItemsCtx);
+        createInvoiceLineItems(invoice, subscription, plan, priceMinor, discountMinor, appliedCoupon, taxMinor, customer, today);
 
         if (!isTrial) {
             applyAccountCreditAndCharge(invoice, customer, paymentMethod, totalMinor);
@@ -304,58 +305,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         return response;
     }
 
-    private static class InvoiceLineItemsContext {
-        final Invoice invoice;
-        final Subscription subscription;
-        final Plan plan;
-        final Long priceMinor;
-        final Long discountMinor;
-        final Coupon appliedCoupon;
-        final Long taxMinor;
-        final Customer customer;
-        final LocalDate today;
-
-        InvoiceLineItemsContext(Invoice invoice, Subscription subscription, Plan plan, Long priceMinor,
-                Long discountMinor, Coupon appliedCoupon, Long taxMinor, Customer customer, LocalDate today) {
-            this.invoice = invoice;
-            this.subscription = subscription;
-            this.plan = plan;
-            this.priceMinor = priceMinor;
-            this.discountMinor = discountMinor;
-            this.appliedCoupon = appliedCoupon;
-            this.taxMinor = taxMinor;
-            this.customer = customer;
-            this.today = today;
-        }
-    }
-
-    private static class InvoiceMetadata {
-        final Status status;
-        final LocalDate dueDate;
-
-        InvoiceMetadata(Status status, LocalDate dueDate) {
-            this.status = status;
-            this.dueDate = dueDate;
-        }
-    }
-
-    private InvoiceMetadata buildInvoiceMetadata(boolean isTrial, LocalDate today, LocalDate trialEndDate) {
-        return new InvoiceMetadata(
-            isTrial ? Status.OPEN : Status.PAID,
-            isTrial ? trialEndDate : today
-        );
-    }
-
-    private void createInvoiceLineItems(InvoiceLineItemsContext ctx) {
-        Invoice invoice = ctx.invoice;
-        Subscription subscription = ctx.subscription;
-        Plan plan = ctx.plan;
-        Long priceMinor = ctx.priceMinor;
-        Long discountMinor = ctx.discountMinor;
-        Coupon appliedCoupon = ctx.appliedCoupon;
-        Long taxMinor = ctx.taxMinor;
-        Customer customer = ctx.customer;
-        LocalDate today = ctx.today;
+    private void createInvoiceLineItems(Invoice invoice, Subscription subscription, Plan plan, Long priceMinor, Long discountMinor, Coupon appliedCoupon, Long taxMinor, Customer customer, LocalDate today) {
         // Add line items to the invoice
         InvoiceLineItem planLine = new InvoiceLineItem();
         planLine.setInvoice(invoice);
