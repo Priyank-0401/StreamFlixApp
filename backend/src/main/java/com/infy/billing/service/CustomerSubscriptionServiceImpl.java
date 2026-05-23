@@ -41,6 +41,7 @@ import com.infy.billing.entity.User;
 import com.infy.billing.enums.BillingPeriod;
 import com.infy.billing.enums.BillingReason;
 import com.infy.billing.enums.CancellationRequestStatus;
+import com.infy.billing.enums.CouponType;
 import com.infy.billing.enums.ItemType;
 import com.infy.billing.enums.Status;
 import com.infy.billing.enums.TaxMode;
@@ -321,7 +322,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 			return 0L;
 		}
 		Coupon coupon = scOpt.get().getCoupon();
-		if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
+		if (coupon.getType() == CouponType.PERCENT) {
 			return basePrice * coupon.getAmount() / 100;
 		}
 		if (coupon.getCurrency() == null || coupon.getCurrency().equals(subscriptionCurrency)) {
@@ -357,7 +358,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		Coupon activeCoupon = null;
 		if (scOpt.isPresent()) {
 			activeCoupon = scOpt.get().getCoupon();
-			if (activeCoupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
+			if (activeCoupon.getType() == CouponType.PERCENT) {
 				newDiscountMinor = 0L;
 			} else if (activeCoupon.getCurrency() == null
 					|| activeCoupon.getCurrency().equals(customer.getCurrency())) {
@@ -694,7 +695,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		Coupon coupon = null;
 		if (scOpt.isPresent()) {
 			coupon = scOpt.get().getCoupon();
-			if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
+			if (coupon.getType() == CouponType.PERCENT) {
 				discountMinor = 0L;
 			} else {
 				if (coupon.getCurrency() == null || coupon.getCurrency().equals(customer.getCurrency())) {
@@ -782,7 +783,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		long oldDiscountMinor = 0L;
 		if (scOpt.isPresent()) {
 			Coupon coupon = scOpt.get().getCoupon();
-			if (coupon.getType() == com.infy.billing.enums.CouponType.PERCENT) {
+			if (coupon.getType() == CouponType.PERCENT) {
 				oldDiscountMinor = 0L;
 			} else {
 				if (coupon.getCurrency() == null || coupon.getCurrency().equals(customer.getCurrency())) {

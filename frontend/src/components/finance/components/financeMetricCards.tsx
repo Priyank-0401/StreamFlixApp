@@ -7,22 +7,28 @@ interface Props {
   prefix?: string;
   suffix?: string;
   formatter?: (val: number) => string | number;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
-export const FinanceMetricCard: React.FC<Props> = ({ title, value, icon, prefix = '', suffix = '', formatter }) => {
+export const FinanceMetricCard: React.FC<Props> = ({ title, value, icon, prefix = '', suffix = '', formatter, className, style }) => {
   const displayValue = formatter ? formatter(value) : value.toLocaleString();
 
   return (
     <div
+      className={className}
       style={{
+        width: '100%',
         background: '#ffffff',
-        border: '1px solid #e5e7eb',
+        border: '1px solid var(--finance-card-border, #e5e7eb)',
         borderRadius: '12px',
         padding: '20px',
         display: 'flex',
         flexDirection: 'column',
         gap: '12px',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
+        ...style,
       }}
     >
       <div

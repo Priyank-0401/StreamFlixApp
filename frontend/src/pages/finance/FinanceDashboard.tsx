@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   TrendingUp, TrendingDown, Users, DollarSign, Activity
 } from 'lucide-react';
@@ -10,6 +11,7 @@ import { PageHeader } from '../../components/admin/shared/PageHeader';
 import { financeService } from '../../services/finance/financeService';
 import type { DashboardOverview } from '../../types/financeTypes';
 import { FinanceMetricCard } from '../../components/finance/components/financeMetricCards';
+import './FinanceDashboard.css';
 
 export const FinanceDashboard: React.FC = () => {
   const [data, setData] = useState<DashboardOverview | null>(null);
@@ -42,19 +44,33 @@ export const FinanceDashboard: React.FC = () => {
       </div>
 
       {/* Row 1: Core Revenue Metrics */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '20px' }}>
-        <FinanceMetricCard title="Monthly Recurring Revenue" value={data.mrr.value} icon={<TrendingUp />} prefix="₹" />
-        <FinanceMetricCard title="Annual Recurring Revenue" value={data.arr.value} icon={<Activity />} prefix="₹" />
-        <FinanceMetricCard title="Avg Revenue Per User" value={data.arpu.value} icon={<DollarSign />} prefix="₹" />
-        <FinanceMetricCard title="Lifetime Value" value={data.ltv.value} icon={<TrendingUp />} prefix="₹" />
+      <div className="finance-stat-cards-row finance-core-metrics-row">
+        <Link to="/finance/mrr" className="finance-stat-card-link">
+          <FinanceMetricCard title="Monthly Recurring Revenue" value={data.mrr.value} icon={<TrendingUp />} prefix="₹" className="finance-metric-card" />
+        </Link>
+        <Link to="/finance/arr" className="finance-stat-card-link">
+          <FinanceMetricCard title="Annual Recurring Revenue" value={data.arr.value} icon={<Activity />} prefix="₹" className="finance-metric-card" />
+        </Link>
+        <Link to="/finance/arpu" className="finance-stat-card-link">
+          <FinanceMetricCard title="Avg Revenue Per User" value={data.arpu.value} icon={<DollarSign />} prefix="₹" className="finance-metric-card" />
+        </Link>
+        <Link to="/finance/arpu" className="finance-stat-card-link">
+          <FinanceMetricCard title="Lifetime Value" value={data.ltv.value} icon={<TrendingUp />} prefix="₹" className="finance-metric-card" />
+        </Link>
       </div>
 
       {/* Row 2: Health Metrics */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '32px' }}>
-        <FinanceMetricCard title="Churn Rate" value={data.churnRate.value} icon={<TrendingDown />} suffix="%" />
-        <FinanceMetricCard title="Active Customers" value={data.activeCustomers.value} icon={<Users />} />
-        <FinanceMetricCard title="Failed Payments" value={data.failedPayments.value} icon={<TrendingDown />} />
-        <FinanceMetricCard title="Total Refunds" value={data.refundAmount.value} icon={<DollarSign />} prefix="₹" />
+      <div className="finance-stat-cards-row finance-health-metrics-row">
+        <Link to="/finance/churn" className="finance-stat-card-link">
+          <FinanceMetricCard title="Churn Rate" value={data.churnRate.value} icon={<TrendingDown />} suffix="%" className="finance-metric-card" />
+        </Link>
+        <FinanceMetricCard title="Active Customers" value={data.activeCustomers.value} icon={<Users />} className="finance-metric-card" />
+        <Link to="/finance/payments" className="finance-stat-card-link">
+          <FinanceMetricCard title="Failed Payments" value={data.failedPayments.value} icon={<TrendingDown />} className="finance-metric-card" />
+        </Link>
+        <Link to="/finance/credits" className="finance-stat-card-link">
+          <FinanceMetricCard title="Total Refunds" value={data.refundAmount.value} icon={<DollarSign />} prefix="₹" className="finance-metric-card" />
+        </Link>
       </div>
 
       {/* Charts Row */}
