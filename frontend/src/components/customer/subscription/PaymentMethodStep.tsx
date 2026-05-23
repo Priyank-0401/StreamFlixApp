@@ -9,7 +9,7 @@ interface PaymentMethodStepProps {
   onComplete: (data: { paymentMethodRequest: CustomerService.PaymentMethodRequest }) => void;
 }
 
-export const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({ plan: _plan, customerId, onComplete }) => {
+export const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({ plan: _plan, onComplete }) => {
   const [paymentType, setPaymentType] = useState<'CARD' | 'UPI'>('CARD');
   const [cardData, setCardData] = useState({
     cardNumber: '',

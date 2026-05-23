@@ -231,7 +231,8 @@ CREATE TABLE subscription_coupon (
     status ENUM(
         'ACTIVE',
         'EXPIRED',
-        'REVOKED'
+        'REVOKED',
+        'CANCELED'
     ) NOT NULL DEFAULT 'ACTIVE',
     FOREIGN KEY (subscription_id) REFERENCES subscription (subscription_id),
     FOREIGN KEY (coupon_id) REFERENCES coupon (coupon_id),

@@ -42,6 +42,7 @@ import com.infy.billing.enums.BillingPeriod;
 import com.infy.billing.enums.BillingReason;
 import com.infy.billing.enums.CancellationRequestStatus;
 import com.infy.billing.enums.CouponType;
+import com.infy.billing.enums.Duration;
 import com.infy.billing.enums.ItemType;
 import com.infy.billing.enums.Status;
 import com.infy.billing.enums.TaxMode;
@@ -154,8 +155,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		}
 
 		boolean isTrialing = subscription.getStatus() == Status.TRIALING;
-		Optional<SubscriptionCoupon> scOpt = subscriptionCouponRepository
-				.findBySubscription_IdAndStatus(subscription.getId(), Status.ACTIVE);
+		Optional<SubscriptionCoupon> scOpt = findValidActiveSubscriptionCoupon(subscription.getId());
 		List<SubscriptionItem> items = subscriptionItemRepository.findBySubscription_Id(subscription.getId());
 
 		if (isTrialing) {
@@ -240,10 +240,12 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		long newTaxMinor;
 		long newDiscountMinor;
 		Coupon activeCoupon;
+		SubscriptionCoupon activeSubscriptionCoupon;
 		String oldPlanName;
 
 		ProrationLineItemsParam(Invoice invoice, Plan newPlan, long newPriceMinor, long unusedCredit,
-				long remainingDays, long newTaxMinor, long newDiscountMinor, Coupon activeCoupon, String oldPlanName) {
+				long remainingDays, long newTaxMinor, long newDiscountMinor, Coupon activeCoupon,
+				SubscriptionCoupon activeSubscriptionCoupon, String oldPlanName) {
 			this.invoice = invoice;
 			this.newPlan = newPlan;
 			this.newPriceMinor = newPriceMinor;
@@ -252,6 +254,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 			this.newTaxMinor = newTaxMinor;
 			this.newDiscountMinor = newDiscountMinor;
 			this.activeCoupon = activeCoupon;
+			this.activeSubscriptionCoupon = activeSubscriptionCoupon;
 			this.oldPlanName = oldPlanName;
 		}
 	}
@@ -260,16 +263,19 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		final long newPriceMinor;
 		final long newDiscountMinor;
 		final Coupon activeCoupon;
+		final SubscriptionCoupon activeSubscriptionCoupon;
 		final long newAddonTotal;
 		final long newTaxMinor;
 		final long prorationAmount;
 		final long headerSubtotal;
 
-		ProrationDetails(long newPriceMinor, long newDiscountMinor, Coupon activeCoupon, long newAddonTotal,
-				long newTaxMinor, long prorationAmount, long headerSubtotal) {
+		ProrationDetails(long newPriceMinor, long newDiscountMinor, Coupon activeCoupon,
+				SubscriptionCoupon activeSubscriptionCoupon, long newAddonTotal, long newTaxMinor,
+				long prorationAmount, long headerSubtotal) {
 			this.newPriceMinor = newPriceMinor;
 			this.newDiscountMinor = newDiscountMinor;
 			this.activeCoupon = activeCoupon;
+			this.activeSubscriptionCoupon = activeSubscriptionCoupon;
 			this.newAddonTotal = newAddonTotal;
 			this.newTaxMinor = newTaxMinor;
 			this.prorationAmount = prorationAmount;
@@ -322,13 +328,37 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 			return 0L;
 		}
 		Coupon coupon = scOpt.get().getCoupon();
+		long discountMinor = 0L;
 		if (coupon.getType() == CouponType.PERCENT) {
-			return basePrice * coupon.getAmount() / 100;
+			discountMinor = basePrice * coupon.getAmount() / 100;
+		} else if (coupon.getCurrency() == null || coupon.getCurrency().equals(subscriptionCurrency)) {
+			discountMinor = coupon.getAmount();
 		}
-		if (coupon.getCurrency() == null || coupon.getCurrency().equals(subscriptionCurrency)) {
-			return coupon.getAmount();
+		return Math.min(discountMinor, basePrice);
+	}
+
+	private Optional<SubscriptionCoupon> findValidActiveSubscriptionCoupon(Long subscriptionId) {
+		Optional<SubscriptionCoupon> scOpt = subscriptionCouponRepository.findBySubscription_IdAndStatus(subscriptionId,
+				Status.ACTIVE);
+		if (scOpt.isPresent()) {
+			SubscriptionCoupon sc = scOpt.get();
+			if (sc.getExpiresAt() != null && sc.getExpiresAt().isBefore(LocalDateTime.now())) {
+				sc.setStatus(Status.CANCELED);
+				subscriptionCouponRepository.save(sc);
+				return Optional.empty();
+			}
 		}
-		return 0L;
+		return scOpt;
+	}
+
+	private void consumeOneTimeSubscriptionCoupon(SubscriptionCoupon subscriptionCoupon) {
+		if (subscriptionCoupon == null || subscriptionCoupon.getCoupon() == null) {
+			return;
+		}
+		if (subscriptionCoupon.getCoupon().getDuration() == Duration.ONCE) {
+			subscriptionCoupon.setStatus(Status.CANCELED);
+			subscriptionCouponRepository.save(subscriptionCoupon);
+		}
 	}
 
 	private long calculateUnusedCredit(Customer customer, Subscription subscription, Plan oldPlan,
@@ -354,17 +384,8 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 				.findByPlan_IdAndRegionAndCurrency(newPlan.getId(), customer.getCountry(), customer.getCurrency())
 				.map(PriceBookEntry::getPriceMinor)
 				.orElse(newPlan.getDefaultPriceMinor() != null ? newPlan.getDefaultPriceMinor() : 0L);
-		long newDiscountMinor = 0L;
-		Coupon activeCoupon = null;
-		if (scOpt.isPresent()) {
-			activeCoupon = scOpt.get().getCoupon();
-			if (activeCoupon.getType() == CouponType.PERCENT) {
-				newDiscountMinor = 0L;
-			} else if (activeCoupon.getCurrency() == null
-					|| activeCoupon.getCurrency().equals(customer.getCurrency())) {
-				newDiscountMinor = 0L;
-			}
-		}
+		long newDiscountMinor = resolveDiscountMinor(scOpt, newPriceMinor, customer.getCurrency());
+		Coupon activeCoupon = scOpt.map(SubscriptionCoupon::getCoupon).orElse(null);
 		long newAddonTotal = items.stream().filter(i -> i.getItemType() == ItemType.ADDON)
 				.mapToLong(i -> i.getUnitPriceMinor() * i.getQuantity()).sum();
 
@@ -380,8 +401,8 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 				? (newPriceMinor + newAddonTotal - unusedCredit - newTaxMinor)
 				: (newPriceMinor + newAddonTotal - unusedCredit);
 
-		return new ProrationDetails(newPriceMinor, newDiscountMinor, activeCoupon, newAddonTotal, newTaxMinor,
-				prorationAmount, headerSubtotal);
+		return new ProrationDetails(newPriceMinor, newDiscountMinor, activeCoupon,
+				scOpt.orElse(null), newAddonTotal, newTaxMinor, prorationAmount, headerSubtotal);
 	}
 
 	private SubscriptionDTO upgradeActiveSubscription(ActiveUpgradeContext ctx) {
@@ -426,7 +447,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
 		ProrationLineItemsParam lineItemsParam = new ProrationLineItemsParam(invoice, newPlan, details.newPriceMinor,
 				unusedCredit, remainingDays, details.newTaxMinor, details.newDiscountMinor, details.activeCoupon,
-				oldPlan.getName());
+				details.activeSubscriptionCoupon, oldPlan.getName());
 		saveProratedLineItems(lineItemsParam);
 
 		// Reset subscription period and save
@@ -459,6 +480,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
 		auditLoggingService.logAction("UPGRADE_SUBSCRIPTION", ENTITY_SUBSCRIPTION, subscription.getId(), oldPlan,
 				newPlan);
+		scOpt.ifPresent(sc -> consumeOneTimeSubscriptionCoupon(sc));
 		return mapToSubscriptionDTO(subscription);
 	}
 
@@ -691,25 +713,11 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 				.findByPlan_IdAndRegionAndCurrency(newPlan.getId(), customer.getCountry(), subscription.getCurrency())
 				.map(PriceBookEntry::getPriceMinor)
 				.orElse(newPlan.getDefaultPriceMinor() != null ? newPlan.getDefaultPriceMinor() : 0L);
-		long discountMinor = 0L;
-		Coupon coupon = null;
-		if (scOpt.isPresent()) {
-			coupon = scOpt.get().getCoupon();
-			if (coupon.getType() == CouponType.PERCENT) {
-				discountMinor = 0L;
-			} else {
-				if (coupon.getCurrency() == null || coupon.getCurrency().equals(customer.getCurrency())) {
-					discountMinor = 0L;
-				} else {
-					discountMinor = 0L;
-				}
-			}
-		}
-
+		long discountMinor = resolveDiscountMinor(scOpt, priceMinor, customer.getCurrency());
+		Coupon coupon = scOpt.map(SubscriptionCoupon::getCoupon).orElse(null);
 		long addonTotal = items.stream().filter(i -> i.getItemType() == ItemType.ADDON)
 				.mapToLong(i -> i.getUnitPriceMinor() * i.getQuantity()).sum();
-
-		long subtotal = priceMinor + addonTotal;
+		long subtotal = priceMinor + addonTotal - discountMinor;
 		if (subtotal < 0)
 			subtotal = 0;
 		long taxMinor = calculateTaxMinor(subtotal, customer.getCountry(), newPlan.getTaxMode());
@@ -718,7 +726,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
 		// Update invoice headers
 		invoice.setSubtotalMinor(subtotalMinor);
-		invoice.setDiscountMinor(0L);
+		invoice.setDiscountMinor(discountMinor);
 		invoice.setTaxMinor(taxMinor);
 		invoice.setTotalMinor(totalMinor);
 		invoice.setBalanceMinor(totalMinor);
@@ -759,6 +767,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 			discountLine.setUnitPriceMinor(-discountMinor);
 			discountLine.setAmountMinor(-discountMinor);
 			invoiceLineItemRepository.save(discountLine);
+			consumeOneTimeSubscriptionCoupon(scOpt.orElse(null));
 		}
 
 		// Save Tax Line
@@ -780,19 +789,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 				.findByPlan_IdAndRegionAndCurrency(oldPlan.getId(), customer.getCountry(), customer.getCurrency())
 				.map(PriceBookEntry::getPriceMinor)
 				.orElse(oldPlan.getDefaultPriceMinor() != null ? oldPlan.getDefaultPriceMinor() : 0L);
-		long oldDiscountMinor = 0L;
-		if (scOpt.isPresent()) {
-			Coupon coupon = scOpt.get().getCoupon();
-			if (coupon.getType() == CouponType.PERCENT) {
-				oldDiscountMinor = 0L;
-			} else {
-				if (coupon.getCurrency() == null || coupon.getCurrency().equals(customer.getCurrency())) {
-					oldDiscountMinor = 0L;
-				} else {
-					oldDiscountMinor = 0L;
-				}
-			}
-		}
+		long oldDiscountMinor = resolveDiscountMinor(scOpt, oldPriceMinor, customer.getCurrency());
 		long oldAddonTotal = items.stream().filter(i -> i.getItemType() == ItemType.ADDON)
 				.mapToLong(i -> i.getUnitPriceMinor() * i.getQuantity()).sum();
 
@@ -921,6 +918,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 			discountLine.setUnitPriceMinor(-param.newDiscountMinor);
 			discountLine.setAmountMinor(-param.newDiscountMinor);
 			invoiceLineItemRepository.save(discountLine);
+			consumeOneTimeSubscriptionCoupon(param.activeSubscriptionCoupon);
 		}
 	}
 
@@ -1131,10 +1129,9 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 				.map(this::mapToMeteredUsageDTO).toList());
 
 		// Calculate discount if any
-		Optional<SubscriptionCoupon> scOpt = subscriptionCouponRepository
-				.findBySubscription_IdAndStatus(subscription.getId(), Status.ACTIVE);
+		Optional<SubscriptionCoupon> scOpt = findValidActiveSubscriptionCoupon(subscription.getId());
 		long discountMinor = resolveDiscountMinor(scOpt, basePrice, subscription.getCurrency());
-		dto.setDiscountMinor(0L);
+		dto.setDiscountMinor(discountMinor);
 
 		// Calculate total due (Plan + Add-ons - Discount + dynamic tax)
 		Long addOnTotal = items.stream().filter(i -> i.getItemType() == ItemType.ADDON)

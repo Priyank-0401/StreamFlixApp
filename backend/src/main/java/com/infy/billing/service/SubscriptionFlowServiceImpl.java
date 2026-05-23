@@ -289,11 +289,24 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
             sc.setCoupon(appliedCoupon);
             sc.setAppliedAt(LocalDateTime.now());
             sc.setStatus(Status.ACTIVE);
+            sc.setExpiresAt(calculateSubscriptionCouponExpiry(appliedCoupon, subscription));
             subscriptionCouponRepository.save(sc);
 
             appliedCoupon.setRedeemedCount(appliedCoupon.getRedeemedCount() + 1);
             couponRepository.save(appliedCoupon);
         }
+    }
+
+    private LocalDateTime calculateSubscriptionCouponExpiry(Coupon coupon, Subscription subscription) {
+        if (coupon.getDuration() == Duration.REPEATING && coupon.getDurationInMonths() != null) {
+            return LocalDateTime.now().plusMonths(coupon.getDurationInMonths());
+        }
+        if (coupon.getDuration() == Duration.ONCE) {
+            return subscription.getCurrentPeriodEnd() != null
+                    ? subscription.getCurrentPeriodEnd().atStartOfDay()
+                    : LocalDateTime.now().plusDays(1);
+        }
+        return null;
     }
 
     private SubscriptionResponse buildSubscriptionResponse(Subscription subscription, Invoice invoice, Long totalMinor) {

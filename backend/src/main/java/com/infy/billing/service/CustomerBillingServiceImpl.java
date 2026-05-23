@@ -2,6 +2,7 @@ package com.infy.billing.service;
 
 import com.infy.billing.dto.customer.*;
 import com.infy.billing.entity.*;
+import com.infy.billing.enums.Duration;
 import com.infy.billing.enums.Status;
 import com.infy.billing.exception.CustomException;
 import com.infy.billing.repository.*;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -104,8 +106,9 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
        SubscriptionCoupon sc = new SubscriptionCoupon();
        sc.setSubscription(subscription);
        sc.setCoupon(coupon);
-       sc.setAppliedAt(java.time.LocalDateTime.now());
+       sc.setAppliedAt(LocalDateTime.now());
        sc.setStatus(Status.ACTIVE);
+       sc.setExpiresAt(calculateSubscriptionCouponExpiry(coupon, subscription));
        subscriptionCouponRepository.save(sc);
 
        // Increment redemption count
@@ -113,6 +116,18 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
        couponRepository.save(coupon);
        
        return mapToCouponDTO(coupon);
+   }
+
+   private LocalDateTime calculateSubscriptionCouponExpiry(Coupon coupon, Subscription subscription) {
+       if (coupon.getDuration() == Duration.REPEATING && coupon.getDurationInMonths() != null) {
+           return LocalDateTime.now().plusMonths(coupon.getDurationInMonths());
+       }
+       if (coupon.getDuration() == Duration.ONCE) {
+           return subscription.getCurrentPeriodEnd() != null
+                   ? subscription.getCurrentPeriodEnd().atStartOfDay()
+                   : LocalDateTime.now().plusDays(1);
+       }
+       return null;
    }
 
     public CouponDTO validateCoupon(String code) {
