@@ -4,6 +4,7 @@ import { DataTable } from '../../../components/admin/shared/DataTable';
 import { StatusBadge } from '../../../components/shared/StatusBadge';
 import { AdminModal } from '../../../components/admin/shared/AdminModal';
 import { FormField } from '../../../components/admin/shared/FormField';
+import { ConfirmDialog } from '../../../components/shared/ConfirmDialog';
 import { getAllPlans, createPlan, deletePlan } from '../../../services/admin/adminService';
 import type { PlanResponse } from '../../../services/admin/adminTypes';
 const formatPrice = (minor: number, cur: string) => {
@@ -19,6 +20,20 @@ export const PlansPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string | React.ReactNode;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    isDanger?: boolean;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
   const load = () => { getAllPlans().then(setPlans).catch(console.error).finally(() => setLoading(false)); };
   useEffect(() => { load(); }, []);
   const openCreate = () => { setForm(emptyForm); setModalOpen(true); };
@@ -31,15 +46,32 @@ export const PlansPage: React.FC = () => {
     } catch (e: any) { alert(e.message); }
     finally { setSaving(false); }
   };
-  const handleDelete = async (id: number) => {
-    if (window.confirm('Are you sure you want to delete this plan? This will also delete associated pricebook entries.')) {
-      try {
-        await deletePlan(id);
-        load();
-      } catch (e: any) {
-        alert(e.message);
-      }
+
+  const closeConfirmDialog = () => {
+    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleDeleteConfirm = async (id: number) => {
+    try {
+      await deletePlan(id);
+      load();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      closeConfirmDialog();
     }
+  };
+
+  const handleDelete = (id: number) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Confirm Plan Deletion',
+      message: 'Are you sure you want to delete this plan? This will also delete associated pricebook entries.',
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      isDanger: true,
+      onConfirm: () => handleDeleteConfirm(id)
+    });
   };
   const columns = [
     { key: 'name', header: 'Plan Name', render: (r: PlanResponse) => <span style={{ fontWeight: 600, color: '#1f2937', fontFamily: 'Inter, sans-serif' }}>{r.name}</span> },
@@ -79,6 +111,16 @@ export const PlansPage: React.FC = () => {
           <FormField label="Effective From" value={form.effectiveFrom} onChange={(v) => setForm({ ...form, effectiveFrom: v })} type="date" />
         </div>
       </AdminModal>
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirmDialog}
+        confirmLabel={confirmDialog.confirmLabel}
+        cancelLabel={confirmDialog.cancelLabel}
+        isDanger={confirmDialog.isDanger}
+      />
     </>
   );
 };

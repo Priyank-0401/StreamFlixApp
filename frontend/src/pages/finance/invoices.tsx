@@ -67,7 +67,21 @@ export const InvoicesPage: React.FC = () => {
   };
 
   const calculateSubtotal = (items: any[]) => {
-    return items.reduce((sum, item) => sum + item.amountMinor / 100, 0);
+    return items
+      .filter((item) => item.lineType !== 'TAX' && item.lineType !== 'CREDIT')
+      .reduce((sum, item) => sum + item.amountMinor / 100, 0);
+  };
+
+  const calculateTax = (items: any[]) => {
+    return items
+      .filter((item) => item.lineType === 'TAX')
+      .reduce((sum, item) => sum + item.amountMinor / 100, 0);
+  };
+
+  const calculateCredit = (items: any[]) => {
+    return items
+      .filter((item) => item.lineType === 'CREDIT')
+      .reduce((sum, item) => sum + item.amountMinor / 100, 0);
   };
 
   return (
@@ -217,8 +231,14 @@ export const InvoicesPage: React.FC = () => {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', width: '200px', fontSize: '14px', color: '#64748b' }}>
                     <span>Tax:</span>
-                    <span>₹{(selectedInvoice.amount - calculateSubtotal(selectedInvoice.lineItems)).toFixed(2)}</span>
+                    <span>₹{calculateTax(selectedInvoice.lineItems).toFixed(2)}</span>
                   </div>
+                  {calculateCredit(selectedInvoice.lineItems) !== 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', width: '200px', fontSize: '14px', color: '#64748b' }}>
+                      <span>Credit Applied:</span>
+                      <span>₹{calculateCredit(selectedInvoice.lineItems).toFixed(2)}</span>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'space-between', width: '200px', fontSize: '16px', fontWeight: 600, color: '#0f172a', paddingTop: '8px', borderTop: '1px solid #cbd5e1' }}>
                     <span>Total:</span>
                     <span>₹{selectedInvoice.amount.toFixed(2)}</span>
