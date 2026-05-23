@@ -125,10 +125,15 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
             throw CustomException.badRequest("This plan is no longer available for new subscriptions.");
         }
 
-        Long paymentMethodId = request.getPaymentMethodId();
-        if (paymentMethodId == null) throw CustomException.badRequest("Payment method ID is required");
-        PaymentMethod paymentMethod = paymentMethodRepository.findById(paymentMethodId)
-                .orElseThrow(() -> CustomException.notFound("Payment method not found"));
+        PaymentMethod paymentMethod;
+        if (request.getPaymentMethodId() != null) {
+            paymentMethod = paymentMethodRepository.findById(request.getPaymentMethodId())
+                    .orElseThrow(() -> CustomException.notFound("Payment method not found"));
+        } else if (request.getPaymentMethod() != null) {
+            paymentMethod = createPaymentMethod(customerId, request.getPaymentMethod());
+        } else {
+            throw CustomException.badRequest("Payment method ID or payment method details are required");
+        }
 
         // Calculate price based on region
         Long priceMinor = getPriceForRegion(plan, customer.getCountry(), customer.getCurrency());
@@ -168,7 +173,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         Subscription subscription = createSubscription(customer, plan, paymentMethod, isTrial, today, periodEnd, request.getBillingPeriod());
 
         // Create SubscriptionItem for the plan
-        createSubscriptionItem(subscription, plan);
+        createSubscriptionItem(subscription, plan, priceMinor);
 
         // Persist coupon linkage
         linkSubscriptionCoupon(subscription, appliedCoupon);
@@ -266,12 +271,12 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         return subscription;
     }
 
-    private void createSubscriptionItem(Subscription subscription, Plan plan) {
+    private void createSubscriptionItem(Subscription subscription, Plan plan, Long priceMinor) {
         SubscriptionItem planItem = new SubscriptionItem();
         planItem.setSubscription(subscription);
         planItem.setItemType(ItemType.PLAN);
         planItem.setPlan(plan);
-        planItem.setUnitPriceMinor(plan.getDefaultPriceMinor());
+        planItem.setUnitPriceMinor(priceMinor);
         planItem.setQuantity(1);
         planItem.setTaxMode(plan.getTaxMode());
         subscriptionItemRepository.save(planItem);

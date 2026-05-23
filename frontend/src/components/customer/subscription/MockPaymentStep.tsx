@@ -5,18 +5,24 @@ import * as CustomerService from '../../../services/customer/customerService';
 interface MockPaymentStepProps {
   plan: CustomerService.Plan;
   customerId: number;
-  paymentMethodId: number;
+  paymentMethodRequest: CustomerService.PaymentMethodRequest;
   onComplete: (data: any) => void;
 }
-
-const TAX_RATE_PERCENT = 18; // GST for India
 
 export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({ 
   plan, 
   customerId, 
-  paymentMethodId, 
+  paymentMethodRequest, 
   onComplete 
 }) => {
+  const getTaxRate = (): number => {
+    if (plan.defaultCurrency === 'USD') return 7.25;
+    if (plan.defaultCurrency === 'GBP') return 20;
+    return 18; // Default to India GST
+  };
+  
+  const TAX_RATE_PERCENT = getTaxRate();
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
@@ -36,7 +42,8 @@ export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({
   }, []);
 
   const formatPrice = (amount: number, currency: string): string => {
-    return new Intl.NumberFormat('en-IN', {
+    const locale = currency === 'USD' ? 'en-US' : currency === 'GBP' ? 'en-GB' : 'en-IN';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency: currency || 'INR',
     }).format(amount / 100);
@@ -99,7 +106,7 @@ export const MockPaymentStep: React.FC<MockPaymentStepProps> = ({
     try {
       const result = await CustomerService.completeSubscription(customerId, {
         planId: plan.planId,
-        paymentMethodId: paymentMethodId,
+        paymentMethod: paymentMethodRequest,
         billingPeriod: plan.billingPeriod,
         couponCode: appliedCoupon?.code,
       });

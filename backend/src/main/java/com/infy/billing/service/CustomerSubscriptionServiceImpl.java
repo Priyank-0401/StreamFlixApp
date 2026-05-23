@@ -211,7 +211,11 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		}
 
 		planItem.setPlan(newPlan);
-		planItem.setUnitPriceMinor(newPlan.getDefaultPriceMinor());
+		Long basePrice = priceBookEntryRepository
+				.findByPlan_IdAndRegionAndCurrency(newPlan.getId(), customer.getCountry(), subscription.getCurrency())
+				.map(PriceBookEntry::getPriceMinor)
+				.orElse(newPlan.getDefaultPriceMinor() != null ? newPlan.getDefaultPriceMinor() : 0L);
+		planItem.setUnitPriceMinor(basePrice);
 		subscriptionItemRepository.save(planItem);
 
 		// Update the OPEN trial invoice to show the new plan + tax + coupon + addons
@@ -345,7 +349,10 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
 	private ProrationDetails calculateProrationDetails(Customer customer, Plan newPlan, List<SubscriptionItem> items,
 			Optional<SubscriptionCoupon> scOpt, long unusedCredit) {
-		long newPriceMinor = newPlan.getDefaultPriceMinor();
+		long newPriceMinor = priceBookEntryRepository
+				.findByPlan_IdAndRegionAndCurrency(newPlan.getId(), customer.getCountry(), customer.getCurrency())
+				.map(PriceBookEntry::getPriceMinor)
+				.orElse(newPlan.getDefaultPriceMinor() != null ? newPlan.getDefaultPriceMinor() : 0L);
 		long newDiscountMinor = 0L;
 		Coupon activeCoupon = null;
 		if (scOpt.isPresent()) {
@@ -442,7 +449,11 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		}
 
 		planItem.setPlan(newPlan);
-		planItem.setUnitPriceMinor(newPlan.getDefaultPriceMinor());
+		Long basePrice = priceBookEntryRepository
+				.findByPlan_IdAndRegionAndCurrency(newPlan.getId(), customer.getCountry(), subscription.getCurrency())
+				.map(PriceBookEntry::getPriceMinor)
+				.orElse(newPlan.getDefaultPriceMinor() != null ? newPlan.getDefaultPriceMinor() : 0L);
+		planItem.setUnitPriceMinor(basePrice);
 		subscriptionItemRepository.save(planItem);
 
 		auditLoggingService.logAction("UPGRADE_SUBSCRIPTION", ENTITY_SUBSCRIPTION, subscription.getId(), oldPlan,
@@ -556,13 +567,34 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		Customer customer = getCustomerByEmail(email);
 		Subscription subscription = getActiveSubscription(customer.getId());
 
+		LocalDate pausedFrom = LocalDate.now();
+		LocalDate pausedTo = LocalDate.parse(request.getPausedTo());
+		if (!pausedTo.isAfter(pausedFrom)) {
+			throw CustomException.badRequest("Pause end date must be in the future");
+		}
+
+		long pauseDays = ChronoUnit.DAYS.between(pausedFrom, pausedTo);
+		if (pauseDays <= 0) {
+			throw CustomException.badRequest("Pause duration must be at least one day");
+		}
+
+		if (subscription.getStatus() == Status.TRIALING) {
+			if (subscription.getTrialEndDate() != null) {
+				subscription.setTrialEndDate(subscription.getTrialEndDate().plusDays(pauseDays));
+			}
+			subscription.setCurrentPeriodStart(subscription.getCurrentPeriodStart().plusDays(pauseDays));
+			subscription.setCurrentPeriodEnd(subscription.getCurrentPeriodEnd().plusDays(pauseDays));
+		} else {
+			subscription.setCurrentPeriodEnd(subscription.getCurrentPeriodEnd().plusDays(pauseDays));
+		}
+
 		subscription.setStatus(Status.PAUSED);
-		subscription.setPausedFrom(LocalDate.now());
-		subscription.setPausedTo(LocalDate.parse(request.getPausedTo()));
+		subscription.setPausedFrom(pausedFrom);
+		subscription.setPausedTo(pausedTo);
 		subscriptionRepository.save(subscription);
 
 		auditLoggingService.logAction("PAUSE_SUBSCRIPTION", ENTITY_SUBSCRIPTION, subscription.getId(), null,
-				subscription);
+			subscription);
 		return mapToSubscriptionDTO(subscription);
 	}
 
@@ -572,13 +604,33 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		Subscription subscription = subscriptionRepository.findByCustomer_IdAndStatus(customer.getId(), Status.PAUSED)
 				.orElseThrow(() -> CustomException.notFound("No paused subscription found"));
 
-		subscription.setStatus(Status.ACTIVE);
-		subscription.setPausedFrom(null);
-		subscription.setPausedTo(null);
-		subscriptionRepository.save(subscription);
+		LocalDate pausedFrom = subscription.getPausedFrom();
+		LocalDate pausedTo = subscription.getPausedTo();
+		if (pausedFrom != null && pausedTo != null) {
+			long plannedPauseDays = ChronoUnit.DAYS.between(pausedFrom, pausedTo);
+			long actualPauseDays = ChronoUnit.DAYS.between(pausedFrom, LocalDate.now());
+			long adjustmentDays = actualPauseDays - plannedPauseDays;
+			if (adjustmentDays != 0) {
+				if (subscription.getStatus() == Status.PAUSED && subscription.getTrialEndDate() != null
+					&& pausedFrom.isBefore(subscription.getTrialEndDate())) {
+					if (subscription.getTrialEndDate() != null) {
+						subscription.setTrialEndDate(subscription.getTrialEndDate().plusDays(adjustmentDays));
+					}
+					subscription.setCurrentPeriodStart(subscription.getCurrentPeriodStart().plusDays(adjustmentDays));
+					subscription.setCurrentPeriodEnd(subscription.getCurrentPeriodEnd().plusDays(adjustmentDays));
+				} else {
+					subscription.setCurrentPeriodEnd(subscription.getCurrentPeriodEnd().plusDays(adjustmentDays));
+				}
+			}
+		}
 
-		auditLoggingService.logAction("RESUME_SUBSCRIPTION", ENTITY_SUBSCRIPTION, subscription.getId(), null,
-				subscription);
+		if (subscription.getTrialEndDate() != null && LocalDate.now().isBefore(subscription.getTrialEndDate())) {
+			subscription.setStatus(Status.TRIALING);
+		} else {
+			subscription.setStatus(Status.ACTIVE);
+		}
+
+
 		return mapToSubscriptionDTO(subscription);
 	}
 
@@ -634,7 +686,10 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		invoiceLineItemRepository.flush();
 
 		// Compute fresh pricing
-		long priceMinor = newPlan.getDefaultPriceMinor();
+		long priceMinor = priceBookEntryRepository
+				.findByPlan_IdAndRegionAndCurrency(newPlan.getId(), customer.getCountry(), subscription.getCurrency())
+				.map(PriceBookEntry::getPriceMinor)
+				.orElse(newPlan.getDefaultPriceMinor() != null ? newPlan.getDefaultPriceMinor() : 0L);
 		long discountMinor = 0L;
 		Coupon coupon = null;
 		if (scOpt.isPresent()) {
@@ -720,7 +775,10 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
 	private long calculateOldTotalPaid(Customer customer, Plan oldPlan, List<SubscriptionItem> items,
 			Optional<SubscriptionCoupon> scOpt) {
-		long oldPriceMinor = oldPlan.getDefaultPriceMinor();
+		long oldPriceMinor = priceBookEntryRepository
+				.findByPlan_IdAndRegionAndCurrency(oldPlan.getId(), customer.getCountry(), customer.getCurrency())
+				.map(PriceBookEntry::getPriceMinor)
+				.orElse(oldPlan.getDefaultPriceMinor() != null ? oldPlan.getDefaultPriceMinor() : 0L);
 		long oldDiscountMinor = 0L;
 		if (scOpt.isPresent()) {
 			Coupon coupon = scOpt.get().getCoupon();

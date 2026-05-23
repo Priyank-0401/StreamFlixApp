@@ -6,7 +6,7 @@ import { validateCustomerDetails } from '../../../utils/subscriptionValidation';
 
 interface CustomerDetailsStepProps {
   plan: Plan;
-  onComplete: (data: { customerId: number }) => void;
+  onComplete: (data: { customerId: number; country: string }) => void;
 }
 
 const countryCurrencyMap: Record<string, string> = {
@@ -66,7 +66,7 @@ export const CustomerDetailsStep: React.FC<CustomerDetailsStepProps> = ({ plan, 
 
     try {
       const result = await CustomerService.registerCustomerDetails(formData);
-      onComplete({ customerId: result.customerId });
+      onComplete({ customerId: result.customerId, country: formData.country });
     } catch (err: any) {
       setBackendError(err.message || 'Failed to save your details');
     } finally {

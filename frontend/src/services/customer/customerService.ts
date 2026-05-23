@@ -476,7 +476,8 @@ export interface PaymentMethodRequest {
 }
 export interface SubscriptionCompletionRequest {
   planId: number;
-  paymentMethodId: number;
+  paymentMethodId?: number;
+  paymentMethod?: PaymentMethodRequest;
   billingPeriod: 'MONTHLY' | 'YEARLY';
   couponCode?: string;
 }

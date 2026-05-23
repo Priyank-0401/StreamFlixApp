@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, CheckCircle, CreditCard, User, Check } from 'lucide-react';
 import { CustomerDetailsStep } from '../../components/customer/subscription/CustomerDetailsStep';
@@ -16,10 +16,52 @@ export const SubscriptionFlow: React.FC = () => {
   const currentStep = parseInt(searchParams.get('step') || '1');
   
   const [customerId, setCustomerId] = useState<number | null>(null);
-  const [paymentMethodId, setPaymentMethodId] = useState<number | null>(null);
+  const [paymentMethodRequest, setPaymentMethodRequest] = useState<CustomerService.PaymentMethodRequest | null>(null);
   const [plan, setPlan] = useState<CustomerService.Plan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Load plan details
+  const loadPlan = useCallback(async (region?: string) => {
+    try {
+      setLoading(true);
+      let resolvedRegion = region;
+      
+      if (!resolvedRegion) {
+        if (customerId) {
+          try {
+            const profile = await CustomerService.getCustomerProfile();
+            resolvedRegion = profile.country;
+          } catch (e) {
+            // ignore
+          }
+        } else {
+          try {
+            const status = await CustomerService.getCustomerStatus();
+            if (status.isCustomer) {
+              const profile = await CustomerService.getCustomerProfile();
+              resolvedRegion = profile.country;
+              setCustomerId(profile.customerId);
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+      }
+
+      const plans = await CustomerService.getAllPlans(resolvedRegion);
+      const selectedPlan = plans.find(p => p.planId === planId);
+      if (selectedPlan) {
+        setPlan(selectedPlan);
+      } else {
+        setError('Plan not found');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to load plan');
+    } finally {
+      setLoading(false);
+    }
+  }, [planId, customerId]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -32,33 +74,18 @@ export const SubscriptionFlow: React.FC = () => {
       return;
     }
 
-    // Load plan details
-    const loadPlan = async () => {
-      try {
-        setLoading(true);
-        const plans = await CustomerService.getAllPlans();
-        const selectedPlan = plans.find(p => p.planId === planId);
-        if (selectedPlan) {
-          setPlan(selectedPlan);
-        } else {
-          setError('Plan not found');
-        }
-      } catch (err: any) {
-        setError(err.message || 'Failed to load plan');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadPlan();
-  }, [isAuthenticated, planId, navigate]);
+  }, [isAuthenticated, planId, navigate, loadPlan]);
 
   const handleStepComplete = (step: number, data: any) => {
     if (step === 1) {
       setCustomerId(data.customerId);
+      if (data.country) {
+        loadPlan(data.country);
+      }
       navigate(`/subscribe?planId=${planId}&step=2`);
     } else if (step === 2) {
-      setPaymentMethodId(data.paymentMethodId);
+      setPaymentMethodRequest(data.paymentMethodRequest);
       navigate(`/subscribe?planId=${planId}&step=3`);
     } else if (step === 3) {
       // Refresh user status so Navbar shows "Dashboard"
@@ -236,11 +263,11 @@ export const SubscriptionFlow: React.FC = () => {
               onComplete={(data) => handleStepComplete(2, data)} 
             />
           )}
-          {currentStep === 3 && customerId && paymentMethodId && (
+          {currentStep === 3 && customerId && paymentMethodRequest && (
             <MockPaymentStep 
               plan={plan}
               customerId={customerId}
-              paymentMethodId={paymentMethodId}
+              paymentMethodRequest={paymentMethodRequest}
               onComplete={(data) => handleStepComplete(3, data)} 
             />
           )}

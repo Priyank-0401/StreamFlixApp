@@ -638,7 +638,7 @@ export const SubscriptionPage: React.FC = () => {
       {/* Pause Modal */}
       {showPauseModal && (
         <div className="modal-overlay" onClick={() => setShowPauseModal(false)}>
-          <div className="modal modal-small" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Pause Subscription</h3>
               <button 
@@ -674,7 +674,7 @@ export const SubscriptionPage: React.FC = () => {
       {/* Refund Confirmation Modal */}
       {showRefundModal && refundInfo && (
         <div className="modal-overlay">
-          <div className="modal modal-small" onClick={(e) => e.stopPropagation()}>
+          <div className="modal modal-large" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title" style={{ color: '#22c55e' }}>Refund Processed</h3>
             </div>

@@ -210,57 +210,66 @@ class CustomerSubscriptionServiceImplTest {
                 when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
                                 .thenReturn(Arrays.asList(subscription));
 
-                PauseSubscriptionRequest req = new PauseSubscriptionRequest();
-                req.setPausedTo("2026-06-18");
+		LocalDate today = LocalDate.now();
+		PauseSubscriptionRequest req = new PauseSubscriptionRequest();
+		req.setPausedTo(today.plusDays(10).toString());
 
-                SubscriptionDTO dto = customerSubscriptionService.pauseSubscription("test@test.com", req);
+		SubscriptionDTO dto = customerSubscriptionService.pauseSubscription("test@test.com", req);
 
-                assertNotNull(dto);
-                assertEquals(Status.PAUSED, subscription.getStatus());
-                assertEquals(LocalDate.parse("2026-06-18"), subscription.getPausedTo());
-        }
+		assertNotNull(dto);
+		assertEquals(Status.PAUSED, subscription.getStatus());
+		assertEquals(today, subscription.getPausedFrom());
+		assertEquals(today.plusDays(10), subscription.getPausedTo());
+		assertEquals(today.plusMonths(1).plusDays(10), subscription.getCurrentPeriodEnd());
+	}
 
-        @Test
-        void testResumeSubscription() {
-                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
-                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
-                subscription.setStatus(Status.PAUSED);
-                when(subscriptionRepository.findByCustomer_IdAndStatus(1L, Status.PAUSED))
-                                .thenReturn(Optional.of(subscription));
+	@Test
+	void testResumeSubscriptionAdjustsPeriodEndForEarlyResume() {
+		when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+		when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+		subscription.setStatus(Status.PAUSED);
+		LocalDate today = LocalDate.now();
+		LocalDate pausedFrom = today.minusDays(10);
+		subscription.setPausedFrom(pausedFrom);
+		subscription.setPausedTo(today.plusDays(5));
+		subscription.setCurrentPeriodEnd(today.plusMonths(1).plusDays(15));
+		when(subscriptionRepository.findByCustomer_IdAndStatus(1L, Status.PAUSED))
+				.thenReturn(Optional.of(subscription));
 
-                SubscriptionDTO dto = customerSubscriptionService.resumeSubscription("test@test.com");
+		SubscriptionDTO dto = customerSubscriptionService.resumeSubscription("test@test.com");
 
-                assertNotNull(dto);
-                assertEquals(Status.ACTIVE, subscription.getStatus());
-                assertNull(subscription.getPausedFrom());
-                assertNull(subscription.getPausedTo());
-        }
+		assertNotNull(dto);
+		assertEquals(Status.ACTIVE, subscription.getStatus());
+		assertNull(subscription.getPausedFrom());
+		assertNull(subscription.getPausedTo());
+		assertEquals(today.plusMonths(1).plusDays(10), subscription.getCurrentPeriodEnd());
+	}
 
-        @Test
-        void testGetMeteredUsage() {
-                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
-                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
-                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
-                                .thenReturn(Arrays.asList(subscription));
+	@Test
+	void testGetMeteredUsage() {
+		when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+		when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+		when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+				.thenReturn(Arrays.asList(subscription));
 
-                when(usageRecordRepository
-                                .findBySubscription_IdAndBillingPeriodStartGreaterThanEqualAndBillingPeriodEndLessThanEqual(
-                                                eq(1L), any(), any()))
-                                .thenReturn(new java.util.ArrayList<>());
+		when(usageRecordRepository
+					.findBySubscription_IdAndBillingPeriodStartGreaterThanEqualAndBillingPeriodEndLessThanEqual(
+								eq(1L), any(), any()))
+					.thenReturn(new java.util.ArrayList<>());
 
-                List<UsageRecordDTO> usage = customerSubscriptionService.getMeteredUsage("test@test.com", "2026-05-18",
-                                "2026-06-18");
+		List<UsageRecordDTO> usage = customerSubscriptionService.getMeteredUsage("test@test.com", "2026-05-18",
+					"2026-06-18");
 
-                assertNotNull(usage);
-                assertTrue(usage.isEmpty());
-        }
+		assertNotNull(usage);
+		assertTrue(usage.isEmpty());
+	}
 
-        @Test
-        void testAddAddOn() {
-                when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
-                when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
-                when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
-                                .thenReturn(Arrays.asList(subscription));
+	@Test
+	void testAddAddOn() {
+		when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
+		when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
+		when(subscriptionRepository.findByCustomer_IdAndStatusIn(eq(1L), anyList()))
+				.thenReturn(Arrays.asList(subscription));
 
                 AddOn addOn = AddOn.builder().id(1L).name("HD").priceMinor(500L).billingPeriod(BillingPeriod.MONTHLY)
                                 .taxMode(TaxMode.EXCLUSIVE).build();

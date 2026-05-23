@@ -11,6 +11,8 @@ import java.util.Optional;
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
 	List<Payment> findByInvoice_Id(Long invoiceId);
 
+	List<Payment> findByInvoice_Customer_Id(Long customerId);
+
 	List<Payment> findByStatus(com.infy.billing.enums.Status status);
 
 	org.springframework.data.domain.Page<Payment> findAllByOrderByIdDesc(org.springframework.data.domain.Pageable pageable);

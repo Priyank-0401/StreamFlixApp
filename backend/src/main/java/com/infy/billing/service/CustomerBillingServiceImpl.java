@@ -65,14 +65,14 @@ public class CustomerBillingServiceImpl implements CustomerBillingService {
 
    public List<PaymentDTO> getPayments(String email) {
        Customer customer = getCustomerByEmail(email);
-       return paymentRepository.findById(customer.getId()).stream()
+       return paymentRepository.findByInvoice_Customer_Id(customer.getId()).stream()
                .map(this::mapToPaymentDTO)
                .toList();
    }
 
    public List<CreditNoteDTO> getCreditNotes(String email) {
        Customer customer = getCustomerByEmail(email);
-       return creditNoteRepository.findById(customer.getId()).stream()
+       return creditNoteRepository.findByInvoice_Customer_Id(customer.getId()).stream()
                .map(this::mapToCreditNoteDTO)
                .toList();
    }

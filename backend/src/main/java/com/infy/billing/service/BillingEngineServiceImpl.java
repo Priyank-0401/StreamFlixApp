@@ -15,6 +15,7 @@ import com.infy.billing.entity.SubscriptionItem;
 import com.infy.billing.enums.BillingPeriod;
 import com.infy.billing.enums.BillingReason;
 import com.infy.billing.enums.DunningStatus;
+import com.infy.billing.enums.ItemType;
 import com.infy.billing.enums.Status;
 import com.infy.billing.exception.CustomException;
 import com.infy.billing.repository.CustomerRepository;
@@ -141,7 +142,11 @@ public class BillingEngineServiceImpl implements BillingEngineService {
 	}
 
 	private void addPlanLine(Invoice invoice, Subscription subscription) {
-		Long amount = subscription.getPlan().getDefaultPriceMinor();
+		SubscriptionItem planItem = subscriptionItemRepository.findBySubscription_IdAndItemType(subscription.getId(), ItemType.PLAN);
+		Long amount = (planItem != null) ? planItem.getUnitPriceMinor() : null;
+		if (amount == null || amount <= 0) {
+			amount = subscription.getPlan().getDefaultPriceMinor();
+		}
 		if (amount == null || amount <= 0) {
 			throw CustomException.badRequest("Invalid plan amount");
 		}

@@ -6,7 +6,7 @@ import { validatePaymentMethod, validateExpiryDate } from '../../../utils/subscr
 interface PaymentMethodStepProps {
   plan: CustomerService.Plan;
   customerId: number;
-  onComplete: (data: { paymentMethodId: number }) => void;
+  onComplete: (data: { paymentMethodRequest: CustomerService.PaymentMethodRequest }) => void;
 }
 
 export const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({ plan: _plan, customerId, onComplete }) => {
@@ -100,10 +100,9 @@ export const PaymentMethodStep: React.FC<PaymentMethodStepProps> = ({ plan: _pla
         };
       }
 
-      const result = await CustomerService.createPaymentMethod(customerId, paymentData);
-      onComplete({ paymentMethodId: result.paymentMethodId });
+      onComplete({ paymentMethodRequest: paymentData });
     } catch (err: any) {
-      setBackendError(err.message || 'Failed to save payment method');
+      setBackendError(err.message || 'Failed to validate payment method');
     } finally {
       setLoading(false);
     }

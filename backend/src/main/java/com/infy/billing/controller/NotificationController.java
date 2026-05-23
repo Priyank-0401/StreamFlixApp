@@ -13,16 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.infy.billing.dto.customer.NotificationResponse;
 import com.infy.billing.entity.Customer;
 import com.infy.billing.entity.User;
-import com.infy.billing.entity.Notification;
-import com.infy.billing.enums.Channel;
-import com.infy.billing.enums.NotificationStatus;
 
 import com.infy.billing.exception.CustomException;
 import com.infy.billing.repository.CustomerRepository;
-import com.infy.billing.repository.NotificationRepository;
 import com.infy.billing.service.NotificationService;
-import java.time.LocalDateTime;
-
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -34,7 +28,6 @@ public class NotificationController {
 
 	private final NotificationService notificationService;
 	private final CustomerRepository customerRepository;
-	private final NotificationRepository notificationRepository;
 
 	@GetMapping("/me")
 

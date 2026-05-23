@@ -325,7 +325,7 @@ export const OverviewPage: React.FC = () => {
           <div className="stat-card-content">
             <div className="stat-card-header">
               <div>
-                <p className="stat-label">Amount Due</p>
+                <p className="stat-label">Next Billing Cycle Total</p>
                 <p className="stat-value">
                   {/* {formatAmount(
                     // invoices.filter(i => i.status === 'OPEN').reduce((sum, i) => sum + i.balanceMinor, 0),
@@ -338,6 +338,9 @@ export const OverviewPage: React.FC = () => {
                 <Receipt size={24} />
               </div>
             </div>
+            <p className="stat-subtext">
+              Next Payment + Metered Charges
+            </p>
             <p className="stat-subtext" style={{ color: '#5b4fff', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', margin: 'auto 0 0 0' }}>
               View Invoices <ArrowRight size={14} />
             </p>
