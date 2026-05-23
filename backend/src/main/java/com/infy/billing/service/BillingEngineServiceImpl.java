@@ -235,7 +235,7 @@ public class BillingEngineServiceImpl implements BillingEngineService {
 			total = 0L;
 		}
 		invoice.setSubtotalMinor(subtotal);
-		invoice.setDiscountMinor(discount); // FIXED: Don't add credits to discount
+		invoice.setDiscountMinor(0L); // FIXED: Don't add credits to discount
 		invoice.setTaxMinor(tax);
 		invoice.setTotalMinor(total);
 		invoice.setBalanceMinor(total);

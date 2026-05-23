@@ -3,12 +3,10 @@ package com.infy.billing.service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import com.infy.billing.dto.admin.AddOnResponse;
 import com.infy.billing.dto.admin.CustomerResponse;
 import com.infy.billing.dto.admin.MeteredComponentResponse;
@@ -39,20 +37,17 @@ import com.infy.billing.repository.ProductRepository;
 import com.infy.billing.repository.SubscriptionRepository;
 import com.infy.billing.repository.TaxRateRepository;
 import com.infy.billing.repository.UserRepository;
-
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class AdminDashboardServiceImpl implements AdminDashboardService {
-
     private static final String PRODUCT_NOT_FOUND_MSG = "Product not found with id: ";
     private static final String ENTITY_PRODUCT = "Product";
     private static final String ENTITY_ADD_ON = "AddOn";
     private static final String ENTITY_METERED_COMPONENT = "MeteredComponent";
     private static final String ENTITY_COUPON = "Coupon";
-
     private final ProductRepository productRepository;
     private final PlanRepository planRepository;
     private final PriceBookEntryRepository priceBookEntryRepository;
@@ -157,12 +152,21 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     }
 
     @Override
-    public void togglePlanStatus(Long id) {
+    public void deletePlan(Long id) {
         Plan plan = planRepository.findById(id)
                 .orElseThrow(() -> CustomException.notFound("Plan not found"));
-        plan.setStatus(plan.getStatus().equals(Status.ACTIVE) ? Status.INACTIVE : Status.ACTIVE);
-        planRepository.save(plan);
-        auditLoggingService.logAction("TOGGLE_PLAN_STATUS", "Plan", plan.getId(), null, plan);
+        long activeSubs = subscriptionRepository.countByPlan_IdAndStatusIn(
+                id,
+                List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED));
+        if (activeSubs > 0) {
+            throw CustomException.conflict(
+                    "Cannot delete: " + activeSubs
+                            + " active subscription(s) use this plan. Make it inactive instead if needed.");
+        }
+        List<PriceBookEntry> entries = priceBookEntryRepository.findByPlan_Id(id);
+        priceBookEntryRepository.deleteAll(entries);
+        planRepository.deleteById(id);
+        auditLoggingService.logAction("DELETE_PLAN", "Plan", id, null, null);
     }
 
     // ==================== PRICE BOOK ====================
@@ -196,15 +200,13 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     public void archivePriceBookEntry(Long id) {
         PriceBookEntry entry = priceBookEntryRepository.findById(id)
                 .orElseThrow(() -> CustomException.notFound("Price book entry not found"));
-
         long activeSubs = subscriptionRepository.countByPlan_IdAndStatusIn(
                 entry.getPlan().getId(),
-                List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED)
-        );
+                List.of(Status.ACTIVE, Status.TRIALING, Status.PAST_DUE, Status.PAUSED));
         if (activeSubs > 0) {
             throw CustomException.conflict(
-                    "Cannot delete: " + activeSubs + " active subscription(s) use this plan. Archive the plan instead."
-            );
+                    "Cannot delete: " + activeSubs
+                            + " active subscription(s) use this plan. Archive the plan instead.");
         }
         priceBookEntryRepository.deleteById(id);
     }
@@ -277,7 +279,8 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
                 .orElseThrow(() -> CustomException.notFound("Metered component not found"));
         component.setStatus(component.getStatus().equals(Status.ACTIVE) ? Status.INACTIVE : Status.ACTIVE);
         meteredComponentRepository.save(component);
-        auditLoggingService.logAction("TOGGLE_METERED_COMPONENT_STATUS", ENTITY_METERED_COMPONENT, component.getId(), null, component);
+        auditLoggingService.logAction("TOGGLE_METERED_COMPONENT_STATUS", ENTITY_METERED_COMPONENT, component.getId(),
+                null, component);
     }
 
     // ==================== TAX RATE ====================
@@ -385,13 +388,11 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
     public void deleteStaff(Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> CustomException.notFound("Staff not found"));
-
         // Prevent self-deletion
         String currentUserEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         if (user.getEmail().equals(currentUserEmail)) {
             throw CustomException.forbidden("You cannot delete your own account.");
         }
-
         if (user.getRole() == UserRole.CUSTOMER) {
             throw CustomException.forbidden("Cannot delete a customer from staff management.");
         }
