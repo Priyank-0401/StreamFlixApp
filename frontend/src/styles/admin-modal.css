@@ -175,16 +175,21 @@
   border: 1px solid #e2e8f0;
 }
 
-.status-badge.past_due, .status-badge.canceled, .status-badge.expired {
+ .status-badge.canceled, .status-badge.expired {
   background: #fee2e2;
   color: #b91c1c;
   border: 1px solid #fecaca;
 }
 
-.status-badge.suspended, .status-badge.paused {
+.status-badge.suspended, .status-badge.paused,.status-badge.past_due {
   background: #fef9c3;
   color: #854d0e;
   border: 1px solid #fef08a;
+}
+.status-badge.info {
+  background: #e8f0fe;
+  color: #1a73e8;
+  border: 1px solid #d7e4fa;
 }
 
 /* --- Form Fields --- */

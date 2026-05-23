@@ -9,7 +9,8 @@ import {
   ArrowRight,
   Plus,
   Package,
-  DollarSign
+  DollarSign,
+  Database
 } from 'lucide-react';
 import * as CustomerService from '../../services/customer/customerService';
 import './OverviewPage.css';
@@ -295,6 +296,50 @@ export const OverviewPage: React.FC = () => {
             </div>
             <p className="stat-subtext" style={{ color: '#5b4fff', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', margin: 'auto 0 0 0' }}>
               Manage Methods <ArrowRight size={14} />
+            </p>
+          </div>
+        </Link>
+
+
+        {/*Metred Component*/}
+        <div className="stat-card">
+          <div className="stat-card-content">
+            <div className="stat-card-header">
+              <div>
+                <p className="stat-label">Download Storage</p>
+                <p className="stat-value">7.2 GB</p>
+              </div>
+              <div className="stat-icon" style={{ color: '#5b4fff' }}>
+                <Database size={24} />
+              </div>
+            </div>
+            <p className="stat-subtext">
+              2.8 GB of 10 GB free tier used
+            </p>
+          </div>
+        </div>
+
+
+        {/*Total  Amount Due Card */}
+        <Link to="/dashboard/billing" className="stat-card stat-card-clickable" style={{ textDecoration: 'none' }}>
+          <div className="stat-card-content">
+            <div className="stat-card-header">
+              <div>
+                <p className="stat-label">Amount Due</p>
+                <p className="stat-value">
+                  {/* {formatAmount(
+                    // invoices.filter(i => i.status === 'OPEN').reduce((sum, i) => sum + i.balanceMinor, 0),
+                    // subscription?.currency || 'INR'
+                  )} */}
+                  {formatAmount(getNextBillingAmount(), subscription?.currency || 'INR')}
+                </p>
+              </div>
+              <div className="stat-icon" style={{ color: '#5b4fff' }}>
+                <Receipt size={24} />
+              </div>
+            </div>
+            <p className="stat-subtext" style={{ color: '#5b4fff', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', margin: 'auto 0 0 0' }}>
+              View Invoices <ArrowRight size={14} />
             </p>
           </div>
         </Link>

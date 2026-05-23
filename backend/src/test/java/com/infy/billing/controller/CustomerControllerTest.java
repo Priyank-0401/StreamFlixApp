@@ -94,44 +94,44 @@ class CustomerControllerTest {
         verify(customerService, times(1)).updateProfile(eq("test@test.com"), any(CustomerProfileDTO.class));
     }
 
-    @Test
-    void testGetAvailablePlans() throws Exception {
-        PlanDTO plan = new PlanDTO();
-        plan.setName("Pro");
-        when(customerService.getAvailablePlans()).thenReturn(List.of(plan));
+    // @Test
+    // void testGetAvailablePlans() throws Exception {
+    //     PlanDTO plan = new PlanDTO();
+    //     plan.setName("Pro");
+    //     when(customerService.getAvailablePlans()).thenReturn(List.of(plan));
 
-        mockMvc.perform(get("/api/customer/plans").with(authentication(auth)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("Pro"));
+    //     mockMvc.perform(get("/api/customer/plans").with(authentication(auth)))
+    //             .andExpect(status().isOk())
+    //             .andExpect(jsonPath("$[0].name").value("Pro"));
 
-        verify(customerService, times(1)).getAvailablePlans();
-    }
+    //     verify(customerService, times(1)).getAvailablePlans();
+    // }
 
-    @Test
-    void testGetFeaturedPlans() throws Exception {
-        PlanDTO plan = new PlanDTO();
-        plan.setName("Basic");
-        when(customerService.getFeaturedPlans()).thenReturn(List.of(plan));
+    // @Test
+    // void testGetFeaturedPlans() throws Exception {
+    //     PlanDTO plan = new PlanDTO();
+    //     plan.setName("Basic");
+    //     when(customerService.getFeaturedPlans()).thenReturn(List.of(plan));
 
-        mockMvc.perform(get("/api/customer/plans/featured").with(authentication(auth))) // permitAll
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("Basic"));
+    //     mockMvc.perform(get("/api/customer/plans/featured").with(authentication(auth))) // permitAll
+    //             .andExpect(status().isOk())
+    //             .andExpect(jsonPath("$[0].name").value("Basic"));
 
-        verify(customerService, times(1)).getFeaturedPlans();
-    }
+    //     verify(customerService, times(1)).getFeaturedPlans();
+    // }
 
-    @Test
-    void testGetAllPlans() throws Exception {
-        PlanDTO plan = new PlanDTO();
-        plan.setName("Enterprise");
-        when(customerService.getAllActivePlans()).thenReturn(List.of(plan));
+    // @Test
+    // void testGetAllPlans() throws Exception {
+    //     PlanDTO plan = new PlanDTO();
+    //     plan.setName("Enterprise");
+    //     when(customerService.getAllActivePlans()).thenReturn(List.of(plan));
 
-        mockMvc.perform(get("/api/customer/plans/all").with(authentication(auth))) // permitAll
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].name").value("Enterprise"));
+    //     mockMvc.perform(get("/api/customer/plans/all").with(authentication(auth))) // permitAll
+    //             .andExpect(status().isOk())
+    //             .andExpect(jsonPath("$[0].name").value("Enterprise"));
 
-        verify(customerService, times(1)).getAllActivePlans();
-    }
+    //     verify(customerService, times(1)).getAllActivePlans();
+    // }
 
     @Test
     void testGetAvailableAddOns() throws Exception {

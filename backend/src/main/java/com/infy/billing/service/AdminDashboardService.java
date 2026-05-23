@@ -21,7 +21,7 @@ public interface AdminDashboardService {
    List<PlanResponse> getAllPlans();
    PlanResponse createPlan(Plan plan);
    PlanResponse updatePlan(Long id, Plan plan);
-   void togglePlanStatus(Long id);
+   void deletePlan(Long id);
 
    // Price Book (returns DTO — has Plan relationship)
    List<PriceBookResponse> getAllPriceBookEntries();

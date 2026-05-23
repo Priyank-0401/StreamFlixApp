@@ -642,3 +642,34 @@
             (1, 'CYCLE_BILLING', 'COMPLETED', 'SCHEDULER', '2026-05-18 00:00:00', '2026-05-18 00:05:23', 150, 145, 5, NULL),
             (2, 'DUNNING_RETRY', 'COMPLETED', 'SCHEDULER', '2026-05-19 01:00:00', '2026-05-19 01:02:10', 25, 20, 5, 'Card declined errors'),
             (3, 'CYCLE_BILLING', 'RUNNING', 'SCHEDULER', '2026-05-20 00:00:00', NULL, 160, 45, 0, NULL);
+
+-- ============================================================================
+-- TEST USERS FOR NOTIFICATIONS (IDs 90 & 91)
+-- ============================================================================
+
+-- Test User 1 (Renewal Reminder in 3 Days)
+INSERT INTO user (user_id, full_name, email, password_hash, role, status, created_at, updated_at) VALUES 
+(90, 'Test Renewal', 'renewal@example.com', '$2a$10$kmhQ2CwcOGtN9Jay58BpWOIyAq81UkWf2GhHSh87hUJ8.bZ40wowC', 'CUSTOMER', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO customer (customer_id, user_id, phone, currency, country, state, city, address_line1, postal_code, credit_balance_minor, status, created_at, updated_at) VALUES 
+(90, 90, '+919999999990', 'INR', 'IN', 'Test', 'Test', 'Test', '111111', 0, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO payment_method (payment_method_id, customer_id, payment_type, card_last4, card_brand, gateway_token, is_default, status, created_at) VALUES 
+(90, 90, 'CARD', '4242', 'Visa', 'tok_test_90', TRUE, 'ACTIVE', CURRENT_TIMESTAMP);
+
+INSERT INTO subscription (subscription_id, customer_id, plan_id, status, start_date, current_period_start, current_period_end, cancel_at_period_end, payment_method_id, currency, created_at, updated_at) VALUES 
+(90, 90, 1, 'ACTIVE', DATE_ADD(CURRENT_DATE, INTERVAL -27 DAY), DATE_ADD(CURRENT_DATE, INTERVAL -27 DAY), DATE_ADD(CURRENT_DATE, INTERVAL 3 DAY), FALSE, 90, 'INR', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+-- Test User 2 (Past Due Payment)
+INSERT INTO user (user_id, full_name, email, password_hash, role, status, created_at, updated_at) VALUES 
+(91, 'Test PastDue', 'pastdue@example.com', '$2a$10$kmhQ2CwcOGtN9Jay58BpWOIyAq81UkWf2GhHSh87hUJ8.bZ40wowC', 'CUSTOMER', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO customer (customer_id, user_id, phone, currency, country, state, city, address_line1, postal_code, credit_balance_minor, status, created_at, updated_at) VALUES 
+(91, 91, '+919999999991', 'INR', 'IN', 'Test', 'Test', 'Test', '111111', 0, 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+
+INSERT INTO payment_method (payment_method_id, customer_id, payment_type, card_last4, card_brand, gateway_token, is_default, status, created_at) VALUES 
+(91, 91, 'CARD', '4242', 'Visa', 'tok_test_91', TRUE, 'ACTIVE', CURRENT_TIMESTAMP);
+
+INSERT INTO subscription (subscription_id, customer_id, plan_id, status, start_date, current_period_start, current_period_end, cancel_at_period_end, payment_method_id, currency, created_at, updated_at) VALUES 
+(91, 91, 1, 'PAST_DUE', DATE_ADD(CURRENT_DATE, INTERVAL -32 DAY), DATE_ADD(CURRENT_DATE, INTERVAL -32 DAY), DATE_ADD(CURRENT_DATE, INTERVAL -2 DAY), FALSE, 91, 'INR', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+

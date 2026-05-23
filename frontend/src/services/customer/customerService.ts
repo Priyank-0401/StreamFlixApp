@@ -1,10 +1,7 @@
 import { fetchWithSession } from '../auth/authService';
-
 // Relative URL - proxied through CRA dev server
 const API_BASE = '/customer';
-
 // ==================== TYPES ====================
-
 export interface CustomerProfile {
   customerId: number;
   userId: number;
@@ -20,7 +17,6 @@ export interface CustomerProfile {
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
   createdAt: string;
 }
-
 export interface Plan {
   planId: number;
   name: string;
@@ -36,7 +32,6 @@ export interface Plan {
   productName: string;
   features?: string[];
 }
-
 export interface AddOn {
   addOnId: number;
   name: string;
@@ -45,7 +40,6 @@ export interface AddOn {
   billingPeriod: 'MONTHLY' | 'YEARLY';
   status: 'ACTIVE' | 'INACTIVE';
 }
-
 export interface MeteredComponent {
   componentId: number;
   planId: number;
@@ -55,7 +49,6 @@ export interface MeteredComponent {
   freeTierQuantity: number;
   status: 'ACTIVE' | 'INACTIVE';
 }
-
 export interface Subscription {
   subscriptionId: number;
   customerId: number;
@@ -79,7 +72,6 @@ export interface Subscription {
   totalDueMinor?: number;
   creditBalanceMinor?: number;
 }
-
 export interface SubscriptionAddOn {
   itemId: number;
   addonId: number;
@@ -87,7 +79,6 @@ export interface SubscriptionAddOn {
   unitPriceMinor: number;
   quantity: number;
 }
-
 export interface MeteredUsage {
   componentId: number;
   componentName: string;
@@ -97,7 +88,6 @@ export interface MeteredUsage {
   pricePerUnitMinor: number;
   costMinor: number;
 }
-
 export interface Invoice {
   invoiceId: number;
   invoiceNumber: string;
@@ -114,7 +104,6 @@ export interface Invoice {
   currency: string;
   lineItems: InvoiceLineItem[];
 }
-
 export interface InvoiceLineItem {
   lineItemId: number;
   description: string;
@@ -125,7 +114,6 @@ export interface InvoiceLineItem {
   periodStart: string | null;
   periodEnd: string | null;
 }
-
 export interface Payment {
   paymentId: number;
   invoiceId: number;
@@ -137,7 +125,6 @@ export interface Payment {
   failureReason: string | null;
   createdAt: string;
 }
-
 export interface PaymentMethod {
   paymentMethodId: number;
   paymentType: 'CARD' | 'UPI';
@@ -149,7 +136,6 @@ export interface PaymentMethod {
   expiryYear: number | null;
   status: 'ACTIVE' | 'EXPIRED' | 'REVOKED';
 }
-
 export interface Notification {
   id: number;
   type: string;
@@ -159,7 +145,6 @@ export interface Notification {
   status: 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED' | 'READ';
   createdAt: string;
 }
-
 export interface Coupon {
   couponId: number;
   code: string;
@@ -173,7 +158,6 @@ export interface Coupon {
   validTo: string | null;
   status: 'ACTIVE' | 'EXPIRED' | 'DISABLED';
 }
-
 export interface UsageRecord {
   usageId: number;
   componentId: number;
@@ -184,7 +168,6 @@ export interface UsageRecord {
   billingPeriodStart: string;
   billingPeriodEnd: string;
 }
-
 export interface CreditNote {
   creditNoteId: number;
   creditNoteNumber: string;
@@ -195,7 +178,6 @@ export interface CreditNote {
   status: 'DRAFT' | 'ISSUED' | 'APPLIED' | 'VOIDED';
   createdAt: string;
 }
-
 export interface CancellationResponse {
   refundIssued: boolean;
   refundAmountMinor: number;
@@ -204,7 +186,6 @@ export interface CancellationResponse {
   creditNoteNumber: string | null;
   message: string;
 }
-
 export interface CancellationRequest {
   requestId: number;
   subscriptionId: number;
@@ -219,15 +200,12 @@ export interface CancellationRequest {
   processedAt: string | null;
   agentNotes: string | null;
 }
-
 // ==================== PROFILE ====================
-
 export const getCustomerProfile = async (): Promise<CustomerProfile> => {
   const response = await fetchWithSession(`${API_BASE}/me`);
   if (!response.ok) throw new Error('Failed to fetch profile');
   return response.json();
 };
-
 export const updateCustomerProfile = async (data: Partial<CustomerProfile>): Promise<CustomerProfile> => {
   const response = await fetchWithSession(`${API_BASE}/me`, {
     method: 'PUT',
@@ -237,23 +215,19 @@ export const updateCustomerProfile = async (data: Partial<CustomerProfile>): Pro
   if (!response.ok) throw new Error('Failed to update profile');
   return response.json();
 };
-
 // ==================== PLANS ====================
-
-export const getAvailablePlans = async (): Promise<Plan[]> => {
-  const response = await fetchWithSession(`${API_BASE}/plans`);
+export const getAvailablePlans = async (region?: string): Promise<Plan[]> => {
+  const query = region ? `?region=${region}` : '';
+  const response = await fetchWithSession(`${API_BASE}/plans${query}`);
   if (!response.ok) throw new Error('Failed to fetch plans');
   return response.json();
 };
-
 export const getAvailableAddOns = async (): Promise<AddOn[]> => {
   const response = await fetchWithSession(`${API_BASE}/addons`);
   if (!response.ok) throw new Error('Failed to fetch add-ons');
   return response.json();
 };
-
 // ==================== SUBSCRIPTION ====================
-
 export const getCurrentSubscription = async (): Promise<Subscription | null> => {
   try {
     const response = await fetchWithSession(`${API_BASE}/subscription`);
@@ -263,7 +237,6 @@ export const getCurrentSubscription = async (): Promise<Subscription | null> => 
     throw error;
   }
 };
-
 export const createSubscription = async (data: {
   planId: number;
   paymentMethodId: number;
@@ -280,7 +253,6 @@ export const createSubscription = async (data: {
   }
   return response.json();
 };
-
 export const upgradeSubscription = async (data: {
   planId: number;
   proration: boolean;
@@ -293,7 +265,6 @@ export const upgradeSubscription = async (data: {
   if (!response.ok) throw new Error('Failed to upgrade subscription');
   return response.json();
 };
-
 export const cancelSubscription = async (params?: { atPeriodEnd?: boolean }): Promise<CancellationResponse> => {
   const query = params?.atPeriodEnd !== undefined ? `?atPeriodEnd=${params.atPeriodEnd}` : '';
   const response = await fetchWithSession(`${API_BASE}/subscription${query}`, {
@@ -302,7 +273,6 @@ export const cancelSubscription = async (params?: { atPeriodEnd?: boolean }): Pr
   if (!response.ok) throw new Error('Failed to cancel subscription');
   return response.json();
 };
-
 export const submitCancellationRequest = async (reason: string, atPeriodEnd: boolean): Promise<CancellationRequest> => {
   const response = await fetchWithSession(`${API_BASE}/subscription/cancel-request`, {
     method: 'POST',
@@ -312,7 +282,6 @@ export const submitCancellationRequest = async (reason: string, atPeriodEnd: boo
   if (!response.ok) throw new Error('Failed to submit cancellation request');
   return response.json();
 };
-
 export const withdrawCancellationRequest = async (): Promise<CancellationRequest> => {
   const response = await fetchWithSession(`${API_BASE}/subscription/cancel-request/withdraw`, {
     method: 'POST',
@@ -320,7 +289,6 @@ export const withdrawCancellationRequest = async (): Promise<CancellationRequest
   if (!response.ok) throw new Error('Failed to withdraw cancellation request');
   return response.json();
 };
-
 export const getPendingCancellationRequest = async (): Promise<CancellationRequest | null> => {
   try {
     const response = await fetchWithSession(`${API_BASE}/subscription/cancel-request`);
@@ -333,7 +301,6 @@ export const getPendingCancellationRequest = async (): Promise<CancellationReque
     throw error;
   }
 };
-
 export const pauseSubscription = async (data: { pausedTo: string }): Promise<Subscription> => {
   const response = await fetchWithSession(`${API_BASE}/subscription/pause`, {
     method: 'PUT',
@@ -343,7 +310,6 @@ export const pauseSubscription = async (data: { pausedTo: string }): Promise<Sub
   if (!response.ok) throw new Error('Failed to pause subscription');
   return response.json();
 };
-
 export const resumeSubscription = async (): Promise<Subscription> => {
   const response = await fetchWithSession(`${API_BASE}/subscription/resume`, {
     method: 'PUT',
@@ -351,9 +317,7 @@ export const resumeSubscription = async (): Promise<Subscription> => {
   if (!response.ok) throw new Error('Failed to resume subscription');
   return response.json();
 };
-
 // ==================== ADD-ONS ====================
-
 export const addAddOn = async (addonId: number): Promise<Subscription> => {
   const response = await fetchWithSession(`${API_BASE}/addons/${addonId}`, {
     method: 'POST',
@@ -361,7 +325,6 @@ export const addAddOn = async (addonId: number): Promise<Subscription> => {
   if (!response.ok) throw new Error('Failed to add add-on');
   return response.json();
 };
-
 export const removeAddOn = async (addonId: number): Promise<Subscription> => {
   const response = await fetchWithSession(`${API_BASE}/addons/${addonId}`, {
     method: 'DELETE',
@@ -369,9 +332,7 @@ export const removeAddOn = async (addonId: number): Promise<Subscription> => {
   if (!response.ok) throw new Error('Failed to remove add-on');
   return response.json();
 };
-
 // ==================== METERED USAGE ====================
-
 export const getMeteredUsage = async (params?: {
   startDate?: string;
   endDate?: string;
@@ -381,9 +342,7 @@ export const getMeteredUsage = async (params?: {
   if (!response.ok) throw new Error('Failed to fetch usage');
   return response.json();
 };
-
 // ==================== BILLING ====================
-
 export const getInvoices = async (params?: {
   status?: string;
   from?: string;
@@ -394,33 +353,27 @@ export const getInvoices = async (params?: {
   if (!response.ok) throw new Error('Failed to fetch invoices');
   return response.json();
 };
-
 export const getInvoiceDetail = async (invoiceId: number): Promise<Invoice> => {
   const response = await fetchWithSession(`${API_BASE}/invoices/${invoiceId}`);
   if (!response.ok) throw new Error('Failed to fetch invoice');
   return response.json();
 };
-
 export const downloadInvoice = async (invoiceId: number): Promise<Blob> => {
   const response = await fetchWithSession(`${API_BASE}/invoices/${invoiceId}/download`);
   if (!response.ok) throw new Error('Failed to download invoice');
   return response.blob();
 };
-
 export const getPayments = async (): Promise<Payment[]> => {
   const response = await fetchWithSession(`${API_BASE}/payments`);
   if (!response.ok) throw new Error('Failed to fetch payments');
   return response.json();
 };
-
 export const getCreditNotes = async (): Promise<CreditNote[]> => {
   const response = await fetchWithSession(`${API_BASE}/credit-notes`);
   if (!response.ok) throw new Error('Failed to fetch credit notes');
   return response.json();
 };
-
 // ==================== COUPONS ====================
-
 export const applyCoupon = async (code: string): Promise<Coupon> => {
   const response = await fetchWithSession(`${API_BASE}/coupons/apply`, {
     method: 'POST',
@@ -430,7 +383,6 @@ export const applyCoupon = async (code: string): Promise<Coupon> => {
   if (!response.ok) throw new Error('Invalid or expired coupon');
   return response.json();
 };
-
 export const validateCoupon = async (code: string): Promise<Coupon> => {
   const response = await fetchWithSession(`${API_BASE}/coupons/validate`, {
     method: 'POST',
@@ -440,21 +392,17 @@ export const validateCoupon = async (code: string): Promise<Coupon> => {
   if (!response.ok) throw new Error('Invalid or expired coupon');
   return response.json();
 };
-
 export const getAvailableCoupons = async (): Promise<Coupon[]> => {
   const response = await fetchWithSession(`${API_BASE}/coupons`);
   if (!response.ok) throw new Error('Failed to fetch coupons');
   return response.json();
 };
-
 // ==================== PAYMENT METHODS ====================
-
 export const getPaymentMethods = async (): Promise<PaymentMethod[]> => {
   const response = await fetchWithSession(`${API_BASE}/payment-methods`);
   if (!response.ok) throw new Error('Failed to fetch payment methods');
   return response.json();
 };
-
 export const addPaymentMethod = async (data: {
   paymentType: 'CARD' | 'UPI';
   cardNumber?: string;
@@ -472,23 +420,19 @@ export const addPaymentMethod = async (data: {
   if (!response.ok) throw new Error('Failed to add payment method');
   return response.json();
 };
-
 export const setDefaultPaymentMethod = async (paymentMethodId: number): Promise<void> => {
   const response = await fetchWithSession(`${API_BASE}/payment-methods/${paymentMethodId}/default`, {
     method: 'PUT',
   });
   if (!response.ok) throw new Error('Failed to set default payment method');
 };
-
 export const deletePaymentMethod = async (paymentMethodId: number): Promise<void> => {
   const response = await fetchWithSession(`${API_BASE}/payment-methods/${paymentMethodId}`, {
     method: 'DELETE',
   });
   if (!response.ok) throw new Error('Failed to delete payment method');
 };
-
 // ==================== SUPPORT ====================
-
 export const sendSupportMessage = async (data: {
   subject: string;
   message: string;
@@ -501,21 +445,17 @@ export const sendSupportMessage = async (data: {
   });
   if (!response.ok) throw new Error('Failed to send message');
 };
-
 export const getFAQs = async (): Promise<{ question: string; answer: string; category: string }[]> => {
   const response = await fetchWithSession(`${API_BASE}/support/faqs`);
   if (!response.ok) throw new Error('Failed to fetch FAQs');
   return response.json();
 };
-
 // ==================== SUBSCRIPTION FLOW ====================
-
 export interface CustomerStatusResponse {
   isCustomer: boolean;
   hasActiveSubscription: boolean;
   message: string;
 }
-
 export interface CustomerRegistrationRequest {
   phone: string;
   country: string;
@@ -525,7 +465,6 @@ export interface CustomerRegistrationRequest {
   postalCode: string;
   currency: string;
 }
-
 export interface PaymentMethodRequest {
   paymentType: 'CARD' | 'UPI';
   cardNumber?: string;
@@ -535,14 +474,12 @@ export interface PaymentMethodRequest {
   cvv?: string;
   upiId?: string;
 }
-
 export interface SubscriptionCompletionRequest {
   planId: number;
   paymentMethodId: number;
   billingPeriod: 'MONTHLY' | 'YEARLY';
   couponCode?: string;
 }
-
 export interface CustomerStatusResponse {
   isCustomer: boolean;
   hasActiveSubscription: boolean;
@@ -550,7 +487,6 @@ export interface CustomerStatusResponse {
   message: string;
   trialEndDate?: string;
 }
-
 export interface SubscriptionResponse {
   subscriptionId: number;
   invoiceId: number;
@@ -559,28 +495,26 @@ export interface SubscriptionResponse {
   message: string;
   trialEndDate?: string;
 }
-
 // Check customer status
 export const getCustomerStatus = async (): Promise<CustomerStatusResponse> => {
   const response = await fetchWithSession(`${API_BASE}/status`);
   if (!response.ok) throw new Error('Failed to check customer status');
   return response.json();
 };
-
 // Get featured plans (2 plans for landing page)
-export const getFeaturedPlans = async (): Promise<Plan[]> => {
-  const response = await fetchWithSession(`${API_BASE}/plans/featured`);
+export const getFeaturedPlans = async (region?: string): Promise<Plan[]> => {
+  const query = region ? `?region=${region}` : '';
+  const response = await fetchWithSession(`${API_BASE}/plans/featured${query}`);
   if (!response.ok) throw new Error('Failed to fetch featured plans');
   return response.json();
 };
-
 // Get all active plans
-export const getAllPlans = async (): Promise<Plan[]> => {
-  const response = await fetchWithSession(`${API_BASE}/plans/all`);
+export const getAllPlans = async (region?: string): Promise<Plan[]> => {
+  const query = region ? `?region=${region}` : '';
+  const response = await fetchWithSession(`${API_BASE}/plans/all${query}`);
   if (!response.ok) throw new Error('Failed to fetch all plans');
   return response.json();
 };
-
 // Step 1: Register customer details
 export const registerCustomerDetails = async (data: CustomerRegistrationRequest): Promise<{ customerId: number; message: string }> => {
   const response = await fetchWithSession(`${API_BASE}/register-details`, {
@@ -594,7 +528,6 @@ export const registerCustomerDetails = async (data: CustomerRegistrationRequest)
   }
   return response.json();
 };
-
 // Step 2: Create payment method
 export const createPaymentMethod = async (customerId: number, data: PaymentMethodRequest): Promise<{ paymentMethodId: number; last4: string; brand: string; message: string }> => {
   const response = await fetchWithSession(`${API_BASE}/payment-method?customerId=${customerId}`, {
@@ -608,7 +541,6 @@ export const createPaymentMethod = async (customerId: number, data: PaymentMetho
   }
   return response.json();
 };
-
 // Step 3: Complete subscription
 export const completeSubscription = async (customerId: number, data: SubscriptionCompletionRequest): Promise<SubscriptionResponse> => {
   const response = await fetchWithSession(`${API_BASE}/subscription/complete?customerId=${customerId}`, {
@@ -622,9 +554,7 @@ export const completeSubscription = async (customerId: number, data: Subscriptio
   }
   return response.json();
 };
-
 // ==================== NOTIFICATIONS ====================
-
 export const getUnreadNotifications = async (): Promise<Notification[]> => {
   const response = await fetchWithSession('/notifications/me');
   if (!response.ok) throw new Error('Failed to fetch notifications');
@@ -639,14 +569,12 @@ export const getUnreadNotifications = async (): Promise<Notification[]> => {
     createdAt: item.createdAt,
   }));
 };
-
 export const markNotificationAsRead = async (id: number): Promise<void> => {
   const response = await fetchWithSession(`/notifications/${id}/read`, {
     method: 'PUT',
   });
   if (!response.ok) throw new Error('Failed to mark notification as read');
 };
-
 export const markAllNotificationsAsRead = async (): Promise<void> => {
   const response = await fetchWithSession(`/notifications/read-all`, {
     method: 'PUT',

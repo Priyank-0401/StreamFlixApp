@@ -18,7 +18,7 @@ public class PriceBookEntry {
    @JoinColumn(name = "plan_id", nullable = false)
    private Plan plan;
 
-   @Column(nullable = false, length = 50)
+   @Column(name = "region")
    private String region;
 
    @Column(nullable = false, length = 3)

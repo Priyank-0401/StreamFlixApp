@@ -131,7 +131,7 @@ export const financeService = {
         customerId: String(i.customerId),
         customerName: `Customer ${i.customerId}`,
         amount: i.amount, // Backend already returns decimal rupees
-        status: i.status === 'PAID' ? 'Paid' : i.status === 'DRAFT' ? 'Draft' : 'Pending',
+        status: i.status,
         date: i.date,
         dueDate: i.dueDate
       })) || [],
@@ -172,7 +172,7 @@ export const financeService = {
         invoiceId: p.invoiceNumber,
         customerId: 'N/A',
         amount: p.amount, // Backend returns decimal rupees
-        status: p.status === 'SUCCESS' ? 'Successful' : 'Failed',
+        status: p.status,
         method: p.paymentMethod,
         date: p.date
       })) || [],
@@ -188,7 +188,7 @@ export const financeService = {
         paymentId: String(r.paymentId),
         customerId: 'N/A',
         amount: r.amount, // Backend returns decimal rupees
-        status: r.status === 'APPLIED' ? 'Approved' : 'Pending',
+        status: r.status ,
         reason: r.reason || 'No reason provided',
         date: r.date
       })) || [],
@@ -207,7 +207,7 @@ export const financeService = {
         arr: (s.arrMinor || 0) / 100,
         activeCustomers: s.activeCustomers || 0,
         newCustomers: s.newCustomers || 0,
-        netChurnPercent: s.netChurnPercent || 0
+        netChurnPercent:Math.round(( s.netChurnPercent || 0)*100)/100,
       })) || [],
       total: response.totalElements || 0
     };

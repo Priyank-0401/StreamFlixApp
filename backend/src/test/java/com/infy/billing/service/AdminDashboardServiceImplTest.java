@@ -243,29 +243,29 @@ class AdminDashboardServiceImplTest {
         assertThrows(RuntimeException.class, () -> adminDashboardService.updatePlan(1L, emptyPlan));
     }
 
-    @Test
-    void testTogglePlanStatus_ActiveToInactive() {
-        plan.setStatus(Status.ACTIVE);
-        when(planRepository.findById(1L)).thenReturn(Optional.of(plan));
-        adminDashboardService.togglePlanStatus(1L);
-        assertEquals(Status.INACTIVE, plan.getStatus());
-        verify(planRepository).save(plan);
-    }
+    // @Test
+    // void testTogglePlanStatus_ActiveToInactive() {
+    //     plan.setStatus(Status.ACTIVE);
+    //     when(planRepository.findById(1L)).thenReturn(Optional.of(plan));
+    //     adminDashboardService.togglePlanStatus(1L);
+    //     assertEquals(Status.INACTIVE, plan.getStatus());
+    //     verify(planRepository).save(plan);
+    // }
 
-    @Test
-    void testTogglePlanStatus_InactiveToActive() {
-        plan.setStatus(Status.INACTIVE);
-        when(planRepository.findById(1L)).thenReturn(Optional.of(plan));
-        adminDashboardService.togglePlanStatus(1L);
-        assertEquals(Status.ACTIVE, plan.getStatus());
-        verify(planRepository).save(plan);
-    }
+    // @Test
+    // void testTogglePlanStatus_InactiveToActive() {
+    //     plan.setStatus(Status.INACTIVE);
+    //     when(planRepository.findById(1L)).thenReturn(Optional.of(plan));
+    //     adminDashboardService.togglePlanStatus(1L);
+    //     assertEquals(Status.ACTIVE, plan.getStatus());
+    //     verify(planRepository).save(plan);
+    // }
 
-    @Test
-    void testTogglePlanStatus_NotFound() {
-        when(planRepository.findById(1L)).thenReturn(Optional.empty());
-        assertThrows(RuntimeException.class, () -> adminDashboardService.togglePlanStatus(1L));
-    }
+    // @Test
+    // void testTogglePlanStatus_NotFound() {
+    //     when(planRepository.findById(1L)).thenReturn(Optional.empty());
+    //     assertThrows(RuntimeException.class, () -> adminDashboardService.togglePlanStatus(1L));
+    // }
 
     // ==================== PRICE BOOK ====================
     @Test

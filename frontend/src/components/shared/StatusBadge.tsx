@@ -6,7 +6,7 @@ interface Props {
 }
 
 const statusMap: Record<string, string> = {
-  // Positive states
+  // Positive states  --green
   ACTIVE: 'active',
   PAID: 'active',
   SUCCESS: 'active',
@@ -15,15 +15,15 @@ const statusMap: Record<string, string> = {
   COMPLETED: 'active',
   APPLIED: 'active',
 
-  // Pending/Warning states
+  // Pending/Warning states --yellow
   PENDING: 'past_due',
   PROCESSING: 'past_due',
   OPEN: 'past_due',
   ISSUED: 'past_due',
   PAST_DUE: 'past_due',
-  TRIALING: 'trialing',
+  
 
-  // Failure/Cancel states
+  // Failure/Cancel states --red
   FAILED: 'canceled',
   REJECTED: 'canceled',
   CANCELED: 'canceled',
@@ -32,9 +32,8 @@ const statusMap: Record<string, string> = {
   EXPIRED: 'canceled',
   DISABLED: 'canceled',
 
-  // Refunded/Suspended/Inactive states
-  REFUNDED: 'trialing',
-  PARTIALLY_REFUNDED: 'trialing',
+  // Refunded/Suspended/Inactive states --grey
+
   SUSPENDED: 'suspended',
   PAUSED: 'suspended',
   ON_HOLD: 'suspended',
@@ -42,6 +41,12 @@ const statusMap: Record<string, string> = {
   VOID: 'inactive',
   VOIDED: 'inactive',
   INACTIVE: 'inactive',
+
+//neutral states --blue
+  REFUNDED: 'info',
+  TRIALING: 'info',
+  PARTIALLY_REFUNDED: 'info',
+
 };
 
 const iconMap: Record<string, React.ReactNode> = {

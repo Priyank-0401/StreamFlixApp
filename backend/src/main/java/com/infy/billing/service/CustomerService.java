@@ -5,8 +5,8 @@ import java.util.List;
 public interface CustomerService {
    CustomerProfileDTO getProfile(String email);
    CustomerProfileDTO updateProfile(String email, CustomerProfileDTO dto);
-   List<PlanDTO> getAvailablePlans();
-   List<PlanDTO> getFeaturedPlans();
-   List<PlanDTO> getAllActivePlans();
+   List<PlanDTO> getAvailablePlans(String region);
+   List<PlanDTO> getFeaturedPlans(String region);
+   List<PlanDTO> getAllActivePlans(String region);
    List<AddOnDTO> getAvailableAddOns(String email);
 }
