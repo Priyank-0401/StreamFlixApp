@@ -39,28 +39,13 @@ class CustomerSupportServiceImplTest {
         assertEquals("ACCOUNT", faqs.get(0).get("category"));
     }
 
-    @Test
-    void testGetFAQs_ContainsBillingCategory() {
+    @ParameterizedTest
+    @CsvSource({"BILLING", "PAYMENT", "FEATURES"})
+    void testGetFAQs_ContainsCategory(String category) {
         List<Map<String, String>> faqs = customerSupportService.getFAQs();
-        boolean hasBilling = faqs.stream()
-                .anyMatch(faq -> "BILLING".equals(faq.get("category")));
-        assertTrue(hasBilling);
-    }
-
-    @Test
-    void testGetFAQs_ContainsPaymentCategory() {
-        List<Map<String, String>> faqs = customerSupportService.getFAQs();
-        boolean hasPayment = faqs.stream()
-                .anyMatch(faq -> "PAYMENT".equals(faq.get("category")));
-        assertTrue(hasPayment);
-    }
-
-    @Test
-    void testGetFAQs_ContainsFeaturesCategory() {
-        List<Map<String, String>> faqs = customerSupportService.getFAQs();
-        boolean hasFeatures = faqs.stream()
-                .anyMatch(faq -> "FEATURES".equals(faq.get("category")));
-        assertTrue(hasFeatures);
+        boolean hasCategory = faqs.stream()
+                .anyMatch(faq -> category.equals(faq.get("category")));
+        assertTrue(hasCategory);
     }
 
     @Test
@@ -98,20 +83,13 @@ class CustomerSupportServiceImplTest {
         assertEquals(expectedCount, actualCount);
     }
 
-    @Test
-    void testGetFAQs_CancelQuestionExists() {
+    @ParameterizedTest
+    @CsvSource({"cancel", "pause"})
+    void testGetFAQs_QuestionTopicExists(String topic) {
         List<Map<String, String>> faqs = customerSupportService.getFAQs();
-        boolean hasCancelQuestion = faqs.stream()
-                .anyMatch(faq -> faq.get("question").toLowerCase().contains("cancel"));
-        assertTrue(hasCancelQuestion, "Expected a FAQ about cancellation");
-    }
-
-    @Test
-    void testGetFAQs_PauseQuestionExists() {
-        List<Map<String, String>> faqs = customerSupportService.getFAQs();
-        boolean hasPauseQuestion = faqs.stream()
-                .anyMatch(faq -> faq.get("question").toLowerCase().contains("pause"));
-        assertTrue(hasPauseQuestion, "Expected a FAQ about pausing");
+        boolean hasQuestion = faqs.stream()
+                .anyMatch(faq -> faq.get("question").toLowerCase().contains(topic));
+        assertTrue(hasQuestion, "Expected a FAQ about " + topic);
     }
 
     @Test

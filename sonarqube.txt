@@ -1,65 +1,26 @@
 Resource	Date	Description
-AdminControllerTest.java	few seconds ago	This block of commented-out lines of code should be removed. [+1 location]
-AdminControllerTest.java	few seconds ago	This block of commented-out lines of code should be removed.
-AdminControllerTest.java	6 hours ago	This block of commented-out lines of code should be removed. [+1 location]
-AdminDashboardServiceImpl.java	24 days ago	Remove this unused "plan" local variable.
-AdminDashboardServiceImpl.java	24 days ago	Remove this useless assignment to local variable "plan".
-AdminDashboardServiceImplTest.java	2 minutes ago	This block of commented-out lines of code should be removed. [+3 locations]
-AdminDashboardServiceImplTest.java	2 minutes ago	This block of commented-out lines of code should be removed. [+6 locations]
-AdminDashboardServiceImplTest.java	6 hours ago	This block of commented-out lines of code should be removed. [+6 locations]
-CustomerControllerTest.java	2 minutes ago	This block of commented-out lines of code should be removed. [+1 location]
-CustomerControllerTest.java	2 minutes ago	This block of commented-out lines of code should be removed.
-CustomerControllerTest.java	2 minutes ago	This block of commented-out lines of code should be removed. [+3 locations]
-CustomerControllerTest.java	2 minutes ago	This block of commented-out lines of code should be removed. [+1 location]
-CustomerControllerTest.java	2 minutes ago	This block of commented-out lines of code should be removed.
-CustomerControllerTest.java	2 minutes ago	This block of commented-out lines of code should be removed. [+3 locations]
-CustomerControllerTest.java	2 minutes ago	This block of commented-out lines of code should be removed. [+1 location]
-CustomerControllerTest.java	2 minutes ago	This block of commented-out lines of code should be removed.
-CustomerControllerTest.java	6 hours ago	This block of commented-out lines of code should be removed. [+3 locations]
-CustomerServiceImplTest.java	2 minutes ago	This block of commented-out lines of code should be removed. [+2 locations]
-CustomerServiceImplTest.java	2 minutes ago	This block of commented-out lines of code should be removed.
-CustomerServiceImplTest.java	2 minutes ago	This block of commented-out lines of code should be removed. [+2 locations]
-CustomerServiceImplTest.java	2 minutes ago	This block of commented-out lines of code should be removed.
-CustomerServiceImplTest.java	2 minutes ago	This block of commented-out lines of code should be removed. [+1 location]
-CustomerServiceImplTest.java	2 minutes ago	This block of commented-out lines of code should be removed.
-CustomerServiceImplTest.java	2 minutes ago	This block of commented-out lines of code should be removed. [+2 locations]
-CustomerServiceImplTest.java	2 minutes ago	This block of commented-out lines of code should be removed.
-CustomerServiceImplTest.java	2 minutes ago	This block of commented-out lines of code should be removed. [+1 location]
-CustomerServiceImplTest.java	2 minutes ago	This block of commented-out lines of code should be removed.
-CustomerServiceImplTest.java	2 minutes ago	This block of commented-out lines of code should be removed. [+2 locations]
-CustomerServiceImplTest.java	2 minutes ago	This block of commented-out lines of code should be removed.
-CustomerServiceImplTest.java	6 hours ago	This block of commented-out lines of code should be removed. [+2 locations]
-CustomerServiceImplTest.java	6 hours ago	This block of commented-out lines of code should be removed. [+2 locations]
-CustomerServiceImplTest.java	6 hours ago	This block of commented-out lines of code should be removed. [+1 location]
-CustomerServiceImplTest.java	6 hours ago	This block of commented-out lines of code should be removed. [+2 locations]
-CustomerServiceImplTest.java	6 hours ago	This block of commented-out lines of code should be removed. [+1 location]
-CustomerServiceImplTest.java	6 hours ago	This block of commented-out lines of code should be removed. [+1 location]
-CustomerServiceImplTest.java	4 days ago	Remove this unused import 'com.infy.billing.dto.customer.PlanDTO'.
-CustomerSubscriptionServiceImpl.java	2 minutes ago	Refactor this method to reduce its Cognitive Complexity from 16 to the 15 allowed. [+10 locations]
-CustomerSubscriptionServiceImpl.java	6 hours ago	This branch's code block is the same as the block for the branch on line 361. [+1 location]
-CustomerSubscriptionServiceImpl.java	2 days ago	A "Brain Method" was detected. Refactor it to reduce at least one of the following metrics: LOC from 78 to 64, Complexity from 15 to 14, Nesting Level from 3 to 2, Number of Variables from 21 to 6.
-CustomerSubscriptionServiceImpl.java	2 days ago	Remove this conditional structure or edit its code blocks so that they're not all the same.
-CustomerSubscriptionServiceImpl.java	2 days ago	Remove this conditional structure or edit its code blocks so that they're not all the same.
-CustomerSubscriptionServiceImpl.java	2 days ago	Remove this unused "discountMinor" local variable.
-CustomerSubscriptionServiceImpl.java	2 days ago	Remove this useless assignment to local variable "discountMinor".
-CustomerSubscriptionServiceImpl.java	3 days ago	Constructor has 9 parameters, which is greater than 7 authorized.
-CustomerSubscriptionServiceImpl.java	3 days ago	Refactor this method to reduce its Cognitive Complexity from 20 to the 15 allowed. [+16 locations]
-RevenueAnalyticsServiceImpl.java	6 hours ago	This block of commented-out lines of code should be removed.
-RevenueAnalyticsServiceImpl.java	6 hours ago	This block of commented-out lines of code should be removed. [+11 locations]
-RevenueAnalyticsServiceImpl.java	6 hours ago	Remove this unused method parameter "snapshots".
-RevenueAnalyticsServiceImpl.java	6 hours ago	This block of commented-out lines of code should be removed.
-RevenueAnalyticsServiceImpl.java	6 hours ago	This block of commented-out lines of code should be removed.
-RevenueAnalyticsServiceImpl.java	6 hours ago	This block of commented-out lines of code should be removed. [+3 locations]
-RevenueAnalyticsServiceImpl.java	6 hours ago	This block of commented-out lines of code should be removed. [+2 locations]
-RevenueAnalyticsServiceImpl.java	2 days ago	Remove this unused private "calculateChurnForFirstSnapshot" method.
-RevenueAnalyticsServiceImpl.java	2 days ago	Remove this unused private "calculateChurnForIndex" method.
-RevenueAnalyticsServiceImpl.java	2 days ago	Remove this unused private "calculateFallbackChurn" method.
-RevenueAnalyticsServiceImpl.java	2 days ago	Remove this unused private "calculateSnapshotForDate" method.
-RevenueAnalyticsServiceImpl.java	2 days ago	Remove this unused private "findLatestIndex" method.
-RevenueAnalyticsServiceImpl.java	3 days ago	Consume or remove this unused collection
-RevenueAnalyticsServiceImpl.java	4 days ago	Remove this unused private "getLatestSnapshot" method.
-SubscriptionFlowServiceImpl.java	few seconds ago	Call transactional methods via an injected dependency instead of directly via 'this'.
+AdminControllerTest.java	15 hours ago	This block of commented-out lines of code should be removed. [+1 location]
+AdminControllerTest.java	15 hours ago	This block of commented-out lines of code should be removed.
+AdminControllerTest.java	22 hours ago	This block of commented-out lines of code should be removed. [+1 location]
+AdminDashboardServiceImpl.java	25 days ago	Remove this unused "plan" local variable.
+AdminDashboardServiceImpl.java	25 days ago	Remove this useless assignment to local variable "plan".
+CustomerServiceImplTest.java	22 hours ago	This block of commented-out lines of code should be removed. [+18 locations]
+CustomerServiceImplTest.java	22 hours ago	This block of commented-out lines of code should be removed. [+6 locations]
+CustomerServiceImplTest.java	22 hours ago	This block of commented-out lines of code should be removed. [+10 locations]
+CustomerSubscriptionServiceImpl.java	15 hours ago	Replace this lambda with method reference 'this::consumeOneTimeSubscriptionCoupon'.
+CustomerSubscriptionServiceImpl.java	15 hours ago	Constructor has 8 parameters, which is greater than 7 authorized.
+CustomerSubscriptionServiceImpl.java	15 hours ago	Refactor this method to reduce its Cognitive Complexity from 16 to the 15 allowed. [+10 locations]
+CustomerSubscriptionServiceImpl.java	3 days ago	Constructor has 10 parameters, which is greater than 7 authorized.
+CustomerSubscriptionServiceImpl.java	3 days ago	Use already-defined constant 'ENTITY_SUBSCRIPTION' instead of duplicating its value here.
+CustomerSubscriptionServiceImplTest.java	1 hour ago	Add at least one assertion to this test case.
+CustomerSupportServiceImplTest.java	1 hour ago	Refactor the code of the lambda to have only one invocation possibly throwing a runtime exception. [+2 locations]
+CustomerSupportServiceImplTest.java	1 hour ago	Replace these 3 tests with a single Parameterized one. [+5 locations]
+RevenueAnalyticsServiceImpl.java	22 hours ago	This block of commented-out lines of code should be removed.
+RevenueAnalyticsServiceImpl.java	22 hours ago	Remove this unused method parameter "snapshots".
+RevenueAnalyticsServiceImpl.java	22 hours ago	This block of commented-out lines of code should be removed.
+RevenueAnalyticsServiceImpl.java	22 hours ago	This block of commented-out lines of code should be removed.
+SubscriptionFlowServiceImpl.java	15 hours ago	Call transactional methods via an injected dependency instead of directly via 'this'.
 SubscriptionFlowServiceImpl.java	3 days ago	Replace this if-then-else statement by a single return statement.
 SubscriptionFlowServiceImpl.java	3 days ago	Refactor this method to reduce its Cognitive Complexity from 17 to the 15 allowed. [+8 locations]
 SubscriptionFlowServiceImpl.java	3 days ago	Method has 9 parameters, which is greater than 7 authorized.
-SubscriptionFlowServiceImpl.java	17 days ago	Extract this nested ternary operation into an independent statement.
+SubscriptionFlowServiceImpl.java	18 days ago	Extract this nested ternary operation into an independent statement.

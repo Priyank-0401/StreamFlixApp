@@ -7,6 +7,8 @@ import com.infy.billing.exception.CustomException;
 import com.infy.billing.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,9 +40,12 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
     private final MockPaymentGateway mockPaymentGateway;
     private final AuditLoggingService auditLoggingService;
 
-    @org.springframework.beans.factory.annotation.Autowired
-    @org.springframework.context.annotation.Lazy
     private SubscriptionFlowService self;
+
+    @Autowired
+    public void setSelf(@org.springframework.context.annotation.Lazy SubscriptionFlowService self) {
+        this.self = self;
+    }
 
     /**
      * Step 1: Register customer details
@@ -237,36 +242,28 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
     }
 
     private CouponDiscountResult calculateCouponDiscount(String couponCode, long priceMinor) {
-        LocalDate today = LocalDate.now();
-        Long discountMinor = 0L;
-        Coupon appliedCoupon = null;
-        if (couponCode != null && !couponCode.isBlank()) {
-            appliedCoupon = couponRepository.findByCodeAndStatus(couponCode, Status.ACTIVE)
-                    .orElse(null);
-            if (appliedCoupon != null) {
-                boolean valid = isValidCoupon(appliedCoupon, today);
-                if (valid) {
-                    if (appliedCoupon.getType() == CouponType.PERCENT) {
-                        discountMinor = priceMinor * appliedCoupon.getAmount() / 100;
-                    } else {
-                        discountMinor = appliedCoupon.getAmount();
-                    }
-                    if (discountMinor > priceMinor) {
-                        discountMinor = priceMinor;
-                    }
-                } else {
-                    appliedCoupon = null;
-                }
-            }
+        if (couponCode == null || couponCode.isBlank()) {
+            return new CouponDiscountResult(0L, null);
         }
-        return new CouponDiscountResult(discountMinor, appliedCoupon);
+
+        Coupon appliedCoupon = couponRepository.findByCodeAndStatus(couponCode, Status.ACTIVE)
+                .orElse(null);
+
+        if (appliedCoupon == null || !isValidCoupon(appliedCoupon, LocalDate.now())) {
+            return new CouponDiscountResult(0L, null);
+        }
+
+        long discountMinor = appliedCoupon.getType() == CouponType.PERCENT
+                ? priceMinor * appliedCoupon.getAmount() / 100
+                : appliedCoupon.getAmount();
+
+        return new CouponDiscountResult(Math.min(discountMinor, priceMinor), appliedCoupon);
     }
 
     private boolean isValidCoupon(Coupon coupon, LocalDate today) {
-        if (coupon.getValidFrom() != null && today.isBefore(coupon.getValidFrom())) return false;
-        if (coupon.getValidTo() != null && today.isAfter(coupon.getValidTo())) return false;
-        if (coupon.getMaxRedemptions() != null && coupon.getRedeemedCount() >= coupon.getMaxRedemptions()) return false;
-        return true;
+        return (coupon.getValidFrom() == null || !today.isBefore(coupon.getValidFrom()))
+                && (coupon.getValidTo() == null || !today.isAfter(coupon.getValidTo()))
+                && (coupon.getMaxRedemptions() == null || coupon.getRedeemedCount() < coupon.getMaxRedemptions());
     }
 
     private Subscription createSubscription(Customer customer, Plan plan, PaymentMethod paymentMethod, boolean isTrial, LocalDate today, LocalDate periodEnd, BillingPeriod billingPeriod) {
