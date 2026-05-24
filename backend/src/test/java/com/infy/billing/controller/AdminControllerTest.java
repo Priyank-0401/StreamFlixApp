@@ -225,16 +225,7 @@ class AdminControllerTest {
         verify(adminService, times(1)).deletePlan(1L);
     }
 
-    // @Test
-    // @WithMockUser(roles = "ADMIN")
-    // void testTogglePlanStatus_Success() throws Exception {
-    //     doNothing().when(adminService).togglePlanStatus(1L);
 
-    //     mockMvc.perform(patch("/api/admin/plans/1/toggle-status"))
-    //             .andExpect(status().isOk());
-
-    //     verify(adminService, times(1)).togglePlanStatus(1L);
-    // }
 
     // ==================== PRICE BOOK ====================
 

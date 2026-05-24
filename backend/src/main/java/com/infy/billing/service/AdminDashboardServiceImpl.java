@@ -153,7 +153,7 @@ public class AdminDashboardServiceImpl implements AdminDashboardService {
 
     @Override
     public void deletePlan(Long id) {
-        Plan plan = planRepository.findById(id)
+        planRepository.findById(id)
                 .orElseThrow(() -> CustomException.notFound("Plan not found"));
         long activeSubs = subscriptionRepository.countByPlan_IdAndStatusIn(
                 id,

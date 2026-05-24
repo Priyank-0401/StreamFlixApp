@@ -38,6 +38,10 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
     private final MockPaymentGateway mockPaymentGateway;
     private final AuditLoggingService auditLoggingService;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    @org.springframework.context.annotation.Lazy
+    private SubscriptionFlowService self;
+
     /**
      * Step 1: Register customer details
      */
@@ -130,7 +134,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
             paymentMethod = paymentMethodRepository.findById(request.getPaymentMethodId())
                     .orElseThrow(() -> CustomException.notFound("Payment method not found"));
         } else if (request.getPaymentMethod() != null) {
-            paymentMethod = createPaymentMethod(customerId, request.getPaymentMethod());
+            paymentMethod = self.createPaymentMethod(customerId, request.getPaymentMethod());
         } else {
             throw CustomException.badRequest("Payment method ID or payment method details are required");
         }
@@ -149,20 +153,10 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         BigDecimal taxRate = getTaxRateForRegion(customer.getCountry());
         Long taxMinor = calculateTax(priceAfterDiscount, taxRate, plan.getTaxMode());
         
-        Long subtotalMinor;
-        Long totalMinor;
-        Long headerDiscountMinor;
-        if (plan.getTaxMode() == TaxMode.INCLUSIVE) {
-            Long taxOnPre = calculateTax(priceMinor, taxRate, plan.getTaxMode());
-            Long taxOnDiscount = calculateTax(discountMinor, taxRate, plan.getTaxMode());
-            subtotalMinor = priceMinor - taxOnPre;
-            headerDiscountMinor = discountMinor - taxOnDiscount;
-            totalMinor = priceAfterDiscount;
-        } else {
-            subtotalMinor = priceMinor;
-            headerDiscountMinor = discountMinor;
-            totalMinor = priceAfterDiscount + taxMinor;
-        }
+        BillingAmounts amounts = calculateBillingAmounts(plan, priceMinor, discountMinor, taxRate, taxMinor);
+        Long subtotalMinor = amounts.subtotalMinor;
+        Long headerDiscountMinor = amounts.headerDiscountMinor;
+        Long totalMinor = amounts.totalMinor;
 
         // Check if trial is applicable
         boolean isTrial = plan.getTrialDays() > 0;
@@ -188,7 +182,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         invoiceRepository.save(invoice);
 
         // Add line items to the invoice
-        createInvoiceLineItems(invoice, subscription, plan, priceMinor, discountMinor, appliedCoupon, taxMinor, customer, today);
+        createInvoiceLineItems(invoice, subscription, priceMinor, discountMinor, appliedCoupon, taxMinor);
 
         if (!isTrial) {
             applyAccountCreditAndCharge(invoice, customer, paymentMethod, totalMinor);
@@ -209,6 +203,37 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
             this.discountMinor = discountMinor;
             this.appliedCoupon = appliedCoupon;
         }
+    }
+
+    private static class BillingAmounts {
+        final Long subtotalMinor;
+        final Long headerDiscountMinor;
+        final Long totalMinor;
+
+        BillingAmounts(Long subtotalMinor, Long headerDiscountMinor, Long totalMinor) {
+            this.subtotalMinor = subtotalMinor;
+            this.headerDiscountMinor = headerDiscountMinor;
+            this.totalMinor = totalMinor;
+        }
+    }
+
+    private BillingAmounts calculateBillingAmounts(Plan plan, Long priceMinor, Long discountMinor, BigDecimal taxRate, Long taxMinor) {
+        Long priceAfterDiscount = priceMinor - discountMinor;
+        Long subtotalMinor;
+        Long totalMinor;
+        Long headerDiscountMinor;
+        if (plan.getTaxMode() == TaxMode.INCLUSIVE) {
+            Long taxOnPre = calculateTax(priceMinor, taxRate, plan.getTaxMode());
+            Long taxOnDiscount = calculateTax(discountMinor, taxRate, plan.getTaxMode());
+            subtotalMinor = priceMinor - taxOnPre;
+            headerDiscountMinor = discountMinor - taxOnDiscount;
+            totalMinor = priceAfterDiscount;
+        } else {
+            subtotalMinor = priceMinor;
+            headerDiscountMinor = discountMinor;
+            totalMinor = priceAfterDiscount + taxMinor;
+        }
+        return new BillingAmounts(subtotalMinor, headerDiscountMinor, totalMinor);
     }
 
     private CouponDiscountResult calculateCouponDiscount(String couponCode, long priceMinor) {
@@ -323,7 +348,10 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
         return response;
     }
 
-    private void createInvoiceLineItems(Invoice invoice, Subscription subscription, Plan plan, Long priceMinor, Long discountMinor, Coupon appliedCoupon, Long taxMinor, Customer customer, LocalDate today) {
+    private void createInvoiceLineItems(Invoice invoice, Subscription subscription, Long priceMinor, Long discountMinor, Coupon appliedCoupon, Long taxMinor) {
+        Plan plan = subscription.getPlan();
+        Customer customer = subscription.getCustomer();
+        LocalDate today = invoice.getIssueDate();
         // Add line items to the invoice
         InvoiceLineItem planLine = new InvoiceLineItem();
         planLine.setInvoice(invoice);
@@ -429,9 +457,14 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
 
         boolean isDashboardEligible = dashboardEligibleSub.isPresent();
         boolean hasDraftSubscription = draftSub.isPresent();
-        String message = isDashboardEligible ? "Active or relevant subscription found" 
-                       : hasDraftSubscription ? "Draft subscription found" 
-                       : "Customer exists but no subscription";
+        String message;
+        if (isDashboardEligible) {
+            message = "Active or relevant subscription found";
+        } else if (hasDraftSubscription) {
+            message = "Draft subscription found";
+        } else {
+            message = "Customer exists but no subscription";
+        }
         return new CustomerStatusResponse(isDashboardEligible, isDashboardEligible, hasDraftSubscription, message);
     }
 
@@ -488,11 +521,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
     }
 
     private LocalDate calculatePeriodEnd(LocalDate start, BillingPeriod period) {
-        if (period == BillingPeriod.MONTHLY) {
-            return start.plusMonths(1);
-        } else {
-            return start.plusYears(1);
-        }
+        return period == BillingPeriod.MONTHLY ? start.plusMonths(1) : start.plusYears(1);
     }
 
     private Invoice createInvoice(Subscription subscription,

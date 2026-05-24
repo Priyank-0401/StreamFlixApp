@@ -3,6 +3,8 @@ package com.infy.billing.service;
 import com.infy.billing.dto.customer.SupportMessageDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.List;
 import java.util.Map;
@@ -81,40 +83,19 @@ class CustomerSupportServiceImplTest {
         }
     }
 
-    @Test
-    void testGetFAQs_BillingCategoryCount() {
+    @ParameterizedTest
+    @CsvSource({
+            "BILLING, 3",
+            "ACCOUNT, 2",
+            "FEATURES, 2",
+            "PAYMENT, 1"
+    })
+    void testGetFAQs_CategoryCount(String category, long expectedCount) {
         List<Map<String, String>> faqs = customerSupportService.getFAQs();
-        long billingCount = faqs.stream()
-                .filter(faq -> "BILLING".equals(faq.get("category")))
+        long actualCount = faqs.stream()
+                .filter(faq -> category.equals(faq.get("category")))
                 .count();
-        assertEquals(3, billingCount);
-    }
-
-    @Test
-    void testGetFAQs_AccountCategoryCount() {
-        List<Map<String, String>> faqs = customerSupportService.getFAQs();
-        long accountCount = faqs.stream()
-                .filter(faq -> "ACCOUNT".equals(faq.get("category")))
-                .count();
-        assertEquals(2, accountCount);
-    }
-
-    @Test
-    void testGetFAQs_FeaturesCategoryCount() {
-        List<Map<String, String>> faqs = customerSupportService.getFAQs();
-        long featuresCount = faqs.stream()
-                .filter(faq -> "FEATURES".equals(faq.get("category")))
-                .count();
-        assertEquals(2, featuresCount);
-    }
-
-    @Test
-    void testGetFAQs_PaymentCategoryCount() {
-        List<Map<String, String>> faqs = customerSupportService.getFAQs();
-        long paymentCount = faqs.stream()
-                .filter(faq -> "PAYMENT".equals(faq.get("category")))
-                .count();
-        assertEquals(1, paymentCount);
+        assertEquals(expectedCount, actualCount);
     }
 
     @Test
@@ -168,7 +149,8 @@ class CustomerSupportServiceImplTest {
     @Test
     void testGetFAQs_ImmutableList() {
         List<Map<String, String>> faqs = customerSupportService.getFAQs();
-        assertThrows(UnsupportedOperationException.class, () -> faqs.add(Map.of("question", "test", "answer", "test", "category", "test")));
+        Map<String, String> entry = Map.of("question", "test", "answer", "test", "category", "test");
+        assertThrows(UnsupportedOperationException.class, () -> faqs.add(entry));
     }
 
     @Test

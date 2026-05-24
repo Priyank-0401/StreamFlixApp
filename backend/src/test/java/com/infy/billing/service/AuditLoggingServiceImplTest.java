@@ -268,6 +268,7 @@ class AuditLoggingServiceImplTest {
     }
 
     // Helper static class to trigger JSON serialization failure
+    @SuppressWarnings("unused")
     private static class ThrowingObject {
         public String getValue() {
             throw new RuntimeException("Jackson serialization failure");

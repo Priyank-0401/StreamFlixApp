@@ -359,7 +359,6 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
         int activeCustomers = countActiveCustomers(activeSubs);
         long arpuMinor = activeCustomers > 0 ? mrrMinor / activeCustomers : 0L;
 
-        //RevenueSnapshot latest = getLatestSnapshot(snapshots);
         double netChurnPercent = computeRawChurnRate(activeSubs, canceledSubs);
 
         long ltvMinor = computeLtvMinor(arpuMinor, netChurnPercent);
@@ -451,10 +450,9 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
                 .sum();
 
         // Net churn from latest snapshot (most accurate)
-        //RevenueSnapshot latest = getLatestSnapshot(snapshots);
         double netChurnPercent =computeRawChurnRate(activeSubs, canceledSubs);
 
-        double revenueChurnPercent = calculateRevenueChurnPercent(snapshots, activeSubs, canceledSubs);
+        double revenueChurnPercent = calculateRevenueChurnPercent(activeSubs, canceledSubs);
 
         List<ChurnReasonDTO> reasons = new ArrayList<>();
         reasons.add(new ChurnReasonDTO("Too Expensive", (int) (canceledSubs.size() * 0.4)));
@@ -470,7 +468,7 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
                 .reasons(reasons)
                 .build();
     }
-    private double calculateRevenueChurnPercent(List<RevenueSnapshot> snapshots,
+    private double calculateRevenueChurnPercent(
             List<Subscription> activeSubs,
             List<Subscription> canceledSubs) {
         long activeMrr = computeMrrMinor(activeSubs);
@@ -494,7 +492,6 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
         int activeCustomers = countActiveCustomers(activeSubs);
         long arpuMinor = activeCustomers > 0 ? mrrMinor / activeCustomers : 0L;
 
-        //RevenueSnapshot latest = getLatestSnapshot(snapshots);
         double netChurnPercent = computeRawChurnRate(activeSubs, canceledSubs);
         long ltvMinor = computeLtvMinor(arpuMinor, netChurnPercent);
 

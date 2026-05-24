@@ -242,45 +242,18 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		Coupon activeCoupon;
 		SubscriptionCoupon activeSubscriptionCoupon;
 		String oldPlanName;
-
-		ProrationLineItemsParam(Invoice invoice, Plan newPlan, long newPriceMinor, long unusedCredit,
-				long remainingDays, long newTaxMinor, long newDiscountMinor, Coupon activeCoupon,
-				SubscriptionCoupon activeSubscriptionCoupon, String oldPlanName) {
-			this.invoice = invoice;
-			this.newPlan = newPlan;
-			this.newPriceMinor = newPriceMinor;
-			this.unusedCredit = unusedCredit;
-			this.remainingDays = remainingDays;
-			this.newTaxMinor = newTaxMinor;
-			this.newDiscountMinor = newDiscountMinor;
-			this.activeCoupon = activeCoupon;
-			this.activeSubscriptionCoupon = activeSubscriptionCoupon;
-			this.oldPlanName = oldPlanName;
-		}
 	}
 
 	private static class ProrationDetails {
-		final long newPriceMinor;
-		final long newDiscountMinor;
-		final Coupon activeCoupon;
-		final SubscriptionCoupon activeSubscriptionCoupon;
-		final long newAddonTotal;
-		final long newTaxMinor;
-		final long prorationAmount;
-		final long headerSubtotal;
-
-		ProrationDetails(long newPriceMinor, long newDiscountMinor, Coupon activeCoupon,
-				SubscriptionCoupon activeSubscriptionCoupon, long newAddonTotal, long newTaxMinor,
-				long prorationAmount, long headerSubtotal) {
-			this.newPriceMinor = newPriceMinor;
-			this.newDiscountMinor = newDiscountMinor;
-			this.activeCoupon = activeCoupon;
-			this.activeSubscriptionCoupon = activeSubscriptionCoupon;
-			this.newAddonTotal = newAddonTotal;
-			this.newTaxMinor = newTaxMinor;
-			this.prorationAmount = prorationAmount;
-			this.headerSubtotal = headerSubtotal;
-		}
+		long newPriceMinor;
+		long newDiscountMinor;
+		Coupon activeCoupon;
+		SubscriptionCoupon activeSubscriptionCoupon;
+		@SuppressWarnings("unused")
+		long newAddonTotal;
+		long newTaxMinor;
+		long prorationAmount;
+		long headerSubtotal;
 	}
 
 	private static class TrialingUpgradeContext {
@@ -405,8 +378,16 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 				? (newPriceMinor + newAddonTotal - unusedCredit - newTaxMinor)
 				: (newPriceMinor + newAddonTotal - unusedCredit);
 
-		return new ProrationDetails(newPriceMinor, newDiscountMinor, activeCoupon,
-				applicableScOpt.orElse(null), newAddonTotal, newTaxMinor, prorationAmount, headerSubtotal);
+		ProrationDetails details = new ProrationDetails();
+		details.newPriceMinor = newPriceMinor;
+		details.newDiscountMinor = newDiscountMinor;
+		details.activeCoupon = activeCoupon;
+		details.activeSubscriptionCoupon = applicableScOpt.orElse(null);
+		details.newAddonTotal = newAddonTotal;
+		details.newTaxMinor = newTaxMinor;
+		details.prorationAmount = prorationAmount;
+		details.headerSubtotal = headerSubtotal;
+		return details;
 	}
 
 	private SubscriptionDTO upgradeActiveSubscription(ActiveUpgradeContext ctx) {
@@ -449,9 +430,17 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		if (remainingDays <= 0)
 			remainingDays = 0;
 
-		ProrationLineItemsParam lineItemsParam = new ProrationLineItemsParam(invoice, newPlan, details.newPriceMinor,
-				unusedCredit, remainingDays, details.newTaxMinor, details.newDiscountMinor, details.activeCoupon,
-				details.activeSubscriptionCoupon, oldPlan.getName());
+		ProrationLineItemsParam lineItemsParam = new ProrationLineItemsParam();
+		lineItemsParam.invoice = invoice;
+		lineItemsParam.newPlan = newPlan;
+		lineItemsParam.newPriceMinor = details.newPriceMinor;
+		lineItemsParam.unusedCredit = unusedCredit;
+		lineItemsParam.remainingDays = remainingDays;
+		lineItemsParam.newTaxMinor = details.newTaxMinor;
+		lineItemsParam.newDiscountMinor = details.newDiscountMinor;
+		lineItemsParam.activeCoupon = details.activeCoupon;
+		lineItemsParam.activeSubscriptionCoupon = details.activeSubscriptionCoupon;
+		lineItemsParam.oldPlanName = oldPlan.getName();
 		saveProratedLineItems(lineItemsParam);
 
 		// Reset subscription period and save
@@ -484,7 +473,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 
 		auditLoggingService.logAction("UPGRADE_SUBSCRIPTION", ENTITY_SUBSCRIPTION, subscription.getId(), oldPlan,
 				newPlan);
-		scOpt.ifPresent(sc -> consumeOneTimeSubscriptionCoupon(sc));
+		scOpt.ifPresent(this::consumeOneTimeSubscriptionCoupon);
 		return mapToSubscriptionDTO(subscription);
 	}
 
@@ -638,16 +627,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 			long actualPauseDays = ChronoUnit.DAYS.between(pausedFrom, LocalDate.now());
 			long adjustmentDays = actualPauseDays - plannedPauseDays;
 			if (adjustmentDays != 0) {
-				if (subscription.getStatus() == Status.PAUSED && subscription.getTrialEndDate() != null
-					&& pausedFrom.isBefore(subscription.getTrialEndDate())) {
-					if (subscription.getTrialEndDate() != null) {
-						subscription.setTrialEndDate(subscription.getTrialEndDate().plusDays(adjustmentDays));
-					}
-					subscription.setCurrentPeriodStart(subscription.getCurrentPeriodStart().plusDays(adjustmentDays));
-					subscription.setCurrentPeriodEnd(subscription.getCurrentPeriodEnd().plusDays(adjustmentDays));
-				} else {
-					subscription.setCurrentPeriodEnd(subscription.getCurrentPeriodEnd().plusDays(adjustmentDays));
-				}
+				adjustSubscriptionDates(subscription, pausedFrom, adjustmentDays);
 			}
 		}
 
@@ -662,6 +642,17 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		subscriptionRepository.save(subscription);
 
 		return mapToSubscriptionDTO(subscription);
+	}
+
+	private void adjustSubscriptionDates(Subscription subscription, LocalDate pausedFrom, long adjustmentDays) {
+		if (subscription.getStatus() == Status.PAUSED && subscription.getTrialEndDate() != null
+			&& pausedFrom.isBefore(subscription.getTrialEndDate())) {
+			subscription.setTrialEndDate(subscription.getTrialEndDate().plusDays(adjustmentDays));
+			subscription.setCurrentPeriodStart(subscription.getCurrentPeriodStart().plusDays(adjustmentDays));
+			subscription.setCurrentPeriodEnd(subscription.getCurrentPeriodEnd().plusDays(adjustmentDays));
+		} else {
+			subscription.setCurrentPeriodEnd(subscription.getCurrentPeriodEnd().plusDays(adjustmentDays));
+		}
 	}
 
 	@Transactional
@@ -1065,7 +1056,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 			subscriptionItemRepository.delete(item);
 		}
 
-		auditLoggingService.logAction("REMOVE_ADDON", "Subscription", subscription.getId(), item, null);
+		auditLoggingService.logAction("REMOVE_ADDON", ENTITY_SUBSCRIPTION, subscription.getId(), item, null);
 		return mapToSubscriptionDTO(subscription);
 	}
 

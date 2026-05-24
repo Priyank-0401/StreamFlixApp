@@ -2568,11 +2568,15 @@ class CustomerSubscriptionServiceImplTest {
                 Coupon c1 = new Coupon(); c1.setDuration(Duration.FOREVER); c1.setAmount(10L);
                 SubscriptionCoupon sc1 = new SubscriptionCoupon(); sc1.setCoupon(c1); sc1.setStatus(Status.ACTIVE); sc1.setExpiresAt(LocalDateTime.now().plusDays(10));
                 when(subscriptionCouponRepository.findBySubscription_IdAndStatus(1L, Status.ACTIVE)).thenReturn(Optional.of(sc1));
-                customerSubscriptionService.getCurrentSubscription("test@test.com");
+                SubscriptionDTO dto1 = customerSubscriptionService.getCurrentSubscription("test@test.com");
+                assertNotNull(dto1);
+                assertEquals(10L, dto1.getDiscountMinor());
 
                 sc1.setExpiresAt(null);
                 when(subscriptionCouponRepository.findBySubscription_IdAndStatus(1L, Status.ACTIVE)).thenReturn(Optional.of(sc1));
-                customerSubscriptionService.getCurrentSubscription("test@test.com");
+                SubscriptionDTO dto2 = customerSubscriptionService.getCurrentSubscription("test@test.com");
+                assertNotNull(dto2);
+                assertEquals(10L, dto2.getDiscountMinor());
         }
 
         @Test
