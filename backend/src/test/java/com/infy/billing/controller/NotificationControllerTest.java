@@ -10,6 +10,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -124,5 +125,16 @@ class NotificationControllerTest {
 
 		verify(customerRepository, times(1)).findByUser_Id(1L);
 		verify(notificationService, never()).markAllAsRead(anyLong());
+	}
+
+	@Test
+	void testSeedTestData_Success() throws Exception {
+		mockMvc.perform(get("/api/notifications/seed-test-data").with(authentication(auth)))
+				.andExpect(status().isOk())
+				.andExpect(content().string("Triggered the real notification generation schedulers. Check your database/UI!"));
+
+		verify(notificationService, times(1)).generateRenewalReminders();
+		verify(notificationService, times(1)).generatePendingPaymentReminders();
+		verify(notificationService, times(1)).processPendingNotifications();
 	}
 }

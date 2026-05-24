@@ -384,8 +384,12 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 				.findByPlan_IdAndRegionAndCurrency(newPlan.getId(), customer.getCountry(), customer.getCurrency())
 				.map(PriceBookEntry::getPriceMinor)
 				.orElse(newPlan.getDefaultPriceMinor() != null ? newPlan.getDefaultPriceMinor() : 0L);
-		long newDiscountMinor = resolveDiscountMinor(scOpt, newPriceMinor, customer.getCurrency());
-		Coupon activeCoupon = scOpt.map(SubscriptionCoupon::getCoupon).orElse(null);
+
+		Optional<SubscriptionCoupon> applicableScOpt = scOpt.filter(sc -> 
+			sc.getCoupon().getDuration() != Duration.ONCE
+		);
+		long newDiscountMinor = resolveDiscountMinor(applicableScOpt, newPriceMinor, customer.getCurrency());
+		Coupon activeCoupon = applicableScOpt.map(SubscriptionCoupon::getCoupon).orElse(null);
 		long newAddonTotal = items.stream().filter(i -> i.getItemType() == ItemType.ADDON)
 				.mapToLong(i -> i.getUnitPriceMinor() * i.getQuantity()).sum();
 
@@ -402,7 +406,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 				: (newPriceMinor + newAddonTotal - unusedCredit);
 
 		return new ProrationDetails(newPriceMinor, newDiscountMinor, activeCoupon,
-				scOpt.orElse(null), newAddonTotal, newTaxMinor, prorationAmount, headerSubtotal);
+				applicableScOpt.orElse(null), newAddonTotal, newTaxMinor, prorationAmount, headerSubtotal);
 	}
 
 	private SubscriptionDTO upgradeActiveSubscription(ActiveUpgradeContext ctx) {
@@ -653,6 +657,9 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 			subscription.setStatus(Status.ACTIVE);
 		}
 
+		subscription.setPausedFrom(null);
+		subscription.setPausedTo(null);
+		subscriptionRepository.save(subscription);
 
 		return mapToSubscriptionDTO(subscription);
 	}
@@ -1137,7 +1144,7 @@ public class CustomerSubscriptionServiceImpl implements CustomerSubscriptionServ
 		Long addOnTotal = items.stream().filter(i -> i.getItemType() == ItemType.ADDON)
 				.mapToLong(i -> i.getUnitPriceMinor() != null ? i.getUnitPriceMinor() * i.getQuantity() : 0L).sum();
 
-		Long subtotal = basePrice + addOnTotal;
+		long subtotal = basePrice + addOnTotal - discountMinor;
 		if (subtotal < 0)
 			subtotal = 0L;
 

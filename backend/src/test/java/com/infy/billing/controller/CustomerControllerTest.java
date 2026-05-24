@@ -9,12 +9,16 @@ import com.infy.billing.enums.UserRole;
 import com.infy.billing.enums.Status;
 import com.infy.billing.enums.PaymentType;
 import com.infy.billing.enums.BillingPeriod;
+import com.infy.billing.repository.UserRepository;
 import com.infy.billing.service.CustomerService;
 import com.infy.billing.service.SubscriptionFlowService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import com.infy.billing.config.SecurityConfig;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -33,6 +37,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(CustomerController.class)
+@Import(SecurityConfig.class)
+@EnableMethodSecurity
 class CustomerControllerTest {
 
     @Autowired
@@ -46,6 +52,9 @@ class CustomerControllerTest {
 
     @MockitoBean
     private SubscriptionFlowService subscriptionFlowService;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     private User authUser;
     private UsernamePasswordAuthenticationToken auth;
@@ -94,44 +103,123 @@ class CustomerControllerTest {
         verify(customerService, times(1)).updateProfile(eq("test@test.com"), any(CustomerProfileDTO.class));
     }
 
-    // @Test
-    // void testGetAvailablePlans() throws Exception {
-    //     PlanDTO plan = new PlanDTO();
-    //     plan.setName("Pro");
-    //     when(customerService.getAvailablePlans()).thenReturn(List.of(plan));
+    @Test
+    void testGetAvailablePlans() throws Exception {
+        PlanDTO plan = new PlanDTO();
+        plan.setName("Pro");
+        when(customerService.getAvailablePlans(anyString())).thenReturn(List.of(plan));
 
-    //     mockMvc.perform(get("/api/customer/plans").with(authentication(auth)))
-    //             .andExpect(status().isOk())
-    //             .andExpect(jsonPath("$[0].name").value("Pro"));
+        mockMvc.perform(get("/api/customer/plans").with(authentication(auth)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Pro"));
 
-    //     verify(customerService, times(1)).getAvailablePlans();
-    // }
+        verify(customerService, times(1)).getAvailablePlans("IN");
+    }
 
-    // @Test
-    // void testGetFeaturedPlans() throws Exception {
-    //     PlanDTO plan = new PlanDTO();
-    //     plan.setName("Basic");
-    //     when(customerService.getFeaturedPlans()).thenReturn(List.of(plan));
+    @Test
+    void testGetFeaturedPlans() throws Exception {
+        PlanDTO plan = new PlanDTO();
+        plan.setName("Basic");
+        when(customerService.getFeaturedPlans(anyString())).thenReturn(List.of(plan));
 
-    //     mockMvc.perform(get("/api/customer/plans/featured").with(authentication(auth))) // permitAll
-    //             .andExpect(status().isOk())
-    //             .andExpect(jsonPath("$[0].name").value("Basic"));
+        mockMvc.perform(get("/api/customer/plans/featured").with(authentication(auth))) // permitAll
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Basic"));
 
-    //     verify(customerService, times(1)).getFeaturedPlans();
-    // }
+        verify(customerService, times(1)).getFeaturedPlans("IN");
+    }
 
-    // @Test
-    // void testGetAllPlans() throws Exception {
-    //     PlanDTO plan = new PlanDTO();
-    //     plan.setName("Enterprise");
-    //     when(customerService.getAllActivePlans()).thenReturn(List.of(plan));
+    @Test
+    void testGetAllPlans() throws Exception {
+        PlanDTO plan = new PlanDTO();
+        plan.setName("Enterprise");
+        when(customerService.getAllActivePlans(anyString())).thenReturn(List.of(plan));
 
-    //     mockMvc.perform(get("/api/customer/plans/all").with(authentication(auth))) // permitAll
-    //             .andExpect(status().isOk())
-    //             .andExpect(jsonPath("$[0].name").value("Enterprise"));
+        mockMvc.perform(get("/api/customer/plans/all").with(authentication(auth))) // permitAll
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Enterprise"));
 
-    //     verify(customerService, times(1)).getAllActivePlans();
-    // }
+        verify(customerService, times(1)).getAllActivePlans("IN");
+    }
+
+    @Test
+    void testGetAvailablePlans_WithRegionParam() throws Exception {
+        PlanDTO plan = new PlanDTO();
+        plan.setName("Pro");
+        when(customerService.getAvailablePlans("US")).thenReturn(List.of(plan));
+
+        mockMvc.perform(get("/api/customer/plans")
+                        .param("region", "US")
+                        .with(authentication(auth)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Pro"));
+
+        verify(customerService, times(1)).getAvailablePlans("US");
+    }
+
+    @Test
+    void testGetAvailablePlans_WithoutRegionParam_WithCustomer() throws Exception {
+        PlanDTO plan = new PlanDTO();
+        plan.setName("Pro");
+        CustomerProfileDTO mockProfile = new CustomerProfileDTO();
+        mockProfile.setCountry("CA");
+        
+        when(customerService.getProfile("test@test.com")).thenReturn(mockProfile);
+        when(customerService.getAvailablePlans("CA")).thenReturn(List.of(plan));
+
+        mockMvc.perform(get("/api/customer/plans").with(authentication(auth)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Pro"));
+
+        verify(customerService, times(1)).getAvailablePlans("CA");
+    }
+
+    @Test
+    void testGetAvailablePlans_WithoutRegionParam_WithoutCustomer() throws Exception {
+        PlanDTO plan = new PlanDTO();
+        plan.setName("Pro");
+        
+        when(customerService.getProfile("test@test.com")).thenThrow(new RuntimeException("Profile not found"));
+        when(customerService.getAvailablePlans("IN")).thenReturn(List.of(plan));
+
+        mockMvc.perform(get("/api/customer/plans").with(authentication(auth)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Pro"));
+
+        verify(customerService, times(1)).getAvailablePlans("IN");
+    }
+
+    @Test
+    void testGetAvailablePlans_WithEmptyRegionParam_WithCustomer() throws Exception {
+        PlanDTO plan = new PlanDTO();
+        plan.setName("Pro");
+        CustomerProfileDTO mockProfile = new CustomerProfileDTO();
+        mockProfile.setCountry("CA");
+        
+        when(customerService.getProfile("test@test.com")).thenReturn(mockProfile);
+        when(customerService.getAvailablePlans("CA")).thenReturn(List.of(plan));
+
+        mockMvc.perform(get("/api/customer/plans")
+                        .param("region", "   ")
+                        .with(authentication(auth)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Pro"));
+
+        verify(customerService, times(1)).getAvailablePlans("CA");
+    }
+
+    @Test
+    void testGetFeaturedPlans_WithoutUser() throws Exception {
+        PlanDTO plan = new PlanDTO();
+        plan.setName("Basic");
+        when(customerService.getFeaturedPlans("IN")).thenReturn(List.of(plan));
+
+        mockMvc.perform(get("/api/customer/plans/featured")) // No authentication
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("Basic"));
+
+        verify(customerService, times(1)).getFeaturedPlans("IN");
+    }
 
     @Test
     void testGetAvailableAddOns() throws Exception {

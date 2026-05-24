@@ -305,4 +305,24 @@ class FinanceControllerTest {
         assertEquals(mockPage, response.getBody());
         verify(revenueAnalyticsService, times(1)).getAllRevenueSnapshots(PageRequest.of(3, 15));
     }
+
+    @Test
+    void getInvoiceDetail_shouldReturnInvoiceDetail() {
+        InvoiceDetailDTO mockDetail = InvoiceDetailDTO.builder()
+                .invoiceNumber("INV-2026-1")
+                .customerId(2L)
+                .amount(190.0)
+                .status("OPEN")
+                .lineItems(Collections.emptyList())
+                .build();
+
+        when(revenueAnalyticsService.getInvoiceDetailById(1L)).thenReturn(mockDetail);
+
+        ResponseEntity<InvoiceDetailDTO> response = financeController.getInvoiceDetail(1L);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(mockDetail, response.getBody());
+        verify(revenueAnalyticsService, times(1)).getInvoiceDetailById(1L);
+    }
 }

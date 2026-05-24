@@ -214,6 +214,17 @@ class AdminControllerTest {
         verify(adminService, times(1)).updatePlan(eq(1L), any(Plan.class));
     }
 
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void testDeletePlan_Success() throws Exception {
+        doNothing().when(adminService).deletePlan(1L);
+
+        mockMvc.perform(delete("/api/admin/plans/1"))
+                .andExpect(status().isOk());
+
+        verify(adminService, times(1)).deletePlan(1L);
+    }
+
     // @Test
     // @WithMockUser(roles = "ADMIN")
     // void testTogglePlanStatus_Success() throws Exception {
