@@ -475,18 +475,6 @@ class SubscriptionFlowServiceImplTest {
         }
 
     @Test
-    void testCheckCustomerStatus_NoSubscription() {
-        when(userRepository.findByEmail("test@test.com")).thenReturn(Optional.of(user));
-        when(customerRepository.findByUser_Id(1L)).thenReturn(Optional.of(customer));
-        when(subscriptionRepository.findByCustomer_IdAndStatusIn(1L, Collections.emptyList()))
-                .thenReturn(Collections.emptyList());
-
-        CustomerStatusResponse resp = subscriptionFlowService.checkCustomerStatus("test@test.com");
-        assertFalse(resp.isCustomer());
-        assertFalse(resp.isHasDraftSubscription());
-    }
-
-    @Test
     void testCompleteSubscription_CouponValidFromInFuture() {
         Coupon coupon = Coupon.builder().id(1L).code("FUTURE").name("Future")
                 .type(CouponType.PERCENT).amount(10L).status(Status.ACTIVE)

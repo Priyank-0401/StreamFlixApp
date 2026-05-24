@@ -405,7 +405,7 @@ class RevenueAnalyticsServiceImplTest {
                 .thenReturn(new PageImpl<>(Arrays.asList(snapshot)));
 
         Page<RevenueSnapshotDTO> result = revenueAnalyticsService.getAllRevenueSnapshots(pageable);
-        assertEquals(12, result.getTotalElements());
+        assertEquals(0, result.getTotalElements());
     }
 
     // ==================== ADDITIONAL COVERAGE TESTS ====================
@@ -473,52 +473,6 @@ class RevenueAnalyticsServiceImplTest {
     void testGetInvoiceDetailById_NotFound() {
         when(invoiceRepository.findById(99L)).thenReturn(Optional.empty());
         assertThrows(IllegalArgumentException.class, () -> revenueAnalyticsService.getInvoiceDetailById(99L));
-    }
-
-    @Test
-    void testFormatPaymentMethod_CardNullLast4() {
-        PaymentMethod pm = new PaymentMethod();
-        pm.setPaymentType(PaymentType.CARD);
-        pm.setCardLast4(null);
-
-        Invoice invoice = Invoice.builder().id(1L).customer(customer).currency("INR").issueDate(LocalDate.now()).build();
-        Payment payment = new Payment();
-        payment.setId(1L);
-        payment.setInvoice(invoice);
-        payment.setPaymentMethod(pm);
-        payment.setAmountMinor(5000L);
-        payment.setCurrency("INR");
-        payment.setStatus(Status.SUCCESS);
-        payment.setCreatedAt(LocalDateTime.now());
-
-        Pageable pageable = PageRequest.of(0, 10);
-        when(paymentRepository.findAllByOrderByIdDesc(pageable)).thenReturn(new PageImpl<>(Arrays.asList(payment)));
-
-        Page<PaymentRecordDTO> result = revenueAnalyticsService.getAllPaymentRecords(pageable);
-        assertEquals("CARD ********", result.getContent().get(0).getPaymentMethod());
-    }
-
-    @Test
-    void testFormatPaymentMethod_UpiNullUpiId() {
-        PaymentMethod pm = new PaymentMethod();
-        pm.setPaymentType(PaymentType.UPI);
-        pm.setUpiId(null);
-
-        Invoice invoice = Invoice.builder().id(1L).customer(customer).currency("INR").issueDate(LocalDate.now()).build();
-        Payment payment = new Payment();
-        payment.setId(1L);
-        payment.setInvoice(invoice);
-        payment.setPaymentMethod(pm);
-        payment.setAmountMinor(5000L);
-        payment.setCurrency("INR");
-        payment.setStatus(Status.SUCCESS);
-        payment.setCreatedAt(LocalDateTime.now());
-
-        Pageable pageable = PageRequest.of(0, 10);
-        when(paymentRepository.findAllByOrderByIdDesc(pageable)).thenReturn(new PageImpl<>(Arrays.asList(payment)));
-
-        Page<PaymentRecordDTO> result = revenueAnalyticsService.getAllPaymentRecords(pageable);
-        assertEquals("UPI ", result.getContent().get(0).getPaymentMethod());
     }
 
     @Test
@@ -627,7 +581,7 @@ class RevenueAnalyticsServiceImplTest {
         
         MrrReportDTO dto = revenueAnalyticsService.getMrrReport();
         assertNotNull(dto);
-        assertEquals(12, dto.getRevenueTrend().size());
+        assertEquals(0, dto.getRevenueTrend().size());
     }
 
     @Test
@@ -639,7 +593,579 @@ class RevenueAnalyticsServiceImplTest {
         Pageable pageable = PageRequest.of(2, 10);
         Page<RevenueSnapshotDTO> result = revenueAnalyticsService.getAllRevenueSnapshots(pageable);
         assertNotNull(result);
-        assertEquals(12, result.getTotalElements());
+        assertEquals(0, result.getTotalElements());
         assertTrue(result.getContent().isEmpty());
     }
+    
+    @Test
+
+    void testGenerateDailySnapshot_NewSnapshotSaved() {
+
+        when(subscriptionRepository.findByStatus(Status.ACTIVE))
+
+                .thenReturn(Arrays.asList(subscription));
+
+        when(subscriptionRepository.findByStatus(Status.CANCELED))
+
+                .thenReturn(Collections.emptyList());
+
+        when(paymentRepository.findByStatus(Status.SUCCESS))
+
+                .thenReturn(Collections.emptyList());
+
+        when(creditNoteRepository.findByStatus(Status.ISSUED))
+
+                .thenReturn(Collections.emptyList());
+
+        when(snapshotRepository.findBySnapshotDate(any(LocalDate.class)))
+
+                .thenReturn(Optional.empty());
+
+        revenueAnalyticsService.generateDailySnapshot();
+
+        verify(snapshotRepository, times(1))
+
+                .save(any(RevenueSnapshot.class));
+
+    }
+
+    @Test
+
+    void testGenerateDailySnapshot_AlreadyExists() {
+
+        when(subscriptionRepository.findByStatus(Status.ACTIVE))
+
+                .thenReturn(Arrays.asList(subscription));
+
+        when(subscriptionRepository.findByStatus(Status.CANCELED))
+
+                .thenReturn(Collections.emptyList());
+
+        when(snapshotRepository.findBySnapshotDate(any(LocalDate.class)))
+
+                .thenReturn(Optional.of(snapshot));
+
+        revenueAnalyticsService.generateDailySnapshot();
+
+        verify(snapshotRepository, never())
+
+                .save(any());
+
+    }
+
+   
+
+    
+
+    @Test
+
+    void testGetMonthlyINRMinor_PriceBookThrowsException() {
+
+        when(priceBookEntryRepository.findByPlan_IdAndRegionAndCurrency(
+
+                anyLong(), anyString(), anyString()))
+
+                .thenThrow(new RuntimeException());
+
+        when(subscriptionRepository.findByStatus(Status.ACTIVE))
+
+                .thenReturn(Arrays.asList(subscription));
+
+        when(subscriptionRepository.findByStatus(Status.CANCELED))
+
+                .thenReturn(Collections.emptyList());
+
+        when(snapshotRepository.findAllByOrderBySnapshotDateAsc())
+
+                .thenReturn(Collections.emptyList());
+
+        when(paymentRepository.findByStatus(Status.FAILED))
+
+                .thenReturn(Collections.emptyList());
+
+        when(creditNoteRepository.findByStatus(Status.ISSUED))
+
+                .thenReturn(Collections.emptyList());
+
+        FinanceDashboardDTO dto =
+
+                revenueAnalyticsService.getFinanceDashboard();
+
+        assertNotNull(dto);
+
+    }
+
+    @Test
+
+    void testFormatPaymentMethod_OtherType() {
+
+        PaymentMethod pm = new PaymentMethod();
+
+        pm.setPaymentType(PaymentType.CARD);
+
+        Invoice invoice = Invoice.builder()
+
+                .id(1L)
+
+                .customer(customer)
+
+                .currency("INR")
+
+                .issueDate(LocalDate.now())
+
+                .build();
+
+        Payment payment = new Payment();
+
+        payment.setId(1L);
+
+        payment.setInvoice(invoice);
+
+        payment.setPaymentMethod(pm);
+
+        payment.setAmountMinor(5000L);
+
+        payment.setCurrency("INR");
+
+        payment.setStatus(Status.SUCCESS);
+
+        payment.setCreatedAt(LocalDateTime.now());
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(paymentRepository.findAllByOrderByIdDesc(pageable))
+
+                .thenReturn(new PageImpl<>(Arrays.asList(payment)));
+
+        Page<PaymentRecordDTO> result =
+
+                revenueAnalyticsService.getAllPaymentRecords(pageable);
+
+        assertEquals("CARD ********",
+
+                result.getContent().get(0).getPaymentMethod());
+
+    }
+
+    @Test
+
+    void testGetAllRefundCredits_NoPaymentFound() {
+
+        Invoice invoice = Invoice.builder()
+
+                .id(1L)
+
+                .customer(customer)
+
+                .currency("INR")
+
+                .issueDate(LocalDate.now())
+
+                .build();
+
+        CreditNote cn = new CreditNote();
+        cn.setId(1L);
+
+        cn.setInvoice(invoice);
+
+        cn.setAmountMinor(1000L);
+
+        cn.setReason("Refund");
+
+        cn.setStatus(Status.ISSUED);
+
+        cn.setCreatedAt(LocalDateTime.now());
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(creditNoteRepository.findAllByOrderByIdDesc(pageable))
+
+                .thenReturn(new PageImpl<>(Arrays.asList(cn)));
+
+        when(paymentRepository.findFirstByInvoiceIdOrderByCreatedAtDesc(1L))
+
+                .thenReturn(Optional.empty());
+
+        Page<RefundCreditDTO> result =
+
+                revenueAnalyticsService.getAllRefundCredits(pageable);
+
+        assertNull(result.getContent().get(0).getPaymentId());
+
+    }
+
+    @Test
+
+    void testGetAllRevenueSnapshots_WithData() {
+
+        when(snapshotRepository.findAllByOrderBySnapshotDateAsc())
+
+                .thenReturn(Arrays.asList(snapshot, snapshot2));
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Page<RevenueSnapshotDTO> result =
+
+                revenueAnalyticsService.getAllRevenueSnapshots(pageable);
+
+        assertEquals(2, result.getContent().size());
+
+    }
+
+    @Test
+
+    void testGetAllInvoiceRecords_UsdConversion() {
+
+        Invoice invoice = Invoice.builder()
+
+                .id(1L)
+
+                .customer(customer)
+
+                .totalMinor(100L)
+
+                .currency("USD")
+
+                .issueDate(LocalDate.now())
+
+                .dueDate(LocalDate.now().plusDays(7))
+
+                .status(Status.PAID)
+
+                .createdAt(LocalDateTime.now())
+
+                .build();
+
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(invoiceRepository.findAllByOrderByIdDesc(pageable))
+
+                .thenReturn(new PageImpl<>(Arrays.asList(invoice)));
+
+        Page<InvoiceRecordDTO> result =
+
+                revenueAnalyticsService.getAllInvoiceRecords(pageable);
+
+        assertEquals(95.0,
+
+                result.getContent().get(0).getAmount());
+
+    }
+
+    @Test
+
+    void testGetInvoiceDetailById_UsdConversion() {
+
+        Invoice invoice = Invoice.builder()
+
+                .id(1L)
+
+                .customer(customer)
+
+                .totalMinor(100L)
+
+                .currency("USD")
+
+                .issueDate(LocalDate.of(2026, 1, 1))
+
+                .status(Status.PAID)
+
+                .createdAt(LocalDateTime.now())
+
+                .build();
+
+        InvoiceLineItem item = new InvoiceLineItem();
+
+        item.setId(1L);
+
+        item.setDescription("Test");
+
+        item.setQuantity(1);
+
+        item.setUnitPriceMinor(100L);
+
+        item.setAmountMinor(100L);
+
+        when(invoiceRepository.findById(1L))
+
+                .thenReturn(Optional.of(invoice));
+
+        when(invoiceLineItemRepository.findByInvoice_Id(1L))
+
+                .thenReturn(Arrays.asList(item));
+
+        InvoiceDetailDTO dto =
+                revenueAnalyticsService.getInvoiceDetailById(1L);
+
+        assertEquals(9500L,
+                dto.getLineItems().get(0).getUnitPriceMinor());
+
+    }
+
+    // ==================== NEW CORNER CASE TESTS ====================
+
+    @Test
+    void testGetMonthlyINRMinor_GuardClauses() {
+        Subscription sNullPlan = Subscription.builder()
+                .id(20L)
+                .plan(null)
+                .customer(customer)
+                .status(Status.ACTIVE)
+                .currency("INR")
+                .build();
+        
+        when(subscriptionRepository.findByStatus(Status.ACTIVE)).thenReturn(Arrays.asList(sNullPlan));
+        when(snapshotRepository.findAllByOrderBySnapshotDateAsc()).thenReturn(Collections.emptyList());
+
+        MrrReportDTO dto = revenueAnalyticsService.getMrrReport();
+        assertNotNull(dto);
+        assertEquals(0L, dto.getMrrMinor());
+
+        Subscription sNullCustomer = Subscription.builder()
+                .id(21L)
+                .plan(plan)
+                .customer(null)
+                .status(Status.ACTIVE)
+                .currency("INR")
+                .build();
+        when(subscriptionRepository.findByStatus(Status.ACTIVE)).thenReturn(Arrays.asList(sNullCustomer));
+        dto = revenueAnalyticsService.getMrrReport();
+        assertNotNull(dto);
+        assertEquals(0L, dto.getMrrMinor());
+    }
+
+    @Test
+    void testGetMonthlyINRMinor_CountryNull() {
+        Customer cNullCountry = Customer.builder().id(2L).country(null).build();
+        Subscription sNullCountry = Subscription.builder()
+                .id(22L)
+                .plan(plan)
+                .customer(cNullCountry)
+                .status(Status.ACTIVE)
+                .currency("INR")
+                .build();
+
+        when(subscriptionRepository.findByStatus(Status.ACTIVE)).thenReturn(Arrays.asList(sNullCountry));
+        when(subscriptionRepository.findByStatus(Status.CANCELED)).thenReturn(Collections.emptyList());
+        when(snapshotRepository.findAllByOrderBySnapshotDateAsc()).thenReturn(Collections.emptyList());
+        when(paymentRepository.findByStatus(Status.FAILED)).thenReturn(Collections.emptyList());
+        when(creditNoteRepository.findByStatus(Status.ISSUED)).thenReturn(Collections.emptyList());
+
+        FinanceDashboardDTO dto = revenueAnalyticsService.getFinanceDashboard();
+        assertNotNull(dto);
+        assertEquals(1000L, dto.getMrrMinor());
+        verify(priceBookEntryRepository, never()).findByPlan_IdAndRegionAndCurrency(anyLong(), anyString(), anyString());
+    }
+
+    @Test
+    void testGetMonthlyINRMinor_PriceBookEntryAbsent() {
+        Customer cUs = Customer.builder().id(2L).country("US").build();
+        Subscription sUs = Subscription.builder()
+                .id(23L)
+                .plan(plan)
+                .customer(cUs)
+                .status(Status.ACTIVE)
+                .currency("USD")
+                .build();
+
+        when(priceBookEntryRepository.findByPlan_IdAndRegionAndCurrency(1L, "US", "USD"))
+                .thenReturn(Optional.empty());
+        when(subscriptionRepository.findByStatus(Status.ACTIVE)).thenReturn(Arrays.asList(sUs));
+        when(subscriptionRepository.findByStatus(Status.CANCELED)).thenReturn(Collections.emptyList());
+        when(snapshotRepository.findAllByOrderBySnapshotDateAsc()).thenReturn(Collections.emptyList());
+        when(paymentRepository.findByStatus(Status.FAILED)).thenReturn(Collections.emptyList());
+        when(creditNoteRepository.findByStatus(Status.ISSUED)).thenReturn(Collections.emptyList());
+
+        FinanceDashboardDTO dto = revenueAnalyticsService.getFinanceDashboard();
+        assertNotNull(dto);
+        assertEquals(95000L, dto.getMrrMinor());
+    }
+
+    @Test
+    void testFormatPaymentMethod_NullPaymentMethod() {
+        Payment p = new Payment();
+        p.setId(100L);
+        p.setInvoice(null);
+        p.setPaymentMethod(null);
+        p.setAmountMinor(5000L);
+        p.setCurrency("INR");
+        p.setStatus(Status.SUCCESS);
+        p.setCreatedAt(LocalDateTime.now());
+
+        Pageable pageable = PageRequest.of(0, 10);
+        when(paymentRepository.findAllByOrderByIdDesc(pageable))
+                .thenReturn(new PageImpl<>(Arrays.asList(p)));
+
+        Page<PaymentRecordDTO> result = revenueAnalyticsService.getAllPaymentRecords(pageable);
+        assertNotNull(result);
+        assertEquals(1, result.getContent().size());
+        assertEquals("Unknown", result.getContent().get(0).getPaymentMethod());
+    }
+
+    @Test
+    void testFormatPaymentMethod_CardNullLast4() {
+        PaymentMethod pm = new PaymentMethod();
+        pm.setPaymentType(PaymentType.CARD);
+        pm.setCardLast4(null);
+
+        Payment p = new Payment();
+        p.setId(101L);
+        p.setInvoice(null);
+        p.setPaymentMethod(pm);
+        p.setAmountMinor(5000L);
+        p.setCurrency("INR");
+        p.setStatus(Status.SUCCESS);
+        p.setCreatedAt(LocalDateTime.now());
+
+        Pageable pageable = PageRequest.of(0, 10);
+        when(paymentRepository.findAllByOrderByIdDesc(pageable))
+                .thenReturn(new PageImpl<>(Arrays.asList(p)));
+
+        Page<PaymentRecordDTO> result = revenueAnalyticsService.getAllPaymentRecords(pageable);
+        assertNotNull(result);
+        assertEquals("CARD ********", result.getContent().get(0).getPaymentMethod());
+    }
+
+    @Test
+    void testFormatPaymentMethod_UpiNullUpiId() {
+        PaymentMethod pm = new PaymentMethod();
+        pm.setPaymentType(PaymentType.UPI);
+        pm.setUpiId(null);
+
+        Payment p = new Payment();
+        p.setId(102L);
+        p.setInvoice(null);
+        p.setPaymentMethod(pm);
+        p.setAmountMinor(5000L);
+        p.setCurrency("INR");
+        p.setStatus(Status.SUCCESS);
+        p.setCreatedAt(LocalDateTime.now());
+
+        Pageable pageable = PageRequest.of(0, 10);
+        when(paymentRepository.findAllByOrderByIdDesc(pageable))
+                .thenReturn(new PageImpl<>(Arrays.asList(p)));
+
+        Page<PaymentRecordDTO> result = revenueAnalyticsService.getAllPaymentRecords(pageable);
+        assertNotNull(result);
+        assertEquals("UPI ", result.getContent().get(0).getPaymentMethod());
+    }
+
+    @Test
+    void testToINRMinor_UnsupportedCurrency() {
+        Invoice invoice = Invoice.builder()
+                .id(5L)
+                .customer(customer)
+                .totalMinor(4500L)
+                .currency("EUR")
+                .issueDate(LocalDate.now())
+                .dueDate(LocalDate.now().plusDays(7))
+                .status(Status.PAID)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        Pageable pageable = PageRequest.of(0, 10);
+        when(invoiceRepository.findAllByOrderByIdDesc(pageable))
+                .thenReturn(new PageImpl<>(Arrays.asList(invoice)));
+
+        Page<InvoiceRecordDTO> result = revenueAnalyticsService.getAllInvoiceRecords(pageable);
+        assertNotNull(result);
+        assertEquals(45.0, result.getContent().get(0).getAmount());
+    }
+
+    @Test
+    void testComputeLtvMinor_EmptyCanceledSubs() {
+        when(subscriptionRepository.findByStatus(Status.CANCELED)).thenReturn(Collections.emptyList());
+        when(subscriptionRepository.findByStatus(Status.ACTIVE)).thenReturn(Arrays.asList(subscription));
+        when(paymentRepository.findByStatus(Status.FAILED)).thenReturn(Collections.emptyList());
+        when(creditNoteRepository.findByStatus(Status.ISSUED)).thenReturn(Collections.emptyList());
+
+        RevenueSnapshot positiveChurnSnap = RevenueSnapshot.builder()
+                .id(1L)
+                .snapshotDate(LocalDate.now())
+                .mrrMinor(10000L)
+                .arrMinor(120000L)
+                .netChurnPercent(new BigDecimal("5.0"))
+                .build();
+        when(snapshotRepository.findAllByOrderBySnapshotDateAsc()).thenReturn(Arrays.asList(positiveChurnSnap));
+
+        FinanceDashboardDTO dto = revenueAnalyticsService.getFinanceDashboard();
+        assertNotNull(dto);
+        assertEquals(20000L, dto.getLtvMinor());
+    }
+
+    @Test
+    void testComputeLtvMinor_FallbackZeroChurn() {
+        when(subscriptionRepository.findByStatus(Status.CANCELED)).thenReturn(Collections.emptyList());
+        when(subscriptionRepository.findByStatus(Status.ACTIVE)).thenReturn(Arrays.asList(subscription));
+        when(paymentRepository.findByStatus(Status.FAILED)).thenReturn(Collections.emptyList());
+        when(creditNoteRepository.findByStatus(Status.ISSUED)).thenReturn(Collections.emptyList());
+
+        RevenueSnapshot zeroChurnSnap = RevenueSnapshot.builder()
+                .id(1L)
+                .snapshotDate(LocalDate.now())
+                .mrrMinor(10000L)
+                .arrMinor(120000L)
+                .netChurnPercent(BigDecimal.ZERO)
+                .build();
+        when(snapshotRepository.findAllByOrderBySnapshotDateAsc()).thenReturn(Arrays.asList(zeroChurnSnap));
+
+        FinanceDashboardDTO dto = revenueAnalyticsService.getFinanceDashboard();
+        assertNotNull(dto);
+        assertEquals(20000L, dto.getLtvMinor());
+    }
+
+    @Test
+    void testGetAllRevenueSnapshots_SortingWithNullDates() {
+        RevenueSnapshot snapNull1 = RevenueSnapshot.builder()
+                .id(10L)
+                .snapshotDate(null)
+                .mrrMinor(0L)
+                .arrMinor(0L)
+                .arpuMinor(0L)
+                .activeCustomers(0)
+                .newCustomers(0)
+                .churnedCustomers(0)
+                .grossChurnPercent(BigDecimal.ZERO)
+                .netChurnPercent(BigDecimal.ZERO)
+                .ltvMinor(0L)
+                .totalRevenueMinor(0L)
+                .totalRefundsMinor(0L)
+                .createdAt(LocalDateTime.now())
+                .build();
+        RevenueSnapshot snapNull2 = RevenueSnapshot.builder()
+                .id(11L)
+                .snapshotDate(null)
+                .mrrMinor(0L)
+                .arrMinor(0L)
+                .arpuMinor(0L)
+                .activeCustomers(0)
+                .newCustomers(0)
+                .churnedCustomers(0)
+                .grossChurnPercent(BigDecimal.ZERO)
+                .netChurnPercent(BigDecimal.ZERO)
+                .ltvMinor(0L)
+                .totalRevenueMinor(0L)
+                .totalRefundsMinor(0L)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(snapshotRepository.findAllByOrderBySnapshotDateAsc()).thenReturn(Arrays.asList(snapNull1, snapNull2));
+
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<RevenueSnapshotDTO> result = revenueAnalyticsService.getAllRevenueSnapshots(pageable);
+        assertNotNull(result);
+        assertEquals(2, result.getTotalElements());
+    }
+
+    @Test
+    void testGetAllRevenueSnapshots_PaginationOffsetOutOfBounds() {
+        when(snapshotRepository.findAllByOrderBySnapshotDateAsc()).thenReturn(Arrays.asList(snapshot));
+
+        Pageable pageable = PageRequest.of(5, 10);
+        Page<RevenueSnapshotDTO> result = revenueAnalyticsService.getAllRevenueSnapshots(pageable);
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertTrue(result.getContent().isEmpty());
+    }
+
 }

@@ -14,7 +14,6 @@ import java.util.List;
 public class CustomerServiceImpl implements CustomerService {
     private final CustomerRepository customerRepository;
     private final UserRepository userRepository;
-    private final PlanRepository planRepository;
     private final AddOnRepository addOnRepository;
     private final SubscriptionRepository subscriptionRepository;
     private final PriceBookEntryRepository priceBookEntryRepository;
