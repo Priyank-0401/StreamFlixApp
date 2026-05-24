@@ -4,10 +4,13 @@ import com.infy.billing.dto.customer.SupportMessageDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -92,36 +95,29 @@ class CustomerSupportServiceImplTest {
         assertTrue(hasQuestion, "Expected a FAQ about " + topic);
     }
 
-    @Test
-    void testSendSupportMessage_DoesNotThrow() {
-        SupportMessageDTO dto = new SupportMessageDTO();
-        dto.setSubject("Test Subject");
-        dto.setMessage("Test message body");
-        dto.setCategory("BILLING");
-        assertDoesNotThrow(() -> customerSupportService.sendSupportMessage("user@example.com", dto));
+    @ParameterizedTest
+    @MethodSource("sendSupportMessageArgs")
+    void testSendSupportMessage_DoesNotThrow(String email, SupportMessageDTO dto) {
+        assertDoesNotThrow(() -> customerSupportService.sendSupportMessage(email, dto));
     }
 
-    @Test
-    void testSendSupportMessage_NullEmail_DoesNotThrow() {
-        SupportMessageDTO dto = new SupportMessageDTO();
-        dto.setSubject("Test Subject");
-        dto.setMessage("Test message body");
-        dto.setCategory("BILLING");
-        assertDoesNotThrow(() -> customerSupportService.sendSupportMessage(null, dto));
-    }
+    private static Stream<Arguments> sendSupportMessageArgs() {
+        SupportMessageDTO standard = new SupportMessageDTO();
+        standard.setSubject("Test Subject");
+        standard.setMessage("Test message body");
+        standard.setCategory("BILLING");
 
-    @Test
-    void testSendSupportMessage_NullMessage_DoesNotThrow() {
-        assertDoesNotThrow(() -> customerSupportService.sendSupportMessage("user@example.com", null));
-    }
+        SupportMessageDTO populated = new SupportMessageDTO();
+        populated.setSubject("Billing Issue");
+        populated.setMessage("I was charged twice for my subscription this month.");
+        populated.setCategory("BILLING");
 
-    @Test
-    void testSendSupportMessage_WithPopulatedDTO() {
-        SupportMessageDTO dto = new SupportMessageDTO();
-        dto.setSubject("Billing Issue");
-        dto.setMessage("I was charged twice for my subscription this month.");
-        dto.setCategory("BILLING");
-        assertDoesNotThrow(() -> customerSupportService.sendSupportMessage("customer@test.com", dto));
+        return Stream.of(
+                Arguments.of("user@example.com", standard),
+                Arguments.of(null, standard),
+                Arguments.of("user@example.com", null),
+                Arguments.of("customer@test.com", populated)
+        );
     }
 
     @Test

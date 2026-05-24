@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,7 +44,7 @@ public class SubscriptionFlowServiceImpl implements SubscriptionFlowService {
     private SubscriptionFlowService self;
 
     @Autowired
-    public void setSelf(@org.springframework.context.annotation.Lazy SubscriptionFlowService self) {
+    public void setSelf(@Lazy SubscriptionFlowService self) {
         this.self = self;
     }
 
