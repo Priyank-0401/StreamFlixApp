@@ -35,6 +35,7 @@ public class SecurityConfig {
 						.requestMatchers("/api/customer/login", "/api/customer/register").permitAll()
 						.requestMatchers("/api/customer/plans/featured", "/api/customer/plans/all").permitAll()
 						.requestMatchers("/api/customer/coupons", "/api/customer/coupons/validate").permitAll()
+						.requestMatchers("/api/notifications/seed-test-data").permitAll()
 						.requestMatchers("/api/manager/login").permitAll().requestMatchers("/logout").permitAll()
 						.requestMatchers("/api/auth/me", "/api/auth/expired").permitAll().requestMatchers("/")
 						.permitAll().requestMatchers("/api/**").authenticated().anyRequest().authenticated())
