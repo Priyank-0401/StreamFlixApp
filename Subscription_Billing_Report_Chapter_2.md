@@ -107,83 +107,32 @@ To prevent memory exhaustion during recurring runs, the daily billing cron job e
 ## 2.3 Use Case Scenarios
 The following use case scenarios describe the key interactions between users and the Subscription Billing & Revenue Management System across the primary functional modules.
 
-### Use Case 1: Customer Subscribing to a Plan
-* **Actors**: Customer (Primary), Billing Engine, Mock Payment Gateway (Systems)
-* **Pre-conditions**: Customer has registered, logged in, and is on the plan onboarding wizard. The base plan and add-ons exist in the catalog.
-* **Flow**:
-  1. The Customer selects a subscription plan (e.g., premium base plan) and selects an optional add-on (e.g., streaming booster).
-  2. The Customer enters coupon code "DISCOUNT20" and inputs credit card credentials.
-  3. The system validates the coupon, calculates tax rates based on the customer's region, and displays the total due amount.
-  4. The Customer clicks "Confirm Purchase."
-  5. The system requests card tokenization, applies an idempotency key, and calls the Mock Payment Gateway to process the initial charge.
-  6. The gateway returns a "SUCCESS" response.
-  7. The system creates a new Subscription record, sets status to "Active," generates a finalized Invoice marked "Paid," creates a Payment record, and emails a receipt to the customer.
+Use Case 1: Customer Subscribing to a Plan
+In this scenario, a registered customer accesses the subscription onboarding wizard from their dashboard. The customer browses the plan catalog, selects their preferred base plan (such as a Premium streaming plan), and selects any optional add-ons to customize their subscription. The customer then enters a promotional coupon code and inputs their credit card details. The system validates the coupon constraints, checks if the coupon has expired, determines regional tax rates, and displays a summary invoice outlining the base fee, add-on costs, discount amount, calculated taxes, and final payable total.
 
-### Use Case 2: Scheduled Renewal Billing Engine Run
-* **Actors**: Billing Engine (Scheduler), Mock Payment Gateway (Systems)
-* **Pre-conditions**: The Spring `@Scheduled` cron job triggers at midnight UTC.
-* **Flow**:
-  1. The Billing Engine queries the database for all active subscriptions where `current_period_end` is between now and the next 24 hours.
-  2. The engine loops through the matched subscriptions and retrieves the active plan, setup fees, add-ons, and coupon mappings.
-  3. The engine creates an Invoice record marked "Draft" and calculates line-item totals, discounts, and regional taxes.
-  4. The engine updates the Invoice status to "Open" and sets the transaction UUID.
-  5. The engine submits the payment request to the Mock Payment Gateway.
-  6. On successful capture, the system updates the Invoice status to "Paid," updates the Subscription's `current_period_start` and `current_period_end` dates for the next month, and logs a successful payment record.
+Once the customer clicks "Confirm Purchase," the system generates a secure transaction token for the credit card and applies an idempotency key before submitting a charge request to the Mock Payment Gateway. If the gateway confirms a successful capture, the system updates the customer's account balance, creates a new Subscription record marked "Active" in the database, establishes the billing period start and end dates, generates a finalized Invoice marked "Paid," records the payment, and triggers the Notification Engine to email a detailed receipt.
 
-### Use Case 3: Subscription Mid-Cycle Modifications (Upgrade/Downgrade and Pause/Resume)
-* **Actors**: Customer (Primary), Billing Engine (System)
-* **Pre-conditions**: Customer has an active subscription.
-* **Flow A (Plan Upgrade/Downgrade with Proration)**:
-  1. The Customer logs in, navigates to subscription details, and selects the "Change Plan" option.
-  2. The Customer selects an upgraded tier (e.g., Standard to Premium) mid-way through their 30-day billing cycle (Day 15 of 30).
-  3. The system calculates the proration credits and debits:
-     * *Credit*: Computes the unused portion of the old plan: $(15 / 30) \times \text{Old Plan Price}$.
-     * *Debit*: Computes the cost of the new plan for the remaining days: $(15 / 30) \times \text{New Plan Price}$.
-  4. The system subtracts the credit from the debit to calculate the net proration charge.
-  5. The system prompts the user with the proration summary and charge details.
-  6. The Customer clicks "Confirm Change."
-  7. The system charges the net amount immediately, updates the Subscription items to the new plan, issues a proration invoice, and updates the billing ledger.
-* **Flow B (Pause and Resume Subscription)**:
-  1. The Customer logs in, selects their active subscription, and clicks the "Pause Subscription" option.
-  2. The Customer enters a pause start date and optionally a resume date (e.g., pausing for 15 days during vacation).
-  3. The system validates the request and sets the subscription status to "PAUSED", recording the `paused_from` timestamp in the database.
-  4. During the paused interval, the automated Billing Engine skips this subscription during daily cron renewal runs, preventing invoicing.
-  5. On the pause end date (or if the customer manually clicks "Resume Subscription" early), the system updates the status back to "ACTIVE", recalculates the new billing cycle end date based on the paused duration, and schedules the next renewal invoice run.
+Use Case 2: Scheduled Renewal Billing Engine Run
+This use case is triggered automatically by a daily background scheduler configured via Spring's `@Scheduled` annotation. At midnight UTC, the Billing Engine queries the database to select all active subscriptions that are due for renewal within the next 24 hours. The engine processes the subscriptions in paginated batches, retrieving plan details, active add-on items, regional taxes, and valid coupon associations for each customer. It then constructs a draft invoice containing itemized line items and calculates the total amount due.
 
-### Use Case 4: Dunning Policy Execution on Payment Failure
-* **Actors**: Billing Engine, Notification Engine (Systems), Customer (Secondary)
-* **Pre-conditions**: The automated billing engine renewal run encounters a payment failure (e.g., "Insufficient Funds" or "Expired Card") from the gateway.
-* **Flow**:
-  1. The Billing Engine receives a "FAILED" response from the gateway.
-  2. The system transitions the Subscription status from "Active" to "Past Due" and flags the invoice as unpaid.
-  3. The system records the transaction error code in the `DunningRetryLog` table.
-  4. The Notification Engine sends a payment failure email to the customer with a direct link to update their payment details.
-  5. The dunning scheduler schedules a second retry attempt at T+1 day, a third at T+3 days, and a final attempt at T+7 days.
-  6. If the customer updates their card details before the final attempt, a charge is triggered. On success, the status transitions back to "Active."
-  7. If the final retry attempt fails at T+7, the dunning scheduler transitions the Subscription status to "Canceled" and updates the database records.
+After final calculations, the system updates the Invoice status to "Open" and generates a unique idempotency transaction key. The Billing Engine then attempts to charge the customer's saved payment method through the gateway. On successful capture, the invoice status is updated to "Paid," a payment transaction is recorded, and the subscription's validity dates are extended for the next billing cycle. If the payment attempt fails, the system transitions the subscription status to "Past Due" and enqueues the invoice in the dunning retry system.
 
-### Use Case 5: Finance Manager Generating Revenue Analytics Report
-* **Actors**: Finance Manager (Primary), Database (System)
-* **Pre-conditions**: Finance Manager is logged in and navigates to the Revenue Analytics Dashboard.
-* **Flow**:
-  1. The Finance Manager selects the date range and granularity (monthly).
-  2. The frontend sends requests to `/api/v1/reports/revenue` and `/api/v1/reports/mrr`.
-  3. The backend executes aggregations on the `RevenueSnapshot` and `Subscription` tables to calculate metrics:
-     * *MRR*: Sum of active subscription unit prices adjusted to their monthly equivalent.
-     * *ARR*: Computed as $\text{MRR} \times 12$.
-     * *Churn*: Total lost subscriptions divided by active subscriptions.
-  4. The backend returns the calculated data arrays as JSON.
-  5. The frontend React dashboard renders the metrics as visual charts and graphs.
-  6. The Finance Manager clicks "Export PDF" to download the formatted report.
+Use Case 3: Subscription Mid-Cycle Modifications (Upgrade/Downgrade and Pause/Resume)
+This scenario describes how customers make mid-cycle adjustments, including plan changes or pausing services. To change plans, the customer accesses the subscription settings and selects a new plan. The system calculates the unused credit from the old plan and the cost of the new plan for the remaining days of the cycle. It subtracts the credit from the debit to calculate the net proration amount. Once the customer reviews the proration summary and confirms the change, the system processes the payment, updates the subscription record to reflect the new plan, and issues a proration invoice.
 
-### Use Case 6: Support Agent Processing a Refund and Issuing a Credit Note
-* **Actors**: Support Agent (Primary), Customer, Billing System (Secondary)
-* **Pre-conditions**: A customer requests a refund for a recent billing error.
-* **Flow**:
-  1. The Support Agent logs in, navigates to the Support Console, and searches for the customer's account by email.
-  2. The agent selects the disputed invoice from the payment history timeline.
-  3. The agent clicks "Process Refund" and selects the refund type (Full or Partial), entering "Billing Dispute" as the reason.
-  4. The system calls the payment gateway refund API using the payment transaction reference ID.
-  5. The gateway confirms the refund.
-  6. The system generates a Credit Note record containing the refunded amount and links it to the original Invoice.
-  7. The system updates the original Invoice balance and logs the action in the `AuditLog` table.
+Alternatively, if the customer wants to pause their services temporarily, they select the pause option and specify the start and end dates. The system validates the request and sets the subscription status to "Paused," recording the timestamp in the database. During this period, the automated Billing Engine skips the subscription during renewal runs. On the pause end date, or if resumed early, the system updates the status back to "Active," recalculates the renewal end date based on the paused duration, and schedules the next billing run.
+
+Use Case 4: Dunning Policy Execution on Payment Failure
+This scenario begins when a scheduled renewal or initial payment attempt returns a failure response (e.g., "Insufficient Funds" or "Expired Card") from the gateway. The Billing Engine captures the failure status, updates the Subscription state to "Past Due," and records the transaction details in the `DunningRetryLog` table. The Notification Engine immediately emails the customer, alerting them to the payment issue and providing a secure portal link to update their card details.
+
+The dunning scheduler automatically schedules subsequent payment retries at intervals of T+1 day, T+3 days, and T+7 days. If the customer updates their card credentials before the final attempt, the system triggers an immediate charge; on success, the subscription transitions back to "Active." If all retry attempts fail, the dunning engine transitions the subscription status to "Canceled" or "On Hold" based on administrative policy, stops further billing runs, and logs the outcome.
+
+Use Case 5: Finance Manager Generating Revenue Analytics Report
+In this scenario, a logged-in Finance Manager accesses the analytics dashboard to evaluate company cash flows and customer retention. The manager specifies a date range and filters by billing frequency or geographical region. The frontend React application triggers requests to the backend endpoints `/api/v1/reports/revenue` and `/api/v1/reports/mrr`. The backend queries the database, aggregating records from the `RevenueSnapshot` and `Subscription` tables.
+
+The system calculates key performance metrics, such as Monthly Recurring Revenue (MRR), Annual Recurring Revenue (ARR), and Churn rates, and returns the aggregated data arrays as JSON. The frontend React application displays these metrics in interactive charts and graphs. The Finance Manager can download a formatted PDF or CSV report containing these figures for audit purposes.
+
+Use Case 6: Support Agent Processing a Refund and Issuing a Credit Note
+This use case details how a Support Agent resolves a billing dispute. The agent searches for the customer's profile using the support lookup tool, reviews the invoice history timeline, and selects the disputed invoice. The agent clicks "Process Refund," enters the refund amount, and logs a description of the issue.
+
+The system triggers a refund request to the Mock Payment Gateway. Once the gateway confirms the refund, the system generates a Credit Note linked to the original invoice, updates the invoice balance, and writes a log to the `AuditLog` table.
