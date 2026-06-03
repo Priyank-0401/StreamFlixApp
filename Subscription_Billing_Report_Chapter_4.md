@@ -145,6 +145,70 @@ The Support & Customer Adjustment Module helps support agents resolve customer i
 ### 4.5.8 Notifications & Audit Logging Module
 The Notifications & Audit Logging Module manages communications and compliance. The notification service triggers emails for upcoming renewals, payment receipts, and billing failures, logging sent messages in the database. The audit log service records administrative and financial actions to ensure compliance.
 
+### 4.5.9 Proration Engine Design
+The Proration Engine is responsible for dynamically calculating charges and credits when a customer requests a change to their subscription plan (such as upgrading or downgrading) in the middle of a billing cycle. This logic ensures the customer is charged only for the services they consume, preventing double-billing while protecting platform revenue.
+
+#### 1. Remaining Days Calculation
+When a plan change is initiated, the engine retrieves the current billing period boundaries: the cycle start date ($T_{start}$) and the next scheduled renewal date ($T_{end}$). The total duration of the cycle in days ($D_{total}$) and the remaining days in the active cycle ($D_{remaining}$) are calculated as:
+
+$$D_{total} = T_{end} - T_{start}$$
+$$D_{remaining} = T_{end} - T_{current}$$
+
+where $T_{current}$ represents the timestamp of the modification request.
+
+#### 2. Credit Amount Calculation (Unused Portion of Old Plan)
+The credit amount ($C_{unused}$) represents the monetary value of the unused period on the customer's existing plan (Plan A). It is calculated by dividing the base price of the existing plan ($P_{old}$) by the total days in the cycle, then multiplying by the remaining days:
+
+$$C_{unused} = \left( \frac{P_{old}}{D_{total}} \right) \times D_{remaining}$$
+
+This calculated credit is stored as a temporary balance credit in the system database.
+
+#### 3. Debit Amount Calculation (Remaining Portion of New Plan)
+The debit amount ($D_{new}$) represents the cost of the new plan (Plan B) for the remaining duration of the current billing cycle. It is calculated based on the price of the new plan ($P_{new}$):
+
+$$D_{new} = \left( \frac{P_{new}}{D_{total}} \right) \times D_{remaining}$$
+
+#### 4. Final Payable Amount Calculation
+The proration engine computes the net difference ($A_{net}$) between the debit amount and the credit amount:
+
+$$A_{net} = D_{new} - C_{unused}$$
+
+The operational behavior splits based on the sign of $A_{net}$:
+*   **Upgrade Flow ($A_{net} > 0$):** If the new plan is more expensive, the customer is billed the net positive difference $A_{net}$ immediately. A mid-cycle invoice is generated, the card on file is charged, and the subscription is transitioned to the new plan tier. The billing renewal date ($T_{end}$) remains unchanged, ensuring the customer retains their original billing cycle.
+*   **Downgrade Flow ($A_{net} < 0$):** If the new plan is cheaper, the net difference is negative, meaning the customer has overpaid. Instead of issuing an immediate refund, the absolute value of $A_{net}$ is credited to the customer's account balance ledger. During the next renewal run, the billing engine deducts this credit balance from the renewal invoice before charging the payment gateway. The plan change is updated immediately in the database.
+
+#### 5. Proration Engine Workflow Diagram
+The transactional logic flow executed by the proration engine is described in the flowchart below:
+
+```
+                  [Customer Requests Plan Change]
+                                │
+                                ▼
+               [Retrieve Cycle Start & End Dates]
+                                │
+                                ▼
+         [Calculate Cycle Days & Remaining Days (D_rem)]
+                                │
+                                ▼
+      [Calculate Unused Credit: C = (P_old / D_tot) * D_rem]
+                                │
+                                ▼
+       [Calculate New Debit: D = (P_new / D_tot) * D_rem]
+                                │
+                                ▼
+               [Calculate Net Amount: Net = D - C]
+                                │
+             ┌──────────────────┴──────────────────┐
+             ▼ (Net > 0: Upgrade)                  ▼ (Net < 0: Downgrade)
+     [Generate Mid-Cycle Invoice]             [Apply Net Credit to Account]
+             │                                     │
+             ▼                                     ▼
+     [Charge Payment Gateway]                 [Update Subscription to New Plan]
+             │                                     │
+             ▼                                     ▼
+     [Update Subscription to New Plan]        [Deduct Credit on Next Renewal]
+```
+
 ---
 
 ## 4.6 Billing Lifecycle Workflow
