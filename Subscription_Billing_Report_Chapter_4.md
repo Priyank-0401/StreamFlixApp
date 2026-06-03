@@ -144,3 +144,37 @@ The Support & Customer Adjustment Module helps support agents resolve customer i
 
 ### 4.5.8 Notifications & Audit Logging Module
 The Notifications & Audit Logging Module manages communications and compliance. The notification service triggers emails for upcoming renewals, payment receipts, and billing failures, logging sent messages in the database. The audit log service records administrative and financial actions to ensure compliance.
+
+---
+
+## 4.6 Billing Lifecycle Workflow
+
+The subscription billing lifecycle is an automated system-driven process that coordinates plan catalog selection, subscription instantiation, invoice generation, payment capture, and error recovery to manage customer accounts while reducing involuntary churn. This workflow is structured as follows:
+
+### 4.6.1 Customer Purchase
+The workflow begins when a customer browses the subscription plans, selects a billing tier (e.g., Monthly or Annual), enters payment credentials, and submits the checkout form. The React client validates inputs before transmitting the request as a JSON payload to the REST endpoint.
+
+### 4.6.2 Subscription Creation
+Upon receiving the checkout payload, the billing service initializes a new subscription entity in the database. The record is assigned a unique primary key identifier, and its state is set to an initial status of `PENDING` or `TRIALING`. The subscription maps the customer to their selected plan, configuring dates for the billing cycle start and the next renewal run.
+
+### 4.6.3 Invoice Generation
+Immediately after database creation, the invoicing engine is invoked. It aggregates the plan's base price, configurations, regional tax rates, and discount codes to generate an itemized invoice. This record, along with corresponding line items, is persisted in the ledger with a status of `UNPAID`.
+
+### 4.6.4 Payment Capture Attempt
+With the invoice created, the payment execution service initiates an API call to the payment gateway using the customer's stored payment credentials. The system records the transaction attempt in the payment ledger.
+
+### 4.6.5 Success Flow: Active State Transition
+If the gateway returns a successful response code, the payment service updates the transaction record to `SUCCESS` and marks the invoice as `PAID`. The subscription status is upgraded to `ACTIVE`. A webhook triggers the notification engine to email a PDF payment receipt generated via the OpenPDF library, and updates the customer portal UI to reflect full access.
+
+### 4.6.6 Failure and Dunning Recovery Flow
+If the gateway returns a failure (e.g., due to insufficient funds, expired cards, or network timeouts), the invoice remains `UNPAID`. The system initiates a dunning recovery process:
+* **State Change**: The subscription status transitions to `PAST_DUE`.
+* **Scheduled Retries**: The scheduler queue logs a dunning entry, programming retries at fixed intervals of `T+1`, `T+3`, and `T+7` days.
+* **Customer Alerts**: During each retry window, the notification service sends automated email alerts requesting the customer to update their payment details.
+* **Resolution Path**: If any retry payment succeeds, the subscription transitions to `ACTIVE` and the invoice is updated to `PAID`. If all dunning retries fail after `T+7` days, the subscription is updated to `CANCELLED`, terminating customer access.
+
+---
+
+### Figure 4.2: Billing Lifecycle Workflow
+*(Refer to the Billing Lifecycle flow diagram showing the transition paths between initial customer purchase, invoice generation, payment confirmation, and the T+1, T+3, and T+7 dunning retry steps)*
+
